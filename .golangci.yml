@@ -1,0 +1,51 @@
+version: "2"
+
+run:
+  timeout: 5m
+  go: "1.24"
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - misspell
+    - gocritic
+    - revive
+    - bodyclose
+    - nolintlint
+    - unparam
+    - prealloc
+    - gosec
+  settings:
+    revive:
+      rules:
+        - name: exported
+          disabled: false
+        - name: package-comments
+          disabled: true
+    gosec:
+      excludes:
+        # Subprocess call is the whole point of this project.
+        - G204
+  exclusions:
+    generated: lax
+    rules:
+      - path: _test\.go
+        linters: [gosec, unparam, gocritic]
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/amiwrpremium/macontrol
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
