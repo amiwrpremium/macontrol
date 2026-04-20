@@ -1,0 +1,42 @@
+# Binaries
+/bin/
+/dist/
+/macontrol
+*.test
+*.out
+*.prof
+
+# Go
+vendor/
+coverage.*
+go.work
+go.work.sum
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.nvim/
+
+# Build
+/release/
+goreleaser.log
+
+# Logs
+*.log

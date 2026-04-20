@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: ❓ Question / discussion
+    url: https://github.com/amiwrpremium/macontrol/discussions
+    about: Ask questions, share ideas, show off custom Shortcuts you exposed via macontrol.
+  - name: 🔒 Security vulnerability
+    url: https://github.com/amiwrpremium/macontrol/security/advisories/new
+    about: Report privately via GitHub security advisories. Do not open a public issue.

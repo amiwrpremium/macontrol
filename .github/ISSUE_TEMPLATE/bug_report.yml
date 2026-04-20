@@ -1,0 +1,107 @@
+name: 🐛 Bug report
+description: Something doesn't work as expected.
+title: "fix: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Please fill out as much as you can —
+        the more detail, the faster we can fix it.
+
+        Run `macontrol doctor` and paste the output below. It surfaces macOS version,
+        chip, capability gaps, missing brew deps, and permission state — most issues
+        are diagnosable from that alone.
+
+  - type: input
+    id: version
+    attributes:
+      label: macontrol version
+      description: Output of `macontrol --version`.
+      placeholder: "v0.3.1 (abc1234)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: macos
+    attributes:
+      label: macOS version
+      options:
+        - "11 Big Sur"
+        - "12 Monterey"
+        - "13 Ventura"
+        - "14 Sonoma"
+        - "15 Sequoia"
+        - "16 (or newer)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: chip
+    attributes:
+      label: Apple Silicon chip
+      options:
+        - M1
+        - M1 Pro / Max / Ultra
+        - M2
+        - M2 Pro / Max / Ultra
+        - M3
+        - M3 Pro / Max
+        - M4
+        - M4 Pro / Max
+        - Other / unsure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install?
+      options:
+        - Homebrew (amiwrpremium/tap/macontrol)
+        - Manual (scripts/install.sh)
+        - Built from source
+    validations:
+      required: true
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: "`macontrol doctor` output"
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Exact button/flow you tapped in Telegram.
+      placeholder: |
+        1. /menu
+        2. Tap 🔊 Sound
+        3. Tap +5
+        4. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: "`tail -n 100 ~/Library/Logs/macontrol/macontrol.log`"
+      render: text
