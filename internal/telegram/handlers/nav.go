@@ -12,8 +12,7 @@ import (
 
 func handleNav(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
 	r := Reply{Deps: d}
-	switch data.Action {
-	case "home":
+	if data.Action == "home" {
 		r.Ack(ctx, q)
 		return r.Edit(ctx, q, keyboards.HomeInlineTitle, keyboards.InlineHome())
 	}

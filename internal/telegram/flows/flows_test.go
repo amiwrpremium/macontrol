@@ -451,8 +451,8 @@ func TestRecordFlow_UploadFails(t *testing.T) {
 
 type fakeFlow struct{ name string }
 
-func (f fakeFlow) Name() string                              { return f.name }
-func (f fakeFlow) Start(context.Context) flows.Response      { return flows.Response{} }
+func (f fakeFlow) Name() string                         { return f.name }
+func (f fakeFlow) Start(context.Context) flows.Response { return flows.Response{} }
 func (fakeFlow) Handle(context.Context, string) flows.Response {
 	return flows.Response{Done: true}
 }

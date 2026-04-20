@@ -16,6 +16,7 @@ import (
 // on AC but not charging (fully charged or throttled).
 type ChargeState string
 
+// ChargeState values reported by pmset.
 const (
 	StateCharging    ChargeState = "charging"
 	StateDischarging ChargeState = "discharging"
@@ -25,10 +26,10 @@ const (
 
 // Status is a snapshot of the battery.
 type Status struct {
-	Percent       int         // 0..100, -1 if unknown (e.g. desktop Mac)
+	Percent       int // 0..100, -1 if unknown (e.g. desktop Mac)
 	State         ChargeState
-	TimeRemaining string      // e.g. "3:42", "(no estimate)"; empty if N/A
-	Present       bool        // false on Macs without a battery
+	TimeRemaining string // e.g. "3:42", "(no estimate)"; empty if N/A
+	Present       bool   // false on Macs without a battery
 }
 
 // Health captures long-term condition.
@@ -47,9 +48,10 @@ func New(r runner.Runner) *Service { return &Service{r: r} }
 
 // pmsetPercentRe captures percentage + state + optional time-remaining from
 // lines like:
-//   84%; charging; 1:02 remaining present: true
-//   55%; discharging; 3:42 remaining present: true
-//   100%; charged; 0:00 remaining present: true
+//
+//	84%; charging; 1:02 remaining present: true
+//	55%; discharging; 3:42 remaining present: true
+//	100%; charged; 0:00 remaining present: true
 var pmsetPercentRe = regexp.MustCompile(`(\d+)%;\s*([^;]+?)(?:;\s*([^;]*))?$`)
 
 // Get reads current battery status.

@@ -8,8 +8,8 @@ import (
 
 type stubFlow struct{ name string }
 
-func (s stubFlow) Name() string                              { return s.name }
-func (s stubFlow) Start(_ context.Context) Response          { return Response{} }
+func (s stubFlow) Name() string                     { return s.name }
+func (s stubFlow) Start(_ context.Context) Response { return Response{} }
 func (s stubFlow) Handle(_ context.Context, _ string) Response {
 	return Response{Done: true}
 }

@@ -65,13 +65,15 @@ func (r Reply) Ack(ctx context.Context, q *models.CallbackQuery) {
 }
 
 // SendPhoto uploads path as a photo to chatID, caption optional.
+// The caller passes a path produced by our own domain/media package, so the
+// file-inclusion warning on os.Open is accepted intentionally.
 func (r Reply) SendPhoto(ctx context.Context, chatID int64, path, caption string) error {
-	defer os.Remove(path)
-	f, err := os.Open(path)
+	defer func() { _ = os.Remove(path) }()
+	f, err := os.Open(path) // #nosec G304 -- trusted caller-supplied tempfile
 	if err != nil {
 		return fmt.Errorf("open photo: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	_, err = r.Deps.Bot.SendPhoto(ctx, &tgbot.SendPhotoParams{
 		ChatID:  chatID,
 		Photo:   &models.InputFileUpload{Filename: "screenshot.png", Data: f},
@@ -80,14 +82,15 @@ func (r Reply) SendPhoto(ctx context.Context, chatID int64, path, caption string
 	return err
 }
 
-// SendVideo uploads path as a video to chatID.
+// SendVideo uploads path as a video to chatID. See SendPhoto for the
+// trusted-path rationale.
 func (r Reply) SendVideo(ctx context.Context, chatID int64, path, caption string) error {
-	defer os.Remove(path)
-	f, err := os.Open(path)
+	defer func() { _ = os.Remove(path) }()
+	f, err := os.Open(path) // #nosec G304 -- trusted caller-supplied tempfile
 	if err != nil {
 		return fmt.Errorf("open video: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	_, err = r.Deps.Bot.SendVideo(ctx, &tgbot.SendVideoParams{
 		ChatID:  chatID,
 		Video:   &models.InputFileUpload{Filename: "recording.mov", Data: f},

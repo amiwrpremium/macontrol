@@ -245,8 +245,8 @@ func TestMediaSilentOpts_Reachable(t *testing.T) {
 // /cancel testing.
 type stubFlowForTests struct{}
 
-func (stubFlowForTests) Name() string                              { return "stub" }
-func (stubFlowForTests) Start(context.Context) flows.Response      { return flows.Response{} }
+func (stubFlowForTests) Name() string                         { return "stub" }
+func (stubFlowForTests) Start(context.Context) flows.Response { return flows.Response{} }
 func (stubFlowForTests) Handle(context.Context, string) flows.Response {
 	return flows.Response{Done: true}
 }

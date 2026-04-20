@@ -14,7 +14,7 @@ import (
 
 // State is a snapshot of the output device.
 type State struct {
-	Level int  // 0..100
+	Level int // 0..100
 	Muted bool
 }
 

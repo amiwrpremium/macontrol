@@ -67,10 +67,10 @@ func TestVersion_String(t *testing.T) {
 func TestFeatures_Gates(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
-		ver      string
-		netQual  bool
-		shorts   bool
-		wdutil   bool
+		ver     string
+		netQual bool
+		shorts  bool
+		wdutil  bool
 	}{
 		{"10.15", false, false, false},
 		{"11.0", false, false, true},

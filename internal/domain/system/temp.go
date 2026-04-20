@@ -58,4 +58,3 @@ func (s *Service) runSmctemp(ctx context.Context, flag string) (float64, error) 
 	}
 	return strconv.ParseFloat(trimmed, 64)
 }
-

@@ -59,7 +59,7 @@ func (s *Service) Info(ctx context.Context) (Info, error) {
 		i.ChipName = strings.TrimSpace(string(out))
 	}
 	if out, err := s.r.Exec(ctx, "sysctl", "-n", "hw.memsize"); err == nil {
-		fmt.Sscan(strings.TrimSpace(string(out)), &i.TotalRAMBytes)
+		_, _ = fmt.Sscan(strings.TrimSpace(string(out)), &i.TotalRAMBytes)
 	}
 	if out, err := s.r.Exec(ctx, "uptime"); err == nil {
 		i.Uptime = strings.TrimSpace(string(out))

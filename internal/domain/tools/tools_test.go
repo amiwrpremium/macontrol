@@ -172,7 +172,7 @@ func TestDisksList(t *testing.T) {
 	// Expected: only / (root) and /Volumes/External survive the filter
 	// (devfs filtered because mount doesn't start with /; /System/Volumes/VM
 	// filtered explicitly; /private* would filter too).
-	mounts := []string{}
+	mounts := make([]string, 0, len(vols))
 	for _, v := range vols {
 		mounts = append(mounts, v.MountedOn)
 	}

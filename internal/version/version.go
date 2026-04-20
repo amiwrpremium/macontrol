@@ -2,6 +2,8 @@
 // at link time via -ldflags by GoReleaser; defaults cover local `go run`.
 package version
 
+// Version, Commit, and Date are populated at link time via -ldflags by
+// GoReleaser. Defaults cover local `go run`.
 var (
 	Version = "dev"
 	Commit  = "none"

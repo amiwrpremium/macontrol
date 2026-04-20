@@ -69,8 +69,8 @@ func TestDefaultLogPath_CreatesDir0755(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dir does not exist: %v", err)
 	}
-	if info.Mode().Perm() != 0o755 {
-		t.Errorf("dir mode = %v, want 0755", info.Mode().Perm())
+	if info.Mode().Perm() != 0o750 {
+		t.Errorf("dir mode = %v, want 0750", info.Mode().Perm())
 	}
 }
 

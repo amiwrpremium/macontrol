@@ -31,13 +31,13 @@ var Categories = []Category{
 
 // ReplyHome returns the one-shot ReplyKeyboard with 3 buttons per row.
 func ReplyHome() *models.ReplyKeyboardMarkup {
-	rows := [][]models.KeyboardButton{}
-	row := []models.KeyboardButton{}
+	rows := make([][]models.KeyboardButton, 0, (len(Categories)+2)/3+1)
+	row := make([]models.KeyboardButton, 0, 3)
 	for _, c := range Categories {
 		row = append(row, models.KeyboardButton{Text: c.Label})
 		if len(row) == 3 {
 			rows = append(rows, row)
-			row = nil
+			row = make([]models.KeyboardButton, 0, 3)
 		}
 	}
 	if len(row) > 0 {
@@ -59,8 +59,8 @@ func ReplyHome() *models.ReplyKeyboardMarkup {
 // InlineHome returns the inline home grid used when returning from a leaf.
 // Each button opens the category's dashboard via a `<ns>:open` callback.
 func InlineHome() *models.InlineKeyboardMarkup {
-	rows := [][]models.InlineKeyboardButton{}
-	row := []models.InlineKeyboardButton{}
+	rows := make([][]models.InlineKeyboardButton, 0, (len(Categories)+2)/3)
+	row := make([]models.InlineKeyboardButton, 0, 3)
 	for _, c := range Categories {
 		row = append(row, models.InlineKeyboardButton{
 			Text:         c.Label,
@@ -68,7 +68,7 @@ func InlineHome() *models.InlineKeyboardMarkup {
 		})
 		if len(row) == 3 {
 			rows = append(rows, row)
-			row = nil
+			row = make([]models.InlineKeyboardButton, 0, 3)
 		}
 	}
 	if len(row) > 0 {

@@ -45,7 +45,7 @@ func DefaultLogPath() (string, error) {
 		return "", err
 	}
 	dir := filepath.Join(home, "Library", "Logs", "macontrol")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return "", err
 	}
 	return filepath.Join(dir, "macontrol.log"), nil
@@ -91,7 +91,7 @@ func friendlyError(err error) error {
 	if errors.As(err, &agg) {
 		missing := []string{}
 		for _, e := range agg.Errors {
-			var reqErr env.EnvVarIsNotSetError
+			var reqErr env.VarIsNotSetError
 			if errors.As(e, &reqErr) {
 				missing = append(missing, reqErr.Key)
 			}

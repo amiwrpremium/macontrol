@@ -141,10 +141,10 @@ func TestMax_SetsTo100(t *testing.T) {
 func TestMuteUnmuteToggle(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
-		name     string
-		fn       func(svc *sound.Service) (sound.State, error)
-		initial  string
-		wantArg  string
+		name      string
+		fn        func(svc *sound.Service) (sound.State, error)
+		initial   string
+		wantArg   string
 		wantAfter string
 	}{
 		{"Mute", func(s *sound.Service) (sound.State, error) { return s.Mute(context.Background()) }, "50,false", "set volume output muted true", "50,true"},

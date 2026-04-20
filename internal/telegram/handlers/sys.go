@@ -44,9 +44,9 @@ func handleSystem(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, dat
 			return errEdit(ctx, r, q, "🌡 *Thermal* — unavailable", err)
 		}
 		var body strings.Builder
-		body.WriteString(fmt.Sprintf("🌡 *Thermal*\n\n• Pressure: `%s`", t.Pressure))
+		fmt.Fprintf(&body, "🌡 *Thermal*\n\n• Pressure: `%s`", t.Pressure)
 		if t.SmctempAvail {
-			body.WriteString(fmt.Sprintf("\n• CPU: `%.1f°C`\n• GPU: `%.1f°C`", t.CPUTempC, t.GPUTempC))
+			fmt.Fprintf(&body, "\n• CPU: `%.1f°C`\n• GPU: `%.1f°C`", t.CPUTempC, t.GPUTempC)
 		} else {
 			body.WriteString("\n• °C readings unavailable (install `brew install smctemp`).")
 		}
@@ -83,9 +83,9 @@ func handleSystem(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, dat
 			return errEdit(ctx, r, q, "📋 *Top* — unavailable", err)
 		}
 		var b strings.Builder
-		b.WriteString(fmt.Sprintf("%-6s %5s %5s  %s\n", "PID", "%CPU", "%MEM", "CMD"))
+		fmt.Fprintf(&b, "%-6s %5s %5s  %s\n", "PID", "%CPU", "%MEM", "CMD")
 		for _, p := range procs {
-			b.WriteString(fmt.Sprintf("%-6d %5.1f %5.1f  %s\n", p.PID, p.CPU, p.Mem, p.Command))
+			fmt.Fprintf(&b, "%-6d %5.1f %5.1f  %s\n", p.PID, p.CPU, p.Mem, p.Command)
 		}
 		return r.Edit(ctx, q, "📋 *Top 10 by CPU*\n"+Code(b.String()), keyboards.SystemPanel("top"))
 

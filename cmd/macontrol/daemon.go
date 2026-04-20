@@ -92,6 +92,8 @@ func runDaemon() {
 
 	if err := bot.Start(ctx, cfg.TelegramBotToken, deps); err != nil {
 		logger.Error("bot exited", "err", err)
+		cancel()
+		//nolint:gocritic // explicit cancel() above flushes the context before exit
 		os.Exit(1)
 	}
 }

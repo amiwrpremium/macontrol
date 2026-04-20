@@ -66,7 +66,7 @@ func cmdMenu(ctx context.Context, d *bot.Deps, u *models.Update) error {
 
 func cmdStatus(ctx context.Context, d *bot.Deps, u *models.Update) error {
 	snap, _ := d.Services.Status.Snapshot(ctx)
-	text := renderStatus(snap, d.Capability)
+	text := renderStatus(snap)
 	_, err := d.Bot.SendMessage(ctx, &tgbot.SendMessageParams{
 		ChatID:      u.Message.Chat.ID,
 		Text:        text,
@@ -77,7 +77,7 @@ func cmdStatus(ctx context.Context, d *bot.Deps, u *models.Update) error {
 }
 
 // renderStatus composes the /status dashboard — also used for the boot ping.
-func renderStatus(s status.Snapshot, cap any) string {
+func renderStatus(s status.Snapshot) string {
 	var b strings.Builder
 	b.WriteString("🖥 *macontrol status*\n\n")
 	if s.InfoErr == nil {
@@ -107,7 +107,7 @@ func renderStatus(s status.Snapshot, cap any) string {
 // starts. Exposed so main.go can call it.
 func BootPing(ctx context.Context, d *bot.Deps) string {
 	snap, _ := d.Services.Status.Snapshot(ctx)
-	return "✅ *macontrol is up*\n\n" + renderStatus(snap, d.Capability) +
+	return "✅ *macontrol is up*\n\n" + renderStatus(snap) +
 		"\n_" + d.Capability.Summary() + "_"
 }
 
@@ -153,8 +153,8 @@ func cmdCancel(ctx context.Context, d *bot.Deps, u *models.Update) error {
 func cmdLock(ctx context.Context, d *bot.Deps, u *models.Update) error {
 	if err := d.Services.Power.Lock(ctx); err != nil {
 		_, _ = d.Bot.SendMessage(ctx, &tgbot.SendMessageParams{
-			ChatID: u.Message.Chat.ID,
-			Text:   "⚠ lock failed: `" + err.Error() + "`",
+			ChatID:    u.Message.Chat.ID,
+			Text:      "⚠ lock failed: `" + err.Error() + "`",
 			ParseMode: models.ParseModeMarkdown,
 		})
 		return err

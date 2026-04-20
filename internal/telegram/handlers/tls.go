@@ -71,9 +71,9 @@ func handleTools(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data
 			return errEdit(ctx, r, q, "💿 *Disks* — unavailable", err)
 		}
 		var b strings.Builder
-		b.WriteString(fmt.Sprintf("%-12s %-8s %-8s %-4s %s\n", "FS", "Size", "Used", "Cap", "Mount"))
+		fmt.Fprintf(&b, "%-12s %-8s %-8s %-4s %s\n", "FS", "Size", "Used", "Cap", "Mount")
 		for _, v := range vols {
-			b.WriteString(fmt.Sprintf("%-12s %-8s %-8s %-4s %s\n", v.Filesystem, v.Size, v.Used, v.Capacity, v.MountedOn))
+			fmt.Fprintf(&b, "%-12s %-8s %-8s %-4s %s\n", v.Filesystem, v.Size, v.Used, v.Capacity, v.MountedOn)
 		}
 		_, kb := keyboards.Tools(d.Capability.Features)
 		return r.Edit(ctx, q, "💿 *Disks*\n"+Code(b.String()), kb)

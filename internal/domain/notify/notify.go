@@ -70,12 +70,12 @@ func (s *Service) viaTerminalNotifier(ctx context.Context, o Opts) error {
 
 func (s *Service) viaOsascript(ctx context.Context, o Opts) error {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf(`display notification %q`, o.Body))
+	fmt.Fprintf(&b, `display notification %q`, o.Body)
 	if o.Title != "" {
-		b.WriteString(fmt.Sprintf(` with title %q`, o.Title))
+		fmt.Fprintf(&b, ` with title %q`, o.Title)
 	}
 	if o.Sound != "" {
-		b.WriteString(fmt.Sprintf(` sound name %q`, o.Sound))
+		fmt.Fprintf(&b, ` sound name %q`, o.Sound)
 	}
 	_, err := s.r.Exec(ctx, "osascript", "-e", b.String())
 	return err

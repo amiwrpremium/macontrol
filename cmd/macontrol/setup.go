@@ -15,8 +15,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/amiwrpremium/macontrol/internal/config"
 	"golang.org/x/term" // added to go.mod via tidy when needed
+
+	"github.com/amiwrpremium/macontrol/internal/config"
 )
 
 func runSetup(args []string) {
@@ -143,7 +144,7 @@ func verifyToken(token string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var parsed struct {
 		OK     bool `json:"ok"`
 		Result struct {
@@ -182,11 +183,11 @@ func installSudoersFile() error {
 	if err != nil {
 		return err
 	}
-	defer os.Remove(tmp.Name())
+	defer func() { _ = os.Remove(tmp.Name()) }()
 	if _, err := tmp.WriteString(content); err != nil {
 		return err
 	}
-	tmp.Close()
+	_ = tmp.Close()
 
 	// Validate locally first.
 	check := exec.Command("sudo", "visudo", "-cf", tmp.Name())

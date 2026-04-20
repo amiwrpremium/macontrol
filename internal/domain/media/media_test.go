@@ -34,7 +34,7 @@ func TestScreenshot_DefaultOpts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(path)
+	defer func() { _ = os.Remove(path) }()
 	args := lastArgs(f, "screencapture")
 	// Default: no -x, no -T, no -D; only the path argument.
 	if len(args) != 1 {
@@ -54,7 +54,7 @@ func TestScreenshot_AllOpts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(path)
+	defer func() { _ = os.Remove(path) }()
 	args := lastArgs(f, "screencapture")
 	// Expected order: -x  -T 3  -D 2  <path>
 	joined := strings.Join(args, " ")
@@ -88,7 +88,7 @@ func TestScreenshot_UniqueTempPaths(t *testing.T) {
 			t.Fatal(err)
 		}
 		paths[p] = true
-		os.Remove(p)
+		_ = os.Remove(p)
 	}
 	if len(paths) != 5 {
 		t.Fatalf("expected 5 unique paths, got %d", len(paths))
@@ -114,7 +114,7 @@ func TestRecord_FlagsIncludeVideoDuration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(path)
+	defer func() { _ = os.Remove(path) }()
 	args := lastArgs(f, "screencapture")
 	joined := strings.Join(args, " ")
 	if !strings.Contains(joined, "-v") {
@@ -149,7 +149,7 @@ func TestPhoto_InvokesImagesnap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(path)
+	defer func() { _ = os.Remove(path) }()
 	args := lastArgs(f, "imagesnap")
 	// Expected: -q -w 1 <path>
 	joined := strings.Join(args, " ")

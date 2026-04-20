@@ -55,7 +55,6 @@ func tempPath(pattern string) (string, error) {
 		return "", err
 	}
 	path := f.Name()
-	f.Close()
+	_ = f.Close()
 	return path, nil
 }
-

@@ -34,15 +34,15 @@ type stubFlowMgr struct {
 }
 
 func (s *stubFlowMgr) Active(_ int64) (flows.Flow, bool) { return s.flow, s.has }
-func (s *stubFlowMgr) Cancel(_ int64) bool                { s.has = false; return true }
-func (s *stubFlowMgr) Install(_ int64, f flows.Flow)      { s.flow = f; s.has = true }
-func (s *stubFlowMgr) Finish(_ int64)                     { s.has = false }
+func (s *stubFlowMgr) Cancel(_ int64) bool               { s.has = false; return true }
+func (s *stubFlowMgr) Install(_ int64, f flows.Flow)     { s.flow = f; s.has = true }
+func (s *stubFlowMgr) Finish(_ int64)                    { s.has = false }
 
 // fakeFlow consumes a single message.
 type fakeFlow struct{ handled bool }
 
-func (*fakeFlow) Name() string                              { return "test" }
-func (*fakeFlow) Start(context.Context) flows.Response      { return flows.Response{Text: "ask"} }
+func (*fakeFlow) Name() string                         { return "test" }
+func (*fakeFlow) Start(context.Context) flows.Response { return flows.Response{Text: "ask"} }
 func (f *fakeFlow) Handle(context.Context, string) flows.Response {
 	f.handled = true
 	return flows.Response{Text: "ok", Done: true}

@@ -34,9 +34,9 @@ func Bluetooth(st bluetooth.State) (text string, markup *models.InlineKeyboardMa
 	return
 }
 
-// BluetoothDevices renders a list of paired devices as individual rows.
-// Each row has the device label plus a connect/disconnect button. The
-// shortID is placed in callback data so long MAC strings never overflow.
+// BluetoothDeviceRow is one row in the device-picker keyboard. The shortID
+// is placed in callback_data so long MAC strings never overflow the 64-byte
+// limit.
 type BluetoothDeviceRow struct {
 	Label     string
 	ShortID   string
