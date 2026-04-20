@@ -12,7 +12,12 @@ follows the same shape:
 
 ## Quick reference
 
-| Category | Buttons | Flows | Brew deps |
+Brew deps are auto-installed when macontrol is installed via Homebrew —
+the column below names the formula each category uses (or `none` if it
+relies only on built-in macOS commands). Manual installs need to
+`brew install` them separately.
+
+| Category | Buttons | Flows | Brew dep |
 |---|---|---|---|
 | [🔊 Sound](sound.md) | −5 / −1 / Mute / +1 / +5 / Set / Max / Refresh | Set exact volume | none |
 | [💡 Display](display.md) | −10 / −5 / +5 / +10 / Set / Screensaver / Refresh | Set exact brightness | `brightness` |
@@ -20,9 +25,9 @@ follows the same shape:
 | [📶 Wi-Fi](wifi.md) | Toggle / Info / Join / DNS x3 / Speedtest / Refresh | Join network (SSID→password) | none (Speedtest needs macOS 12+) |
 | [🔵 Bluetooth](bluetooth.md) | Toggle / Paired / Connect / Disconnect | — | `blueutil` |
 | [⚡ Power](power.md) | Lock / Sleep / Restart / Shutdown / Logout / Keep-awake / Cancel-awake | Keep-awake minutes | none (destructive ones need confirm) |
-| [🖥 System](system.md) | Info / Temp / Mem / CPU / Top / Kill | Kill by pid/name | `smctemp` (optional) |
-| [📸 Media](media.md) | Screenshot / Silent shot / Record / Photo | Record duration | `imagesnap` (for Photo) |
-| [🔔 Notify](notify.md) | Send / Say | Send (title→body), Say (text) | `terminal-notifier` (preferred, optional) |
+| [🖥 System](system.md) | Info / Temp / Mem / CPU / Top / Kill | Kill by pid/name | `smctemp` (for °C only) |
+| [📸 Media](media.md) | Screenshot / Silent shot / Record / Photo | Record duration | `imagesnap` (for Photo only) |
+| [🔔 Notify](notify.md) | Send / Say | Send (title→body), Say (text) | `terminal-notifier` (osascript fallback if missing) |
 | [🛠 Tools](tools.md) | Clipboard get/set / Timezone / Sync / Disks / Shortcut | Clip set, Timezone, Shortcut | none (Shortcut needs macOS 13+) |
 
 ## State-ful vs action menus

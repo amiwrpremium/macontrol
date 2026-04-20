@@ -49,14 +49,8 @@ brew install macontrol
 - Binary: `/opt/homebrew/bin/macontrol`
 - LaunchAgent template: `/opt/homebrew/opt/macontrol/launchd/com.amiwrpremium.macontrol.plist`
 - Sudoers sample: `/opt/homebrew/opt/macontrol/sudoers.d/macontrol.sample`
-
-### Optional brew dependencies
-
-Some features depend on other brew formulae. Install the ones you want:
-
-```bash
-brew install brightness blueutil terminal-notifier smctemp imagesnap
-```
+- Five companion brew formulae, pulled in as hard dependencies of the
+  `macontrol` formula:
 
 | Formula | Unlocks |
 |---|---|
@@ -66,8 +60,19 @@ brew install brightness blueutil terminal-notifier smctemp imagesnap
 | `smctemp` | CPU/GPU °C readings on Apple Silicon |
 | `imagesnap` | Webcam photo capture |
 
-Without these, macontrol degrades: buttons that need them return
-"unavailable" error messages instead of crashing. `macontrol doctor`
+No action required — `brew install amiwrpremium/tap/macontrol` installs
+all of them in one shot. They're tracked by Homebrew and updated
+alongside macontrol.
+
+If you go the manual install path (Option 2) instead, you'll want to
+install these yourself:
+
+```bash
+brew install brightness blueutil terminal-notifier smctemp imagesnap
+```
+
+Without them, the buttons that depend on them return "unavailable"
+error messages instead of crashing. `macontrol doctor`
 (see [Operations → Doctor](../operations/doctor.md)) prints which deps
 are missing.
 

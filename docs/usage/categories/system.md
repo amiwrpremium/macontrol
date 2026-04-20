@@ -4,6 +4,11 @@ OS and hardware info, thermal pressure, memory and CPU summaries,
 top-N processes, kill. Mostly read-only; `Kill` is the one destructive
 action.
 
+°C readings in the Temperature panel use `smctemp` (auto-installed when
+macontrol is installed via Homebrew; manual installs need
+`brew install smctemp`). Everything else in this category uses built-in
+macOS commands.
+
 ## Dashboard
 
 ```text
