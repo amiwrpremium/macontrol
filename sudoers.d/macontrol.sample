@@ -1,0 +1,21 @@
+# /etc/sudoers.d/macontrol — sample
+#
+# Narrow passwordless-sudo entry for macontrol. Installs only the five
+# binaries the bot actually needs — never ALL. Replace REPLACE_ME below
+# with the user the daemon runs as (the person who runs `macontrol setup`).
+#
+# To install safely, use `visudo` so the file is validated before being
+# written:
+#
+#   sudo visudo -f /etc/sudoers.d/macontrol
+#
+# Or let the setup wizard do it:
+#
+#   macontrol setup
+#
+
+REPLACE_ME  ALL=(root) NOPASSWD: /usr/bin/pmset
+REPLACE_ME  ALL=(root) NOPASSWD: /usr/sbin/shutdown
+REPLACE_ME  ALL=(root) NOPASSWD: /usr/bin/wdutil info
+REPLACE_ME  ALL=(root) NOPASSWD: /usr/bin/powermetrics
+REPLACE_ME  ALL=(root) NOPASSWD: /usr/sbin/systemsetup

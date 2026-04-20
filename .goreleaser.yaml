@@ -1,0 +1,118 @@
+version: 2
+
+project_name: macontrol
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: macontrol
+    main: ./cmd/macontrol
+    binary: macontrol
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+    goarch:
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.version={{ .Version }}
+      - -X main.commit={{ .ShortCommit }}
+      - -X main.date={{ .Date }}
+
+archives:
+  - id: macontrol
+    ids: [macontrol]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    files:
+      - LICENSE
+      - README.md
+      - CHANGELOG.md
+      - src: launchd/com.amiwrpremium.macontrol.plist
+        dst: launchd/com.amiwrpremium.macontrol.plist
+      - src: sudoers.d/macontrol.sample
+        dst: sudoers.d/macontrol.sample
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  # release-please owns CHANGELOG.md; GoReleaser's release notes come from the
+  # GitHub Release body that release-please drafts. Disable GoReleaser's own
+  # changelog generator to avoid double-printing.
+  disable: true
+
+release:
+  draft: false
+  prerelease: auto
+  mode: replace
+  footer: |
+    ## Install
+
+    ```bash
+    brew install amiwrpremium/tap/macontrol
+    macontrol setup
+    brew services start macontrol
+    ```
+
+    Or manually:
+    ```bash
+    curl -fsSL https://raw.githubusercontent.com/amiwrpremium/macontrol/master/scripts/install.sh | sh
+    ```
+
+    Full changelog: [CHANGELOG.md](https://github.com/amiwrpremium/macontrol/blob/master/CHANGELOG.md)
+
+brews:
+  - name: macontrol
+    ids: [macontrol]
+    repository:
+      owner: amiwrpremium
+      name: homebrew-tap
+      branch: master
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+      pull_request:
+        enabled: false
+    directory: Formula
+    homepage: "https://github.com/amiwrpremium/macontrol"
+    description: "Control your Mac from Telegram — system, media, network, power, and more."
+    license: MIT
+    commit_author:
+      name: amiwrpremium-bot
+      email: amiwrpremium@gmail.com
+    commit_msg_template: "chore(tap): macontrol {{ .Tag }}"
+    install: |
+      bin.install "macontrol"
+      (prefix/"launchd").install "launchd/com.amiwrpremium.macontrol.plist"
+      (prefix/"sudoers.d").install "sudoers.d/macontrol.sample"
+    caveats: |
+      macontrol needs first-run configuration. Run:
+
+        macontrol setup
+
+      Optional brew deps for the full feature set:
+
+        brew install brightness blueutil terminal-notifier smctemp imagesnap
+
+      Start at login:
+
+        brew services start macontrol
+
+      Some commands need passwordless sudo for a narrow set of binaries
+      (shutdown, pmset, wdutil, powermetrics, systemsetup). The setup
+      wizard can install /etc/sudoers.d/macontrol for you.
+    service: |
+      run [opt_bin/"macontrol", "run"]
+      keep_alive true
+      log_path "#{Dir.home}/Library/Logs/macontrol/macontrol.log"
+      error_log_path "#{Dir.home}/Library/Logs/macontrol/macontrol.err.log"
+      working_dir HOMEBREW_PREFIX
+      environment_variables PATH: std_service_path_env
