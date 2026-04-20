@@ -20,6 +20,7 @@
   "packages": {
     ".": {
       "package-name": "macontrol",
+      "initial-version": "0.1.0",
       "extra-files": [
         "version.txt"
       ]
