@@ -1,8 +1,9 @@
 # 🔔 Notify
 
 Push a desktop notification to your Mac, or speak text through TTS.
-Works without brew deps (osascript fallback); richer when
-`terminal-notifier` is installed.
+Uses `terminal-notifier` (auto-installed when macontrol is installed
+via Homebrew; manual installs need `brew install terminal-notifier`),
+with an osascript fallback if it's missing.
 
 ## Dashboard
 

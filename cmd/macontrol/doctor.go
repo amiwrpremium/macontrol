@@ -45,7 +45,7 @@ func runDoctor() {
 	}
 
 	fmt.Println()
-	fmt.Println("optional brew deps:")
+	fmt.Println("brew deps (auto-installed when macontrol is installed via Homebrew):")
 	for _, d := range brewDeps {
 		mark := "✓"
 		if _, err := exec.LookPath(d.Bin); err != nil {

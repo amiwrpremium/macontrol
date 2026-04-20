@@ -4,6 +4,11 @@ Screenshots, screen recording, and webcam photos. Screenshots and
 recordings need Screen Recording TCC permission; the webcam needs
 Camera TCC.
 
+The webcam path uses `imagesnap` (auto-installed when macontrol is
+installed via Homebrew; manual installs need `brew install imagesnap`).
+Screenshots and recording use the built-in `screencapture` — no brew
+dep.
+
 ## Dashboard
 
 ```text

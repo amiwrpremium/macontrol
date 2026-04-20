@@ -89,6 +89,12 @@ brews:
       name: amiwrpremium-bot
       email: amiwrpremium@gmail.com
     commit_msg_template: "chore(tap): macontrol {{ .Tag }}"
+    dependencies:
+      - name: brightness
+      - name: blueutil
+      - name: smctemp
+      - name: imagesnap
+      - name: terminal-notifier
     install: |
       bin.install "macontrol"
       (prefix/"launchd").install "launchd/com.amiwrpremium.macontrol.plist"
@@ -97,10 +103,6 @@ brews:
       macontrol needs first-run configuration. Run:
 
         macontrol setup
-
-      Optional brew deps for the full feature set:
-
-        brew install brightness blueutil terminal-notifier smctemp imagesnap
 
       Start at login:
 

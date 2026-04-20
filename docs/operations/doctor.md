@@ -26,7 +26,7 @@ networkQuality:   true
 shortcuts CLI:    true
 wdutil info:      true
 
-optional brew deps:
+brew deps (auto-installed when macontrol is installed via Homebrew):
   ✓ brightness         💡 brightness control
      └ brew install brightness
   ✓ blueutil           🔵 Bluetooth toggle/list/connect
@@ -42,7 +42,7 @@ sudoers (pmset):
   ✓ `sudo -n pmset -g` works
 ```
 
-On a fresh install with nothing optional:
+On a manual install (no brew) with nothing else installed:
 
 ```text
 macontrol v0.1.0 (abc1234, 2026-04-20)
@@ -53,7 +53,7 @@ networkQuality:   true
 shortcuts CLI:    true
 wdutil info:      true
 
-optional brew deps:
+brew deps (auto-installed when macontrol is installed via Homebrew):
   ✗ brightness         💡 brightness control
      └ brew install brightness
   ✗ blueutil           🔵 Bluetooth toggle/list/connect

@@ -4,6 +4,9 @@ Control the built-in display's brightness and launch the screensaver.
 External monitors are not supported — see
 [Design decisions](../../architecture/design-decisions.md) for why.
 
+Backed by `brightness` (auto-installed when macontrol is installed via
+Homebrew; manual installs need `brew install brightness`).
+
 ## Dashboard
 
 ```text

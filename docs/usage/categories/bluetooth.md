@@ -1,7 +1,8 @@
 # 🔵 Bluetooth
 
 Toggle the Bluetooth radio, list paired devices, connect/disconnect.
-Requires `brew install blueutil`.
+Backed by `blueutil` (auto-installed when macontrol is installed via
+Homebrew; manual installs need `brew install blueutil`).
 
 ## Dashboard
 
