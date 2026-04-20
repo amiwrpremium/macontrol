@@ -1,0 +1,194 @@
+# CLI
+
+Every subcommand the `macontrol` binary supports.
+
+## Synopsis
+
+```text
+macontrol [subcommand] [args...]
+```
+
+If no subcommand is given (`macontrol` alone), `run` is implied.
+
+## Subcommands
+
+### `run`
+
+Run the daemon.
+
+```text
+macontrol run
+```
+
+Default if no subcommand. Reads config, detects capabilities, starts
+the long-poll loop. Foreground; `Ctrl-C` (SIGINT) or SIGTERM stops it
+cleanly.
+
+Used by the LaunchAgent plist as the `ProgramArguments`.
+
+**Exit codes**:
+- `0` — clean exit (signal received, context cancelled).
+- `1` — config error, capability error, or bot init failure.
+
+### `setup`
+
+Interactive first-run wizard.
+
+```text
+macontrol setup [--reconfigure]
+```
+
+Walks through:
+
+1. Bot token (hidden input + token-validity check via Telegram getMe).
+2. Telegram user ID(s).
+3. Optional LaunchAgent install + start.
+4. Optional narrow sudoers install (with `visudo -cf` validation).
+5. TCC permissions reminder.
+
+`--reconfigure` allows re-running over an existing config (otherwise
+the wizard refuses to overwrite).
+
+**Exit codes**:
+- `0` — wizard completed successfully or user declined to overwrite.
+- `1` — token validation failed, user input invalid, file write error.
+
+### `service`
+
+LaunchAgent management.
+
+```text
+macontrol service install
+macontrol service uninstall
+macontrol service start
+macontrol service stop
+macontrol service status
+macontrol service logs
+```
+
+| Action | Effect |
+|---|---|
+| `install` | Generate plist with current binary path, write to `~/Library/LaunchAgents/`, `launchctl bootstrap`. Implies `start`. |
+| `uninstall` | `launchctl bootout` then remove the plist. |
+| `start` | `launchctl bootstrap gui/$UID …` (no plist write). |
+| `stop` | `launchctl bootout gui/$UID/com.amiwrpremium.macontrol`. |
+| `status` | `launchctl print gui/$UID/com.amiwrpremium.macontrol`. |
+| `logs` | `tail -n 200 -f` on `~/Library/Logs/macontrol/macontrol.log`. |
+
+**Exit codes**:
+- `0` — operation succeeded.
+- `1` — invalid subcommand.
+- non-zero from `launchctl` for command failures.
+
+### `doctor`
+
+Health report.
+
+```text
+macontrol doctor
+```
+
+Prints capability detection, brew dependency presence, and sudoers
+reachability. See [Operations → Doctor](../operations/doctor.md) for
+sample output.
+
+Always exits `0` (it's a report, not an enforcement tool).
+
+### `version` / `--version` / `-v`
+
+Print version metadata.
+
+```text
+macontrol version
+macontrol --version
+macontrol -v
+```
+
+Output:
+
+```text
+macontrol v0.1.0 (abc1234, 2026-04-20)
+```
+
+The three values come from link-time variables:
+
+- `Version` — semver tag (or `dev` for local builds)
+- `Commit` — short git SHA (or `none` for local builds)
+- `Date` — UTC build date (or `unknown`)
+
+Exit code: `0`.
+
+### `help` / `--help` / `-h`
+
+Print the subcommand list.
+
+```text
+macontrol help
+macontrol --help
+macontrol -h
+```
+
+Exit code: `0`.
+
+## Flags
+
+There are intentionally **no global flags** that change daemon behavior.
+Configuration goes through env vars (see [env.md](../configuration/env.md))
+to keep the LaunchAgent plist simple.
+
+The `setup` subcommand has one flag (`--reconfigure`); everything
+else is purely subcommand dispatch.
+
+## Environment variable interaction
+
+The CLI subcommands read these env vars:
+
+| Variable | Used by | Effect |
+|---|---|---|
+| `TELEGRAM_BOT_TOKEN` | `run` | Required. The bot token. |
+| `ALLOWED_USER_IDS` | `run` | Required. Comma-separated user IDs. |
+| `LOG_LEVEL` | `run`, `doctor` | Defaults to `info`. |
+| `MACONTROL_CONFIG` | `run` | Override path for the config file. |
+| `MACONTROL_LOG` | `run` | Override path for the log file. |
+| `HOME` | `setup`, `service` | Resolves where to put config / plist / logs. |
+| `USER` | `setup` | Used in sudoers entry generation if `user.Current()` fails. |
+
+`setup` and `service` write absolute paths into the plist and sudoers
+entry, so they need to be invoked **as the user the daemon will run
+as** — not via `sudo macontrol setup`. The wizard prompts for sudo
+internally only for the file write to `/etc/sudoers.d/`.
+
+## Argv parsing semantics
+
+Pure stdlib — no `cobra`, `kingpin`, or `flag` package. Just `os.Args`
+inspection. This keeps startup fast and the binary small.
+
+Implications:
+
+- Flags must come **after** the subcommand: `macontrol setup --reconfigure`,
+  not `macontrol --reconfigure setup`.
+- Flag-style args before any subcommand (`macontrol --foo`) are
+  treated as if you'd run `macontrol run` with that flag — which the
+  daemon ignores.
+- Unknown subcommands print an error and exit 2.
+- Order of `service install` matters — `install` must be the second
+  argument.
+
+## Common one-liners
+
+```bash
+# Quickest install + setup path
+brew install amiwrpremium/tap/macontrol && macontrol setup
+
+# Restart the daemon and tail the new boot logs
+brew services restart macontrol && macontrol service logs
+
+# Diagnose with one command
+macontrol doctor
+
+# Print version + check it's running
+macontrol --version && launchctl list | grep macontrol
+
+# Force-restart without changing the plist
+launchctl kickstart -k gui/$UID/com.amiwrpremium.macontrol
+```
