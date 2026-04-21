@@ -44,18 +44,93 @@ Say you want to add `/spotify`:
 
 ## Development setup
 
-```bash
-# Cross-compile for the target
-make build                      # GOOS=darwin GOARCH=arm64
+### From Linux (most contributors)
 
-# Run against a dev bot token (on a real Mac)
-macontrol setup                 # writes a dev token + whitelist to the Keychain
-go run ./cmd/macontrol run --log-file=
+The domain layer is mocked via the `runner.Runner` interface and the
+Telegram layer is tested against an `httptest`-backed bot
+(`internal/telegram/telegramtest`). Neither needs a real bot token, a
+real Keychain, or macOS itself. The full unit-test loop runs anywhere
+Go runs:
+
+```bash
+make lint test                 # golangci-lint + go test -race
+make build                     # cross-compile darwin/arm64 sanity check
 ```
 
-You can iterate on most of the tree from a Linux box — the domain layer is
-mocked via the `runner` interface, and the Telegram layer tests don't call
-any macOS commands.
+You can implement and ship most features without a Mac. The pieces
+that genuinely need one are:
+
+- TCC-gated subprocesses (screencapture, imagesnap, osascript)
+- LaunchAgent installation
+- Real Keychain reads / writes
+- End-to-end smoke against a Telegram bot
+
+If your change touches one of those, hand off to a Mac contributor or
+mark the PR `needs-mac-test`.
+
+### From a Mac (iterating on local changes)
+
+Run your locally-built binary against your real Keychain entry. The
+loop:
+
+```bash
+# One-time: write a dev token + whitelist to the Keychain.
+macontrol setup
+
+# Per-iteration:
+brew services stop macontrol         # or: macontrol service stop
+make build                           # → dist/macontrol
+./dist/macontrol run --log-file= --log-level=debug
+# … test in Telegram … Ctrl-C when done …
+brew services start macontrol        # back to the production daemon
+```
+
+`--log-file=` (empty) sends logs to stderr so you see them live in
+the terminal. `--log-level=debug` adds per-update routing, callback
+parses, and subprocess command lines.
+
+#### Keychain ACL prompts
+
+The Keychain ACL on macontrol's entries is **binary-path-based**
+until code signing lands. Your `dist/macontrol` is a different path
+than `/opt/homebrew/bin/macontrol`, so the first run triggers a
+macOS prompt asking to read the Keychain entry. Click **Always
+Allow** once and the prompt won't recur for that path.
+
+To skip the prompt entirely:
+
+```bash
+./dist/macontrol token reauth        # re-issues the ACL for this path
+```
+
+**Don't use `go run` for iterative dev.** It compiles to a fresh
+random temp path each invocation, so the ACL prompt fires every
+time. Build to a stable path (`dist/macontrol`) and run that.
+
+#### Testing with a non-production token
+
+Two options:
+
+1. Swap the token in-place:
+   ```bash
+   macontrol token set                # paste dev token
+   # … iterate …
+   macontrol token set                # paste production token back
+   ```
+2. Run under a separate macOS user — each user has its own login
+   keychain, so the two tokens stay isolated:
+   ```bash
+   sudo -u devbot ./dist/macontrol setup
+   sudo -u devbot ./dist/macontrol run --log-file=
+   ```
+
+#### Don't run two daemons against one token
+
+Telegram delivers each update to whichever client is polling at the
+moment. If your local `dist/macontrol run` and the brew-installed
+daemon both poll the same token, updates are randomly split between
+them and the bot looks flaky. Always `brew services stop macontrol`
+before running locally.
 
 ## Releases
 
