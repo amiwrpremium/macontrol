@@ -128,6 +128,33 @@ If a release adds a new env var:
 - `macontrol setup --reconfigure` will offer to populate it next time
   you run the wizard.
 
+## Keychain ACL re-prompts after a path change
+
+The Keychain ACL on macontrol's bot-token entry is binary-path-based
+(until code signing lands in v1.x). After an upgrade that changes the
+binary's path — common when switching between brew install and manual
+install, or after a brew bottle relocation across macOS major versions
+— macOS will re-prompt for Keychain access on the daemon's first read
+of the new binary. The bot will appear unresponsive while the prompt
+sits unaddressed.
+
+Two recovery paths:
+
+### Click "Always Allow" on the prompt
+
+If you're at the Mac when the daemon starts and macOS shows the
+prompt, click **Always Allow**. From then on, reads are silent.
+
+### Re-grant ACL non-interactively
+
+```bash
+macontrol token reauth
+brew services restart macontrol
+```
+
+This reads the existing Keychain entry and re-issues it with the
+current binary path in the ACL. Daemon's next start reads silently.
+
 ## Verifying the upgrade worked
 
 ```bash

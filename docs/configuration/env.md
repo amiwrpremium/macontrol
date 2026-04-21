@@ -3,7 +3,33 @@
 Every variable macontrol reads, with type, default, requirement, and
 example.
 
-## Required
+## Where secrets actually live
+
+By default the bot token and user-ID whitelist live in the **macOS
+Keychain**, not in env vars or `.env` files. The Keychain is encrypted
+at rest under your account password with per-app silent-read ACL. See
+[Security → Bot token](../security/bot-token.md).
+
+The env vars below are still read on every start, but they're now
+optional and serve two purposes:
+
+1. **Override** the Keychain values for testing / dev (env wins over
+   Keychain).
+2. **Bootstrap** a system that hasn't run `macontrol setup` yet.
+
+The resolution order, applied to each secret independently:
+
+1. Process env var (`TELEGRAM_BOT_TOKEN`, `ALLOWED_USER_IDS`)
+2. macOS Keychain entry
+3. Legacy `~/Library/Application Support/macontrol/config.env` file —
+   backwards-compat fallback. The first time the loader uses this
+   path, it migrates both secrets into the Keychain and renames the
+   file to `config.env.migrated.<unix-ts>` as a backup.
+
+If a value isn't found at any tier, the daemon exits with a friendly
+error pointing at `macontrol setup`.
+
+## Override / bootstrap (optional)
 
 ### `TELEGRAM_BOT_TOKEN`
 
@@ -13,18 +39,19 @@ The bot token from BotFather.
 |---|---|
 | Type | string |
 | Default | none |
-| Required | yes |
+| Required | no — falls through to Keychain if unset |
 | Example | `123456789:AAE-aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456` |
 
 Format is `<bot-id>:<secret>`. The bot ID is the numeric prefix, the
 secret is everything after the colon. Treat the entire string as a
 password — anyone with it can impersonate your bot.
 
-If missing or empty, the daemon exits with:
+If missing here AND missing from the Keychain AND missing from the
+legacy file, the daemon exits with:
 
 ```text
 macontrol: missing required config: TELEGRAM_BOT_TOKEN.
-Run `macontrol setup` to write them, or edit the config file directly.
+Run `macontrol setup` to write them to the Keychain.
 ```
 
 See [Getting started → Telegram credentials](../getting-started/credentials-telegram.md)
@@ -39,7 +66,7 @@ the bot.
 |---|---|
 | Type | comma-separated list of `int64` |
 | Default | none |
-| Required | yes |
+| Required | no — falls through to Keychain if unset |
 | Example | `123456789,987654321` |
 
 Whitespace around the commas is fine: `123, 456, 789` parses the same

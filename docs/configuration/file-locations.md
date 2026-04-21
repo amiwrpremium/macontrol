@@ -5,24 +5,65 @@ Where macontrol puts things on macOS, with the rationale for each path.
 All paths are macOS-idiomatic — under `~/Library/` rather than home-dir
 dotfiles, because that's where macOS apps put per-user state.
 
+## Where the secrets live
+
+### macOS Keychain (default)
+
+The bot token and the user-ID whitelist live in the **login keychain**,
+under two distinct service names:
+
+| Service | Account | Value |
+|---|---|---|
+| `com.amiwrpremium.macontrol` | your unix username | bot token |
+| `com.amiwrpremium.macontrol.whitelist` | your unix username | comma-separated user IDs |
+
+Backing file (don't edit by hand):
+
+```text
+~/Library/Keychains/login.keychain-db
+```
+
+Encrypted at rest under your account password (independent of FileVault).
+Per-app silent-read ACL granted to the macontrol binary at install time;
+all other readers trigger an interactive prompt.
+
+To inspect what's stored:
+
+```bash
+security find-generic-password -s com.amiwrpremium.macontrol -a $USER -w
+security find-generic-password -s com.amiwrpremium.macontrol.whitelist -a $USER -w
+```
+
+To wipe (irreversibly):
+
+```bash
+macontrol token clear
+macontrol whitelist clear
+```
+
+See [Security → Bot token](../security/bot-token.md) for the deeper
+discussion of why Keychain.
+
 ## User-specific paths (per-user, no root)
 
-### Config
+### Legacy config file (pre-Keychain installs)
 
 ```text
 ~/Library/Application Support/macontrol/config.env
 ```
 
-Permissions: `0600` (rw user only). Created with mode `0700` directory
-permissions.
+Permissions: `0600` (rw user only). Directory `0700`.
 
-Contents: the env-var format documented in [env.md](env.md).
+Contents: the legacy env-var format. Kept as a backwards-compatibility
+fallback. On first daemon boot after upgrading to a Keychain-aware
+release, the secrets are migrated into the Keychain and the file is
+renamed to `config.env.migrated.<unix-ts>` as a backup.
 
 Why here: macOS's recommended location for per-user app config.
-Spotlight indexes it (you can find it via Cmd-Space "macontrol config")
-but Time Machine backs it up by default — so your bot config survives
-disk-wipes, and migrating to a new Mac picks it up via Migration
-Assistant.
+Migrated installs leave the `.migrated.<ts>` backup behind so you can
+recover credentials if anything goes wrong with the Keychain transfer.
+Safe to delete after you've confirmed `macontrol doctor` reports both
+secrets as "present in Keychain".
 
 ### Logs
 

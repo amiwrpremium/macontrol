@@ -40,6 +40,10 @@ brew deps (auto-installed when macontrol is installed via Homebrew):
 
 sudoers (pmset):
   ✓ `sudo -n pmset -g` works
+
+keychain:
+  ✓ bot token present in Keychain (com.amiwrpremium.macontrol)
+  ✓ whitelist present in Keychain (com.amiwrpremium.macontrol.whitelist)
 ```
 
 On a manual install (no brew) with nothing else installed:
@@ -67,6 +71,10 @@ brew deps (auto-installed when macontrol is installed via Homebrew):
 
 sudoers (pmset):
   ✗ `sudo -n pmset -g` failed — install sudoers entry via `macontrol setup`
+
+keychain:
+  ✗ bot token missing from Keychain — run `macontrol setup` (or `macontrol token set`/`whitelist add`)
+  ✗ whitelist missing from Keychain — run `macontrol setup` (or `macontrol token set`/`whitelist add`)
 ```
 
 ## What each line means

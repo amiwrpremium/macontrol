@@ -3,9 +3,6 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -19,26 +16,6 @@ func TestContains(t *testing.T) {
 	}
 	if contains(nil, "x") {
 		t.Error("nil should not contain anything")
-	}
-}
-
-func TestWriteConfig_FormatAndPermissions(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "config.env")
-	writeConfig(path, "tok", "1,2")
-	body, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(body), "TELEGRAM_BOT_TOKEN=tok") {
-		t.Errorf("body = %q", body)
-	}
-	if !strings.Contains(string(body), "ALLOWED_USER_IDS=1,2") {
-		t.Errorf("body = %q", body)
-	}
-	info, _ := os.Stat(path)
-	if info.Mode().Perm() != 0o600 {
-		t.Errorf("mode = %v", info.Mode().Perm())
 	}
 }
 
