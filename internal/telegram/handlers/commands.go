@@ -57,8 +57,8 @@ func parseCommand(text string) (cmd string, rest string) {
 func cmdMenu(ctx context.Context, d *bot.Deps, u *models.Update) error {
 	_, err := d.Bot.SendMessage(ctx, &tgbot.SendMessageParams{
 		ChatID:      u.Message.Chat.ID,
-		Text:        keyboards.HomeWelcome,
-		ParseMode:   models.ParseModeMarkdown,
+		Text:        bot.MDToHTML(keyboards.HomeWelcome),
+		ParseMode:   models.ParseModeHTML,
 		ReplyMarkup: keyboards.ReplyHome(),
 	})
 	return err
@@ -66,17 +66,18 @@ func cmdMenu(ctx context.Context, d *bot.Deps, u *models.Update) error {
 
 func cmdStatus(ctx context.Context, d *bot.Deps, u *models.Update) error {
 	snap, _ := d.Services.Status.Snapshot(ctx)
-	text := renderStatus(snap)
 	_, err := d.Bot.SendMessage(ctx, &tgbot.SendMessageParams{
 		ChatID:      u.Message.Chat.ID,
-		Text:        text,
-		ParseMode:   models.ParseModeMarkdown,
+		Text:        bot.MDToHTML(renderStatus(snap)),
+		ParseMode:   models.ParseModeHTML,
 		ReplyMarkup: keyboards.InlineHome(),
 	})
 	return err
 }
 
-// renderStatus composes the /status dashboard — also used for the boot ping.
+// renderStatus composes the /status dashboard using Markdown-style
+// markers; callers pipe the result through bot.MDToHTML before sending
+// to Telegram's HTML parse mode. Also reused by BootPing.
 func renderStatus(s status.Snapshot) string {
 	var b strings.Builder
 	b.WriteString("🖥 *macontrol status*\n\n")
@@ -103,8 +104,9 @@ func renderStatus(s status.Snapshot) string {
 	return b.String()
 }
 
-// BootPing returns the text sent to every whitelisted user when the daemon
-// starts. Exposed so main.go can call it.
+// BootPing returns the text sent to every whitelisted user when the
+// daemon starts. Exposed so main.go can call it. The daemon sends it
+// through bot.MDToHTML + ParseModeHTML.
 func BootPing(ctx context.Context, d *bot.Deps) string {
 	snap, _ := d.Services.Status.Snapshot(ctx)
 	return "✅ *macontrol is up*\n\n" + renderStatus(snap) +
@@ -130,8 +132,8 @@ The menu-first way to control your Mac. Use *` + "`/menu`" + `* to summon the ho
 Full docs: github.com/amiwrpremium/macontrol`
 	_, err := d.Bot.SendMessage(ctx, &tgbot.SendMessageParams{
 		ChatID:    u.Message.Chat.ID,
-		Text:      text,
-		ParseMode: models.ParseModeMarkdown,
+		Text:      bot.MDToHTML(text),
+		ParseMode: models.ParseModeHTML,
 	})
 	return err
 }
@@ -154,8 +156,8 @@ func cmdLock(ctx context.Context, d *bot.Deps, u *models.Update) error {
 	if err := d.Services.Power.Lock(ctx); err != nil {
 		_, _ = d.Bot.SendMessage(ctx, &tgbot.SendMessageParams{
 			ChatID:    u.Message.Chat.ID,
-			Text:      "⚠ lock failed: `" + err.Error() + "`",
-			ParseMode: models.ParseModeMarkdown,
+			Text:      bot.MDToHTML("⚠ lock failed: `" + err.Error() + "`"),
+			ParseMode: models.ParseModeHTML,
 		})
 		return err
 	}
@@ -173,8 +175,8 @@ func cmdScreenshot(ctx context.Context, d *bot.Deps, u *models.Update) error {
 	if err != nil {
 		_, _ = d.Bot.SendMessage(ctx, &tgbot.SendMessageParams{
 			ChatID:    chatID,
-			Text:      "⚠ screenshot failed: `" + err.Error() + "`",
-			ParseMode: models.ParseModeMarkdown,
+			Text:      bot.MDToHTML("⚠ screenshot failed: `" + err.Error() + "`"),
+			ParseMode: models.ParseModeHTML,
 		})
 		return err
 	}

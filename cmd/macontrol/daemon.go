@@ -113,12 +113,12 @@ func pingOnBoot(ctx context.Context, d *bot.Deps) {
 	if d.Bot == nil {
 		return
 	}
-	text := handlers.BootPing(ctx, d)
+	text := bot.MDToHTML(handlers.BootPing(ctx, d))
 	for _, uid := range d.Whitelist.Members() {
 		_, err := d.Bot.SendMessage(ctx, &tgbot.SendMessageParams{
 			ChatID:    uid,
 			Text:      text,
-			ParseMode: models.ParseModeMarkdown,
+			ParseMode: models.ParseModeHTML,
 		})
 		if err != nil {
 			d.Logger.Warn("boot ping failed", "uid", uid, "err", err)
