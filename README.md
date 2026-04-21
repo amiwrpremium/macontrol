@@ -1,3 +1,7 @@
+<p align="center">
+  <img src=".github/social-preview.png" alt="macontrol — Control your Mac from Telegram" width="720">
+</p>
+
 # macontrol
 
 > Control your Mac from Telegram — system, media, network, power, and more.
@@ -116,6 +120,36 @@ Report vulnerabilities privately via
 [GitHub Security Advisories](https://github.com/amiwrpremium/macontrol/security/advisories/new) —
 see [SECURITY.md](SECURITY.md) and
 [docs/security/](docs/security/).
+
+## Disclaimer
+
+`macontrol` is provided **as is**, without warranty of any kind, express or
+implied — see the [MIT License](LICENSE) for the full text.
+
+By installing and running this software you acknowledge and accept that:
+
+- **It controls your Mac.** The bot can lock, restart, shut down, or log out
+  your session; take screenshots and webcam photos; record your screen;
+  change DNS and Wi-Fi settings; and run any Shortcut you have configured.
+  Misuse, misconfiguration, or compromise of the bot token or your Telegram
+  account can lead to data loss, privacy exposure, or other harm to you or
+  your machine.
+- **You are responsible for the bot token and the whitelist.** Anyone with
+  the token can act as your bot; anyone whose Telegram user ID is on the
+  whitelist has the same control over your Mac that you do.
+- **You are responsible for third-party trust anchors.** macontrol shells
+  out to macOS CLIs (`pmset`, `networksetup`, `security`, …) and optional
+  Homebrew formulae (`brightness`, `blueutil`, `smctemp`, `imagesnap`,
+  `terminal-notifier`). Telegram, Apple, and Homebrew sit outside the
+  author's control.
+- **The author (`@amiwrpremium`) is not liable** for damages, data loss,
+  privacy incidents, unauthorized access, or any other harm resulting from
+  the use, misuse, or failure of this software — whether direct, indirect,
+  incidental, or consequential.
+- **No support guarantees.** This is a personal project. Issues and pull
+  requests are welcome, but there is no SLA, no paid support, and no
+  commitment to fix any specific bug.
+- **Use at your own risk.**
 
 ## License
 
