@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/amiwrpremium/macontrol/compare/v0.1.1...v0.1.2) (2026-04-21)
+
+
+### Bug Fixes
+
+* **bot:** switch to HTML parse mode to stop Telegram rejecting messages ([#15](https://github.com/amiwrpremium/macontrol/issues/15)) ([d604d30](https://github.com/amiwrpremium/macontrol/commit/d604d305f3a8179bc440825498e568d123120fb2))
+
 ## [0.1.1](https://github.com/amiwrpremium/macontrol/compare/v0.1.0...v0.1.1) (2026-04-21)
 
 
