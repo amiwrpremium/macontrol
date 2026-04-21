@@ -1,3 +1,7 @@
+<p align="center">
+  <img src=".github/social-preview.png" alt="macontrol — Control your Mac from Telegram" width="720">
+</p>
+
 # macontrol
 
 > Control your Mac from Telegram — system, media, network, power, and more.
