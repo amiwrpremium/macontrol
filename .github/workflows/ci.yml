@@ -18,7 +18,7 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
@@ -36,7 +36,7 @@ jobs:
         os: [ubuntu-latest, macos-14]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
@@ -61,7 +61,7 @@ jobs:
     name: Build (darwin/arm64)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
@@ -77,7 +77,7 @@ jobs:
     name: Vulnerability scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
