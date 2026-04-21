@@ -34,8 +34,8 @@ This directory is the full reference. The top-level
 
 ### Configuration
 
-- [Environment variables](configuration/env.md) — `TELEGRAM_BOT_TOKEN`, `ALLOWED_USER_IDS`, `LOG_LEVEL`
-- [File locations](configuration/file-locations.md) — where config, logs, plist, and cache live
+- [Runtime](configuration/runtime.md) — Keychain entries and the `--log-level` / `--log-file` flags on `run`
+- [File locations](configuration/file-locations.md) — where logs, plist, and sudoers entry live
 - [Whitelist](configuration/whitelist.md) — adding and removing allowed users
 
 ### Permissions

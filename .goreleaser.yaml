@@ -112,7 +112,7 @@ brews:
       (shutdown, pmset, wdutil, powermetrics, systemsetup). The setup
       wizard can install /etc/sudoers.d/macontrol for you.
     service: |
-      run [opt_bin/"macontrol", "run"]
+      run [opt_bin/"macontrol", "run", "--log-level=info"]
       keep_alive true
       log_path "#{Dir.home}/Library/Logs/macontrol/macontrol.log"
       error_log_path "#{Dir.home}/Library/Logs/macontrol/macontrol.err.log"

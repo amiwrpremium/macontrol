@@ -32,9 +32,9 @@ from cold start to bot-responding-in-Telegram is under ten minutes.
 
 - A daemon (`macontrol`) running as a LaunchAgent, auto-starting at
   login and restarting on crash.
-- A config at
-  `~/Library/Application Support/macontrol/config.env` holding the bot
-  token and your user-ID whitelist.
+- The bot token and your user-ID whitelist stored in the macOS
+  Keychain — encrypted at rest, ACL-restricted to the macontrol
+  binary. No `.env` file. No config file.
 - Rotating logs at `~/Library/Logs/macontrol/macontrol.log`.
 - A Telegram bot that responds to `/menu` by showing a one-shot keyboard
   with one button per category (Sound, Display, Wi-Fi, Bluetooth,

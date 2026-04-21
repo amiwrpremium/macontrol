@@ -15,6 +15,7 @@
     <array>
         <string>/opt/homebrew/bin/macontrol</string>
         <string>run</string>
+        <string>--log-level=info</string>
     </array>
 
     <key>RunAtLoad</key>

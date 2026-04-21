@@ -51,9 +51,8 @@ the response prioritizes accordingly.
   is full bot control by design; having user-ID-on-whitelist is full
   Mac control by design. See [Threat model](threat-model.md).
 - **Vulnerabilities in upstream dependencies** — `go-telegram/bot`,
-  `caarlos0/env`, `lumberjack`, `imagesnap`, `blueutil`, etc. Report
-  those to the upstream project. We'll bump our pin once they ship a
-  fix.
+  `lumberjack`, `imagesnap`, `blueutil`, etc. Report those to the
+  upstream project. We'll bump our pin once they ship a fix.
 - **Vulnerabilities in macOS CLIs** (`pmset`, `networksetup`,
   `screencapture`, etc.) — report to Apple via `https://security.apple.com`.
 - **Social-engineering of the user** — convincing someone to install

@@ -19,8 +19,8 @@ The two pieces of secret material:
 
 | Secret | Class | Stored where |
 |---|---|---|
-| `TELEGRAM_BOT_TOKEN` | High — anyone with it can act as your bot | `~/Library/Application Support/macontrol/config.env` (mode 0600) |
-| `ALLOWED_USER_IDS` | Low — reveals who's allowed, not how to access | Same file. Not really a secret. |
+| Bot token | High — anyone with it can act as your bot | macOS Keychain, service `com.amiwrpremium.macontrol` (encrypted at rest) |
+| User-ID whitelist | Low — reveals who's allowed, not how to access | macOS Keychain, service `com.amiwrpremium.macontrol.whitelist` |
 
 The two enforcement layers:
 

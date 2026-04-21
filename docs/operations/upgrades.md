@@ -108,25 +108,23 @@ In the CHANGELOG, breaking changes are marked with `!`:
 ### Features
 
 - feat(bot)!: switch from numeric user IDs to OAuth tokens for whitelist
-  BREAKING CHANGE: ALLOWED_USER_IDS is no longer used. Re-run setup.
+  BREAKING CHANGE: numeric user-ID whitelist removed. Re-run `macontrol setup`.
 ```
 
 If you see one, read the `BREAKING CHANGE:` footer for the migration
 steps. The CHANGELOG and the GitHub Release notes both surface them.
 
-## Config file changes
+## Config changes
 
-Config-file format changes (new env vars, renamed keys, etc.) are
-backwards-compatible whenever possible. Old `config.env` files
-continue to work unless explicitly noted in the breaking-change
-footer.
+Secrets stay in the Keychain across upgrades — the entries are
+written once by `macontrol setup` and the schema (one entry for the
+token, one for the comma-separated whitelist) is stable. Upgrades do
+not touch your existing entries.
 
-If a release adds a new env var:
-
-- It has a sensible default if you don't set it.
-- The change-log calls it out.
-- `macontrol setup --reconfigure` will offer to populate it next time
-  you run the wizard.
+Runtime flags (`--log-level`, `--log-file`) are read from the
+LaunchAgent plist. If a release adds a new flag, the default is
+sensible enough that you don't need to update the plist; the
+CHANGELOG calls out any flag whose default would change behavior.
 
 ## Keychain ACL re-prompts after a path change
 
@@ -195,11 +193,10 @@ sudo install -m 0755 /tmp/macontrol-rollback /usr/local/bin/macontrol
 macontrol service stop && macontrol service start
 ```
 
-Configurations are forward-compatible (newer macontrol reads older
-config files), but **not always backward-compatible** — if a new
-release added a required env var, the older binary doesn't know to
-populate it. Rolling back across a breaking-change boundary may
-require editing the config too.
+Keychain entries written by a newer setup wizard are always readable
+by an older binary (the format hasn't changed since v0.1.0). If a
+breaking-change boundary did change the entry shape, the rollback
+steps would be in the CHANGELOG.
 
 ## Subscribing to releases
 

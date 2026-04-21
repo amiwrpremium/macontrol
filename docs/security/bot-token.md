@@ -31,8 +31,8 @@ requests to `api.telegram.org/bot<token>/...`.
 - **Cannot trigger any macOS action**. The whitelist on macontrol
   rejects them.
 
-**With your user ID** also (e.g. they have your token AND ALLOWED_USER_IDS
-file):
+**With your user ID** also (e.g. they have your token AND a copy of
+the whitelist Keychain entry):
 
 - They could spoof messages to your bot, but they can't actually be
   on your Telegram account, so the messages would come from the
@@ -55,9 +55,8 @@ control.
 After revoking:
 
 ```bash
-# Update the config file
-nvim ~/Library/Application\ Support/macontrol/config.env
-# replace TELEGRAM_BOT_TOKEN with the new value
+# Replace the token in the Keychain (interactive, hidden input)
+macontrol token set
 
 # Restart the daemon
 brew services restart macontrol
@@ -74,8 +73,8 @@ triggers:
 
 - You pasted the token into a chat, log, or screenshot you can't fully
   control.
-- You committed a `.env` file containing the token to git (even to a
-  private repo — assume it's compromised).
+- You committed any file containing the token to git, even a
+  private repo (assume it's compromised).
 - You used the token from a non-trusted machine.
 - A grep of git history finds it: `git log -p | grep -E '[0-9]{9,10}:[A-Za-z0-9_-]{30,}'`.
 - You see logged messages from chats you didn't initiate.
@@ -143,25 +142,17 @@ macontrol token reauth
 Re-issues the Keychain entry with the new binary path. Silent reads
 resume.
 
-### Legacy `.env` migration
-
-Pre-Keychain installs stored the token in
-`~/Library/Application Support/macontrol/config.env` (mode `0600`).
-That path is still recognised — on first daemon boot after upgrading,
-the secret is migrated into the Keychain and the file is renamed to
-`config.env.migrated.<unix-ts>` as a backup. After confirming `macontrol
-doctor` reports the token as "present in Keychain", you can delete the
-backup safely.
-
 ## What macontrol does NOT do
 
 - **No log redaction** — macontrol's logger doesn't write the token
-  out. But: `LOG_LEVEL=debug` could log Telegram API request URLs that
-  include the token in `<token>` path segments. Don't run debug-level
-  logging long-term, and grep before sharing logs.
-- **No environment-variable injection from outside** — the daemon
-  reads from Keychain (or env, or file) once at startup; subsequent
-  changes don't take effect until restart.
+  out. But: `--log-level=debug` could log Telegram API request URLs
+  that include the token in `<token>` path segments. Don't run
+  debug-level logging long-term, and grep before sharing logs.
+- **No environment-variable input** — the daemon reads only from the
+  Keychain at startup. There is no `TELEGRAM_BOT_TOKEN` env var
+  override.
+- **No `.env` file** — the token is never written to disk in
+  plaintext by macontrol.
 - **No iCloud Keychain sync** — the entry is created locally only.
   Tokens shouldn't sync to other devices since they're tied to a
   specific Mac's daemon.
@@ -188,15 +179,12 @@ without thinking about that.
 If you want to run a dev bot and a prod bot from the same Mac:
 
 - Create two bots with BotFather, get two tokens.
-- Run two daemons with different `MACONTROL_CONFIG` files:
-  ```bash
-  MACONTROL_CONFIG=~/dev-config.env macontrol run &
-  ```
-  (You'd need to author a custom plist for the dev one if you want
-  launchd to manage it.)
+- Run each daemon as a different macOS user account. Each user has
+  its own login keychain, so the two tokens stay isolated. Each
+  user gets its own LaunchAgent plist and log directory.
 
-Each daemon has its own token, its own logs, its own state. Don't
-share tokens across daemons; if one leaks, the other is unaffected.
+Don't share tokens across daemons; if one leaks, the other is
+unaffected.
 
 ## Compromised tokens — incident response
 
@@ -206,8 +194,8 @@ The minimum playbook:
 2. **Restart daemon** with new token. 1 minute.
 3. **Audit logs** — `~/Library/Logs/macontrol/macontrol.log` from the
    suspected compromise window. Look for unfamiliar Telegram user IDs
-   on the whitelist (which would mean the attacker also modified your
-   config file — much deeper compromise) or unfamiliar action patterns.
+   on the whitelist (which would mean the attacker also wrote to your
+   Keychain — much deeper compromise) or unfamiliar action patterns.
 4. **Reverse anything destructive** — DNS changes, sudo configurations,
    anything in `/etc/`.
 5. **If filesystem-level compromise is suspected**: assume your sudoers

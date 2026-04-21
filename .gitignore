@@ -12,10 +12,9 @@ coverage.*
 go.work
 go.work.sum
 
-# Env / secrets
+# Secrets
 .env
 .env.*
-!.env.example
 *.pem
 *.key
 

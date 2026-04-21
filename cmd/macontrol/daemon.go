@@ -33,16 +33,17 @@ import (
 	"github.com/amiwrpremium/macontrol/internal/telegram/handlers"
 )
 
-func runDaemon() {
+func runDaemon(logLevel, logFile string) {
 	cfg, err := config.Load()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "macontrol: %v\n", err)
 		os.Exit(1)
 	}
-	logger := newLogger(cfg)
+	logger := newLogger(logLevel, logFile)
 	logger.Info("macontrol starting",
 		"version", version, "commit", commit,
-		"config", cfg.ConfigFile, "log", cfg.LogFile)
+		"log_level", logLevel, "log_file", logFile,
+		"secrets", "keychain")
 
 	ctx, cancel := signal.NotifyContext(context.Background(),
 		os.Interrupt, syscall.SIGTERM)
@@ -125,9 +126,9 @@ func pingOnBoot(ctx context.Context, d *bot.Deps) {
 	}
 }
 
-func newLogger(cfg config.Config) *slog.Logger {
+func newLogger(logLevel, logFile string) *slog.Logger {
 	level := slog.LevelInfo
-	switch cfg.LogLevel {
+	switch logLevel {
 	case "debug":
 		level = slog.LevelDebug
 	case "warn":
@@ -135,11 +136,11 @@ func newLogger(cfg config.Config) *slog.Logger {
 	case "error":
 		level = slog.LevelError
 	}
-	if cfg.LogFile == "" {
+	if logFile == "" {
 		return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level}))
 	}
 	rot := &lumberjack.Logger{
-		Filename:   cfg.LogFile,
+		Filename:   logFile,
 		MaxSize:    10, // MB
 		MaxBackups: 5,
 		MaxAge:     30, // days

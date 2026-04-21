@@ -35,8 +35,8 @@ WARN  msg="boot ping failed"  uid=123456789  err="Forbidden: bot was blocked by 
 **Fix**:
 
 - Open the bot's profile in Telegram → tap **Unblock**.
-- Or remove that user from `ALLOWED_USER_IDS` if they shouldn't have
-  access anyway.
+- Or remove that user from the whitelist if they shouldn't have
+  access anyway: `macontrol whitelist remove <id>`.
 
 The boot ping for that user is silently dropped; the bot itself stays
 running.
@@ -239,10 +239,12 @@ errors that originate during a callback handler, the dashboard
 typically edits to show `⚠ <error>`. For errors during
 boot-ping or background sends, only the log captures them.
 
-If you need to debug what's happening:
+If you need to debug what's happening, edit
+`~/Library/LaunchAgents/com.amiwrpremium.macontrol.plist` to add
+`--log-level=debug` to `ProgramArguments`, then:
 
 ```bash
-LOG_LEVEL=debug brew services restart macontrol
+brew services restart macontrol
 tail -f ~/Library/Logs/macontrol/macontrol.log
 ```
 

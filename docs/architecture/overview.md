@@ -177,24 +177,26 @@ is read fresh from macOS on every action.
 
 `internal/config/config.go`:
 
-1. Check for `MACONTROL_CONFIG` env var. If set, that path is the
-   config file.
-2. Otherwise, fall back to
-   `~/Library/Application Support/macontrol/config.env`.
-3. If file exists, load it via `godotenv.Overload` (overlays values
-   onto process env).
-4. Parse process env into typed `Config` struct via `caarlos0/env`.
-5. Validate required fields. Missing → friendly error pointing at
-   `macontrol setup`.
+1. Read the bot token from the macOS Keychain via
+   `internal/keychain.Get("com.amiwrpremium.macontrol", $USER)`.
+2. Read the comma-separated whitelist from
+   `internal/keychain.Get("com.amiwrpremium.macontrol.whitelist", $USER)`.
+3. Parse the whitelist into `[]int64`. Validate both non-empty.
+4. Missing or locked → friendly error pointing at `macontrol setup`.
 
-This happens once at startup. No hot-reload — `brew services restart`
-to pick up changes.
+This happens once at startup. No hot-reload — `brew services
+restart` to pick up changes.
+
+Non-secret runtime settings (`--log-level`, `--log-file`) come from
+CLI flags on `macontrol run`, not from the config loader. See
+[Configuration → Runtime](../configuration/runtime.md).
 
 ## Logging
 
 `log/slog` + `lumberjack`. Default text handler (key=value), level
-configurable via env, output to a rotating file plus stderr in
-foreground mode. See [Operations → Logs](../operations/logs.md) for
+and destination configurable via `--log-level` / `--log-file` flags
+on `macontrol run`, output to a rotating file (or stderr if
+`--log-file=`). See [Operations → Logs](../operations/logs.md) for
 the format and rotation policy.
 
 ## Error model

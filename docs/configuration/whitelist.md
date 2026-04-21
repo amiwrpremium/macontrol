@@ -2,7 +2,7 @@
 
 The whitelist lives in the macOS Keychain (service
 `com.amiwrpremium.macontrol.whitelist`) — see
-[Configuration → env.md → Where secrets actually live](env.md#where-secrets-actually-live).
+[Configuration → Runtime](runtime.md#where-everything-lives).
 Manage it via the `macontrol whitelist` subcommands (no file editing
 needed):
 
@@ -30,8 +30,8 @@ gets full access, every other Telegram user is silently ignored.
 
 Every incoming Telegram update (message, callback query, etc.) is
 inspected for the sender's numeric Telegram user ID. The daemon looks
-that ID up in an in-memory `map[int64]struct{}` built at startup from
-`ALLOWED_USER_IDS`.
+that ID up in an in-memory `map[int64]struct{}` built at startup
+from the Keychain whitelist entry.
 
 - **Hit** → dispatch the update normally.
 - **Miss** → drop silently. A single warning is logged with the
@@ -73,15 +73,6 @@ restart the daemon for changes to take effect: brew services restart macontrol
 
 If you'd rather rebuild the whole list from scratch, run
 `macontrol setup --reconfigure` and re-enter the comma-separated list.
-
-#### (Legacy) editing a `.env` file
-
-Pre-Keychain installs stored the whitelist in
-`~/Library/Application Support/macontrol/config.env`. That file path is
-still recognised — on first daemon boot after upgrading, both secrets
-are migrated into the Keychain and the file is renamed to
-`config.env.migrated.<unix-ts>`. After migration, edits to that file
-have no effect; use `macontrol whitelist add/remove` instead.
 
 ### Restart the daemon
 
@@ -178,8 +169,8 @@ Telegram `@username`s are mutable and reusable. If you whitelist
 `@alice` and Alice deletes her account, Telegram can later reassign
 `@alice` to someone else. Numeric IDs never change owner.
 
-So macontrol's `ALLOWED_USER_IDS` is intentionally numeric-only.
-There's no `ALLOWED_USERNAMES` env var.
+So macontrol's whitelist is intentionally numeric-only. There's no
+`@username` form.
 
 ## Why not OAuth or PIN?
 

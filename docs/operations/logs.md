@@ -30,7 +30,7 @@ Default format is `slog.NewTextHandler` — a key-value text format that
 both humans and `grep`/`awk` parse cleanly:
 
 ```text
-time=2026-04-20T10:22:35.123-04:00 level=INFO msg="macontrol starting" version=v0.1.0 commit=abc1234 config=/Users/you/Library/Application Support/macontrol/config.env log=/Users/you/Library/Logs/macontrol/macontrol.log
+time=2026-04-20T10:22:35.123-04:00 level=INFO msg="macontrol starting" version=v0.1.0 commit=abc1234 log_level=info log_file=/Users/you/Library/Logs/macontrol/macontrol.log secrets=keychain
 time=2026-04-20T10:22:35.301-04:00 level=INFO msg=capabilities summary="macOS 15.3 · 3/3 version-gated features available"
 time=2026-04-20T10:22:35.302-04:00 level=INFO msg="bot started"
 time=2026-04-20T10:22:36.701-04:00 level=DEBUG msg=command text=/menu from=123456789
@@ -61,10 +61,12 @@ so rotation is rare.
 
 ## Log levels
 
-Configured via `LOG_LEVEL` env var. See [Configuration → env.md](../configuration/env.md#log_level).
+Configured via the `--log-level` flag on `macontrol run`. See
+[Configuration → Runtime](../configuration/runtime.md#--log-level).
 
-- `debug` — every routing decision, every callback parse, every flow
-  state transition, every subprocess command line and exit code.
+- `debug` — every routing decision, every callback parse, every
+  flow state transition, every subprocess command line and exit
+  code.
 - `info` (default) — startup, lifecycle events, rejected updates,
   significant actions.
 - `warn` — recoverable problems (handler errors, missing optional
@@ -74,17 +76,15 @@ Configured via `LOG_LEVEL` env var. See [Configuration → env.md](../configurat
 For diagnosing a specific issue, switch to `debug` temporarily:
 
 ```bash
-LOG_LEVEL=debug macontrol run        # foreground, immediate
-# or persistent:
-echo 'LOG_LEVEL=debug' >> ~/Library/Application\ Support/macontrol/config.env
+# Foreground, immediate (logs to stderr):
+macontrol run --log-level=debug --log-file=
+
+# Persistent (edit the LaunchAgent plist's ProgramArguments to add
+# --log-level=debug, then restart):
 brew services restart macontrol
 ```
 
-Switch back after, since `debug` is verbose:
-
-```dotenv
-LOG_LEVEL=info
-```
+Switch back to `info` afterwards — `debug` is verbose.
 
 ## Tailing live
 
@@ -108,7 +108,7 @@ A reference for what you'll see during normal operation.
 ### Startup
 
 ```text
-INFO  msg="macontrol starting"  version=v0.1.0 commit=abc1234 config=… log=…
+INFO  msg="macontrol starting"  version=v0.1.0 commit=abc1234 log_level=info log_file=… secrets=keychain
 INFO  msg=capabilities  summary="macOS 15.3 · 3/3 version-gated features available"
 INFO  msg="bot started"
 ```
