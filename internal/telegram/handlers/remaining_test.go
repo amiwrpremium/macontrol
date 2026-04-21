@@ -135,7 +135,7 @@ func TestPwr_Open(t *testing.T) {
 func TestPwr_Lock(t *testing.T) {
 	t.Parallel()
 	h := newHarness(t)
-	h.Fake.On("/System/Library/CoreServices/Menu Extras/User.menu/Contents/Resources/CGSession -suspend", "", nil)
+	h.Fake.On("pmset displaysleepnow", "", nil)
 	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
 		newCallbackUpdate("id", "pwr:lock")); err != nil {
 		t.Fatal(err)

@@ -20,11 +20,20 @@ Tap an action. Destructive actions require a second tap to confirm.
 
 ### 🔒 Lock
 
-No confirm. Locks the screen immediately via:
+No confirm. Puts the display to sleep via:
 
 ```bash
-/System/Library/CoreServices/Menu\ Extras/User.menu/Contents/Resources/CGSession -suspend
+pmset displaysleepnow
 ```
+
+Whether this also locks the session depends on **System Settings →
+Privacy & Security → "Require password after sleep or screen saver
+begins"**. Set that to *Immediately* (or a short delay) for the Lock
+button to actually lock, which is the default on modern macOS.
+
+Works on macOS 11 through 26 with no sudo and no Accessibility
+permission. The legacy `User.menu/CGSession -suspend` path no longer
+ships on current macOS.
 
 The bot replies with a toast "Locking…" but doesn't edit the message.
 
@@ -87,7 +96,7 @@ as success.
 
 | Action | Command |
 |---|---|
-| Lock | `CGSession -suspend` (no sudo) |
+| Lock | `pmset displaysleepnow` (no sudo; actual lock requires "Require password after sleep" in System Settings) |
 | Sleep | `pmset sleepnow` (no sudo — technically reads a user agent, not setting system state) |
 | Restart | `osascript -e 'tell application "System Events" to restart'` |
 | Shutdown | `osascript -e 'tell application "System Events" to shut down'` |

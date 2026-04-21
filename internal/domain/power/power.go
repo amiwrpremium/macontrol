@@ -18,11 +18,14 @@ type Service struct{ r runner.Runner }
 // New returns a Service.
 func New(r runner.Runner) *Service { return &Service{r: r} }
 
-// Lock locks the screen via CGSession.
+// Lock puts the display to sleep. Works on macOS 10.7 → current and
+// requires no sudo or Accessibility grant. Whether this also locks
+// the session depends on the user's "Require password after sleep"
+// setting in System Settings → Privacy & Security; that's the same
+// semantic the legacy `CGSession -suspend` relied on, and the
+// `User.menu` CGSession helper no longer ships on modern macOS.
 func (s *Service) Lock(ctx context.Context) error {
-	_, err := s.r.Exec(ctx,
-		"/System/Library/CoreServices/Menu Extras/User.menu/Contents/Resources/CGSession",
-		"-suspend")
+	_, err := s.r.Exec(ctx, "pmset", "displaysleepnow")
 	return err
 }
 
