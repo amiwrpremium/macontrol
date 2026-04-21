@@ -59,7 +59,8 @@ This directory is the full reference. The top-level
 
 ### Reference
 
-- [CLI](reference/cli.md) — every subcommand and flag
+- [CLI](reference/cli.md) — every `macontrol` subcommand and flag
+- [Brew commands](reference/brew.md) — every `brew` / `brew services` command for macontrol
 - [Callback protocol](reference/callback-protocol.md) — `<ns>:<action>:<arg>` + shortmap
 - [macOS CLI mapping](reference/macos-cli-mapping.md) — feature → backing command table
 - [Version gates](reference/version-gates.md) — which features need which macOS
