@@ -140,12 +140,14 @@ func (d *Deps) dispatchFlow(ctx context.Context, update *models.Update) {
 	}
 	if resp.Text != "" {
 		parseMode := resp.ParseMode
+		text := resp.Text
 		if parseMode == "" {
-			parseMode = models.ParseModeMarkdown
+			parseMode = models.ParseModeHTML
+			text = MDToHTML(text)
 		}
 		_, err := d.Bot.SendMessage(ctx, &tgbot.SendMessageParams{
 			ChatID:      chatID,
-			Text:        resp.Text,
+			Text:        text,
 			ParseMode:   parseMode,
 			ReplyMarkup: resp.Markup,
 		})

@@ -7,6 +7,7 @@ import (
 	tgbot "github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 
+	"github.com/amiwrpremium/macontrol/internal/telegram/bot"
 	"github.com/amiwrpremium/macontrol/internal/telegram/flows"
 )
 
@@ -24,12 +25,14 @@ func sendFlowPrompt(ctx context.Context, r Reply, chatID int64, resp flows.Respo
 		return nil
 	}
 	parseMode := resp.ParseMode
+	text := resp.Text
 	if parseMode == "" {
-		parseMode = models.ParseModeMarkdown
+		parseMode = models.ParseModeHTML
+		text = bot.MDToHTML(text)
 	}
 	_, err := r.Deps.Bot.SendMessage(ctx, &tgbot.SendMessageParams{
 		ChatID:      chatID,
-		Text:        resp.Text,
+		Text:        text,
 		ParseMode:   parseMode,
 		ReplyMarkup: resp.Markup,
 	})

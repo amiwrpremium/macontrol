@@ -21,12 +21,14 @@ type Reply struct {
 	Deps *bot.Deps
 }
 
-// Send sends a new markdown message to chatID.
+// Send sends a new message to chatID. Markdown-style markers in text
+// are rendered to HTML via bot.MDToHTML so Telegram's HTML parse mode
+// accepts the output.
 func (r Reply) Send(ctx context.Context, chatID int64, text string, markup models.ReplyMarkup) error {
 	_, err := r.Deps.Bot.SendMessage(ctx, &tgbot.SendMessageParams{
 		ChatID:      chatID,
-		Text:        text,
-		ParseMode:   models.ParseModeMarkdown,
+		Text:        bot.MDToHTML(text),
+		ParseMode:   models.ParseModeHTML,
 		ReplyMarkup: markup,
 	})
 	return err
@@ -41,8 +43,8 @@ func (r Reply) Edit(ctx context.Context, q *models.CallbackQuery, text string, m
 	_, err := r.Deps.Bot.EditMessageText(ctx, &tgbot.EditMessageTextParams{
 		ChatID:      msg.Chat.ID,
 		MessageID:   msg.ID,
-		Text:        text,
-		ParseMode:   models.ParseModeMarkdown,
+		Text:        bot.MDToHTML(text),
+		ParseMode:   models.ParseModeHTML,
 		ReplyMarkup: markup,
 	})
 	return err
