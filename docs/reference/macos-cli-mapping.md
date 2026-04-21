@@ -34,7 +34,7 @@ Built-in display only. External monitors not supported.
 
 | Action | Command |
 |---|---|
-| Lock | `/System/Library/CoreServices/Menu Extras/User.menu/Contents/Resources/CGSession -suspend` |
+| Lock | `pmset displaysleepnow` (locks iff "Require password after sleep" is set in System Settings) |
 | Sleep | `pmset sleepnow` |
 | Restart | `osascript -e 'tell application "System Events" to restart'` |
 | Shutdown | `osascript -e 'tell application "System Events" to shut down'` |

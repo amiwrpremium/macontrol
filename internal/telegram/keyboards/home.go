@@ -83,3 +83,16 @@ const HomeWelcome = "🏠 *macontrol*\n\nPick a category below, or tap an inline
 // HomeInlineTitle is the text for the inline home grid (shown when editing
 // a leaf message back to home).
 const HomeInlineTitle = "🏠 *Home*\n\nPick a category."
+
+// CategoryByLabel returns the callback namespace associated with a
+// ReplyKeyboard label (e.g. "🔊 Sound" → callbacks.NSSound). Lets the
+// dispatcher route reply-keyboard taps to the same handlers as their
+// inline `:open` callbacks. Returns ("", false) for unknown labels.
+func CategoryByLabel(label string) (string, bool) {
+	for _, c := range Categories {
+		if c.Label == label {
+			return c.Namespace, true
+		}
+	}
+	return "", false
+}

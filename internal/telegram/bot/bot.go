@@ -24,6 +24,7 @@ import (
 	"github.com/amiwrpremium/macontrol/internal/domain/wifi"
 	"github.com/amiwrpremium/macontrol/internal/telegram/callbacks"
 	"github.com/amiwrpremium/macontrol/internal/telegram/flows"
+	"github.com/amiwrpremium/macontrol/internal/telegram/keyboards"
 )
 
 // Services bundles every domain Service the bot may call into.
@@ -122,9 +123,126 @@ func (d *Deps) dispatch(ctx context.Context, b *tgbot.Bot, update *models.Update
 			}
 			return
 		}
+		// Reply-keyboard taps arrive as plain text. Map category labels
+		// onto their dashboards and utility labels onto the equivalent
+		// slash commands before handing off to any active flow.
+		if d.dispatchReplyKeyboard(ctx, update) {
+			return
+		}
 		// Non-command text: maybe a flow is consuming it.
 		d.dispatchFlow(ctx, update)
 	}
+}
+
+// dispatchReplyKeyboard routes home-ReplyKeyboard taps. Returns true if
+// the text matched a known label (category or utility) and was handled —
+// false means the caller should fall through to flow dispatch.
+func (d *Deps) dispatchReplyKeyboard(ctx context.Context, update *models.Update) bool {
+	label := update.Message.Text
+	chatID := update.Message.Chat.ID
+	switch label {
+	case "❓ Help", "❌ Cancel":
+		d.Logger.Debug("reply-kb utility", "label", label, "from", update.Message.From.ID)
+		// Reuse the existing slash-command handlers by rewriting the
+		// message text in-place on a shallow-copied update.
+		msg := *update.Message
+		if label == "❓ Help" {
+			msg.Text = "/help"
+		} else {
+			msg.Text = "/cancel"
+		}
+		u := *update
+		u.Message = &msg
+		if err := d.Commands.Handle(ctx, d, &u); err != nil {
+			d.Logger.Warn("reply-kb utility dispatch", "err", err, "label", label)
+		}
+		return true
+	}
+	if ns, ok := keyboards.CategoryByLabel(label); ok {
+		d.Logger.Debug("reply-kb category", "label", label, "ns", ns, "from", update.Message.From.ID)
+		if err := d.openCategoryAsMessage(ctx, chatID, ns); err != nil {
+			d.Logger.Warn("reply-kb open", "err", err, "ns", ns)
+		}
+		return true
+	}
+	return false
+}
+
+// openCategoryAsMessage mirrors each category's `:open` callback action,
+// but sends the dashboard as a new message rather than editing a
+// pre-existing one (since reply-keyboard taps don't carry a callback
+// query to edit from).
+func (d *Deps) openCategoryAsMessage(ctx context.Context, chatID int64, ns string) error {
+	text, markup, err := d.buildCategoryPanel(ctx, ns)
+	if err != nil {
+		text = fmt.Sprintf("⚠ %s unavailable: `%v`", ns, err)
+		markup = nil
+	}
+	_, sendErr := d.Bot.SendMessage(ctx, &tgbot.SendMessageParams{
+		ChatID:      chatID,
+		Text:        MDToHTML(text),
+		ParseMode:   models.ParseModeHTML,
+		ReplyMarkup: markup,
+	})
+	return sendErr
+}
+
+// buildCategoryPanel fetches state (where needed) and builds the
+// Markdown-style text + inline keyboard for the given namespace.
+func (d *Deps) buildCategoryPanel(ctx context.Context, ns string) (string, *models.InlineKeyboardMarkup, error) {
+	switch ns {
+	case callbacks.NSSound:
+		st, err := d.Services.Sound.Get(ctx)
+		if err != nil {
+			return "", nil, err
+		}
+		text, kb := keyboards.Sound(st)
+		return text, kb, nil
+	case callbacks.NSDisplay:
+		st, err := d.Services.Display.Get(ctx)
+		if err != nil {
+			return "", nil, err
+		}
+		text, kb := keyboards.Display(st)
+		return text, kb, nil
+	case callbacks.NSBattery:
+		st, err := d.Services.Battery.Get(ctx)
+		if err != nil {
+			return "", nil, err
+		}
+		text, kb := keyboards.Battery(st)
+		return text, kb, nil
+	case callbacks.NSWifi:
+		info, err := d.Services.WiFi.Get(ctx)
+		if err != nil {
+			return "", nil, err
+		}
+		text, kb := keyboards.WiFi(info, d.Capability.Features)
+		return text, kb, nil
+	case callbacks.NSBT:
+		st, err := d.Services.Bluetooth.Get(ctx)
+		if err != nil {
+			return "", nil, err
+		}
+		text, kb := keyboards.Bluetooth(st)
+		return text, kb, nil
+	case callbacks.NSPower:
+		text, kb := keyboards.Power()
+		return text, kb, nil
+	case callbacks.NSSystem:
+		text, kb := keyboards.System()
+		return text, kb, nil
+	case callbacks.NSMedia:
+		text, kb := keyboards.Media()
+		return text, kb, nil
+	case callbacks.NSNotify:
+		text, kb := keyboards.Notify()
+		return text, kb, nil
+	case callbacks.NSTools:
+		text, kb := keyboards.Tools(d.Capability.Features)
+		return text, kb, nil
+	}
+	return "", nil, fmt.Errorf("unknown namespace %q", ns)
 }
 
 func (d *Deps) dispatchFlow(ctx context.Context, update *models.Update) {

@@ -111,7 +111,7 @@ func TestCommandRouter_CancelWithActiveFlow(t *testing.T) {
 func TestCommandRouter_Lock(t *testing.T) {
 	t.Parallel()
 	h := newHarness(t)
-	h.Fake.On("/System/Library/CoreServices/Menu Extras/User.menu/Contents/Resources/CGSession -suspend", "", nil)
+	h.Fake.On("pmset displaysleepnow", "", nil)
 	if err := handlers.NewCommandRouter().Handle(context.Background(), h.Deps,
 		newMessageUpdate("/lock")); err != nil {
 		t.Fatal(err)
@@ -121,7 +121,7 @@ func TestCommandRouter_Lock(t *testing.T) {
 func TestCommandRouter_Lock_Failure(t *testing.T) {
 	t.Parallel()
 	h := newHarness(t)
-	h.Fake.On("/System/Library/CoreServices/Menu Extras/User.menu/Contents/Resources/CGSession -suspend", "", errors.New("fail"))
+	h.Fake.On("pmset displaysleepnow", "", errors.New("fail"))
 	_ = handlers.NewCommandRouter().Handle(context.Background(), h.Deps,
 		newMessageUpdate("/lock"))
 	last := h.Recorder.Last()

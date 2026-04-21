@@ -13,9 +13,7 @@ import (
 
 func TestLock(t *testing.T) {
 	t.Parallel()
-	f := runner.NewFake().On(
-		"/System/Library/CoreServices/Menu Extras/User.menu/Contents/Resources/CGSession -suspend",
-		"", nil)
+	f := runner.NewFake().On("pmset displaysleepnow", "", nil)
 	if err := power.New(f).Lock(context.Background()); err != nil {
 		t.Fatal(err)
 	}

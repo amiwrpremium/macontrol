@@ -94,7 +94,7 @@ that sends `/cancel` for the same effect.
 /lock
 ```
 
-Locks the screen via `CGSession -suspend`. No confirm.
+Puts the display to sleep via `pmset displaysleepnow`. No confirm. Whether the session actually locks depends on your "Require password after sleep" setting in System Settings → Privacy & Security.
 
 Unlike the **⚡ Power → 🔒 Lock** button which also shows no confirm,
 `/lock` has the advantage of working from any Telegram view — you
