@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/amiwrpremium/macontrol/compare/v0.1.0...v0.1.1) (2026-04-21)
+
+
+### Bug Fixes
+
+* **release:** qualify smctemp dependency as narugit/tap/smctemp ([#13](https://github.com/amiwrpremium/macontrol/issues/13)) ([5966bae](https://github.com/amiwrpremium/macontrol/commit/5966bae0b6bfcc6d5556579bf268d7d8916e7840))
+
 ## 0.1.0 (2026-04-21)
 
 
