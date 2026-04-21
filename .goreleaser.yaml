@@ -92,7 +92,7 @@ brews:
     dependencies:
       - name: brightness
       - name: blueutil
-      - name: smctemp
+      - name: narugit/tap/smctemp
       - name: imagesnap
       - name: terminal-notifier
     install: |

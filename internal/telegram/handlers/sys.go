@@ -48,7 +48,7 @@ func handleSystem(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, dat
 		if t.SmctempAvail {
 			fmt.Fprintf(&body, "\n• CPU: `%.1f°C`\n• GPU: `%.1f°C`", t.CPUTempC, t.GPUTempC)
 		} else {
-			body.WriteString("\n• °C readings unavailable (install `brew install smctemp`).")
+			body.WriteString("\n• °C readings unavailable (install `brew install narugit/tap/smctemp`).")
 		}
 		return r.Edit(ctx, q, body.String(), keyboards.SystemPanel("temp"))
 
