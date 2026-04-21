@@ -53,15 +53,22 @@ Done. Send /start to @amiwrpremium_macontrol_bot.
 
 ### Where things end up
 
-| Thing | Path |
+| Thing | Where |
 |---|---|
-| Config | `~/Library/Application Support/macontrol/config.env` |
+| Bot token | macOS Keychain — service `com.amiwrpremium.macontrol` |
+| Whitelist | macOS Keychain — service `com.amiwrpremium.macontrol.whitelist` |
 | Logs | `~/Library/Logs/macontrol/macontrol.log` (rotating) |
 | LaunchAgent | `~/Library/LaunchAgents/com.amiwrpremium.macontrol.plist` |
 | Sudoers (optional) | `/etc/sudoers.d/macontrol` |
 
-See [Configuration → File locations](../configuration/file-locations.md)
-for the full breakdown.
+No `.env` file. The wizard inserts both secrets directly into your
+login keychain — encrypted at rest, ACL-restricted to the macontrol
+binary, and inspectable via `security find-generic-password` if you're
+curious. See [Configuration → File locations](../configuration/file-locations.md).
+
+The first time the daemon reads from the Keychain, macOS may show a
+one-time prompt asking you to grant access. Click **Always Allow** —
+subsequent reads are silent.
 
 ## 2. Receive the boot ping
 

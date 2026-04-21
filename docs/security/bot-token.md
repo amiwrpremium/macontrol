@@ -93,32 +93,78 @@ when there's a reason; otherwise leave it.
 
 ## How macontrol stores it
 
+The token lives in your **macOS login keychain** under service name
+`com.amiwrpremium.macontrol`, account = your unix username. The
+underlying database is at:
+
 ```text
-~/Library/Application Support/macontrol/config.env
+~/Library/Keychains/login.keychain-db
 ```
 
-Mode `0600`. Owner: your Unix user. The file is **not encrypted at
-rest** — anyone with read access to your home dir can `cat` it.
+Encrypted at rest with your account password (independent of FileVault).
+Per-app silent-read ACL granted to the macontrol binary by the setup
+wizard — other readers (including you running `security
+find-generic-password` from a terminal that wasn't pre-authorised)
+trigger a one-time interactive prompt that asks "Always Allow?".
 
-If your Mac is FileVault-encrypted (default on M-series), the
-filesystem is encrypted at rest with your account password. An
-attacker without your password can't read the file by booting from
-USB or removing the drive.
+Inspect with:
+
+```bash
+security find-generic-password -s com.amiwrpremium.macontrol -a $USER -w
+```
+
+### What an attacker who reads `~/` cannot do
+
+Unlike a plaintext `.env` file, an attacker who somehow gets read access
+to your home directory still can't extract the token without your
+account password — the keychain database is encrypted and the
+entry-level decryption requires either:
+
+- the macontrol binary running with the right ACL (interactive prompt
+  for any other process), OR
+- your account password (via `security unlock-keychain`).
+
+This is a meaningful upgrade over file mode 0600, which is "anyone in
+your unix user can `cat` it".
+
+### Binary-move re-prompts (without code signing)
+
+The Keychain ACL is binary-path-based until macontrol gets a Developer
+ID code signature (deferred to v1.x). If you reinstall to a different
+path (brew bottle relocation, switching brew ↔ manual install), the
+ACL invalidates and macOS re-prompts on next read.
+
+Recovery without re-entering the token:
+
+```bash
+macontrol token reauth
+```
+
+Re-issues the Keychain entry with the new binary path. Silent reads
+resume.
+
+### Legacy `.env` migration
+
+Pre-Keychain installs stored the token in
+`~/Library/Application Support/macontrol/config.env` (mode `0600`).
+That path is still recognised — on first daemon boot after upgrading,
+the secret is migrated into the Keychain and the file is renamed to
+`config.env.migrated.<unix-ts>` as a backup. After confirming `macontrol
+doctor` reports the token as "present in Keychain", you can delete the
+backup safely.
 
 ## What macontrol does NOT do
 
-- **No Keychain integration** — macontrol doesn't store the token in
-  the macOS Keychain. Reading from Keychain in a launchd-managed
-  process is fiddly (the agent has to authenticate via the user's
-  session) and doesn't add much over `0600` file perms in practice.
-  Open an issue if you want this.
 - **No log redaction** — macontrol's logger doesn't write the token
   out. But: `LOG_LEVEL=debug` could log Telegram API request URLs that
   include the token in `<token>` path segments. Don't run debug-level
   logging long-term, and grep before sharing logs.
 - **No environment-variable injection from outside** — the daemon
-  reads the file once at startup; subsequent writes don't take effect
-  until restart.
+  reads from Keychain (or env, or file) once at startup; subsequent
+  changes don't take effect until restart.
+- **No iCloud Keychain sync** — the entry is created locally only.
+  Tokens shouldn't sync to other devices since they're tied to a
+  specific Mac's daemon.
 
 ## Token in transit
 

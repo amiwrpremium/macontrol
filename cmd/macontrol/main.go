@@ -28,6 +28,10 @@ func main() {
 		runSetup(os.Args[2:])
 	case "service":
 		runService(os.Args[2:])
+	case "whitelist":
+		runWhitelist(os.Args[2:])
+	case "token":
+		runToken(os.Args[2:])
 	case "doctor":
 		runDoctor()
 	case "version", "--version", "-v":
@@ -61,6 +65,13 @@ Subcommands:
   service stop        launchctl bootout the service.
   service status      Print launchctl status.
   service logs        Tail ~/Library/Logs/macontrol/macontrol.log.
+  whitelist list      Print whitelisted Telegram user IDs.
+  whitelist add ID    Add a Telegram user ID to the whitelist.
+  whitelist remove ID Remove a Telegram user ID.
+  whitelist clear     Empty the whitelist (requires confirmation).
+  token set           Interactively replace the bot token (validates via getMe).
+  token clear         Remove the bot token from the Keychain.
+  token reauth        Re-grant Keychain ACL after the binary moved.
   doctor              Print capability report, check brew deps, test sudoers.
   version             Print version + commit + build date.
   help                This message.

@@ -254,3 +254,62 @@ tccutil reset All com.amiwrpremium.macontrol
 
 You'll get fresh prompts for everything. Use only if grants are
 severely tangled.
+
+## Keychain — secret storage
+
+### Symptom: log shows "keychain is locked; the daemon may need to wait for login"
+
+The login keychain auto-unlocks at user login. If launchd starts the
+daemon in the brief window before unlock completes, the first
+Keychain read fails. The daemon retries 3× with 5-second backoff;
+beyond that it exits.
+
+**Fix**:
+
+- If you've just logged in, wait a few seconds and run `brew services
+  restart macontrol`. The keychain is unlocked by then.
+- Persistent failures (seen on every boot) suggest the keychain
+  database is corrupted. Open Keychain Access → File → Default
+  Keychains and verify "login" is the default.
+
+### Symptom: macOS prompts "macontrol wants to use your keychain" repeatedly
+
+Means the binary's path doesn't match the ACL on the entry. Common
+after switching install methods or major macOS upgrades.
+
+**Fix**:
+
+```bash
+macontrol token reauth
+brew services restart macontrol
+```
+
+This re-issues the Keychain entry with the current binary path.
+Subsequent reads are silent.
+
+If that doesn't work (the entry might be in a corrupted ACL state):
+
+```bash
+macontrol token clear
+macontrol setup
+```
+
+You'll re-enter the token, but everything else stays.
+
+### Symptom: doctor shows "missing from Keychain" but you ran setup
+
+Possible causes:
+
+- You ran `macontrol setup` as a different unix user. Keychain entries
+  are per-account (`-a $USER`). Re-run as the user that owns the daemon.
+- You ran setup while signed in via SSH (no GUI session). Keychain
+  inserts work via SSH but the ACL might not get applied correctly.
+  Re-run `macontrol setup` from a Terminal app on the Mac itself.
+
+```bash
+# Confirm the entry exists at all (interactively prompts):
+security find-generic-password -s com.amiwrpremium.macontrol -a $USER -w
+```
+
+If that command also says "could not be found", setup didn't
+complete. Re-run.

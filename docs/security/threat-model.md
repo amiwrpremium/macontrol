@@ -117,29 +117,36 @@ catastrophic if your whitelist is locked down.
 
 **Capabilities** (everything from levels 1–3, plus):
 
-- Read `config.env`, get the bot token.
-- Read `ALLOWED_USER_IDS` and know what user IDs you trust.
 - Read logs — see every action you've taken via the bot, with
   timestamps.
 - Read any other readable file — your terminal history, browser data,
   SSH keys, etc.
+- Read the **encrypted** `~/Library/Keychains/login.keychain-db`. Can't
+  decrypt it without your account password.
+- Read leftover `config.env.migrated.<ts>` backup files from the
+  Keychain migration. **These are plaintext** — see below.
 
-**Damage they can do**:
-- Combine the token with their own Telegram account on the whitelist
-  → full level-2 access. To do this they'd need to also write to
-  config (level 5), but if they can read everything else, they probably
-  already have your account credentials and can grab any other
-  service's tokens too.
-- Plant credentials elsewhere by knowing what's on the whitelist.
+**What they CAN extract**:
+- The bot's behavior log (Telegram user IDs you've granted).
+- Anything in your terminal history (`history`, `~/.zsh_history`).
+- If they find a `config.env.migrated.<ts>` file you forgot to delete
+  after upgrading, they get the **plaintext token from before the
+  Keychain migration**.
+
+**What they CANNOT do (without escalating)**:
+- Decrypt the live Keychain entries — those need your account password
+  or the macontrol binary running with the right ACL.
 
 **Mitigations**:
-- File mode `0600` — only your Unix user can read. Other users on
-  the same Mac are blocked.
-- FileVault encryption protects against offline disk access (USB
-  boot, drive removal).
+- Bot token + whitelist live in the Keychain (encrypted at rest).
+- FileVault encryption protects against offline disk access (USB boot,
+  drive removal).
+- After confirming `macontrol doctor` reports both secrets as "present
+  in Keychain", **delete any `config.env.migrated.*` backups**.
 
-**Residual risk**: high. By the time someone has read access to your
-home directory, they probably have everything else they need too.
+**Residual risk**: medium. The migrated Keychain entries are protected;
+the backup file is the weakest link. Delete it once you've verified
+migration succeeded.
 
 ## Level 5 — Filesystem write + shell
 

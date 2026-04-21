@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"runtime"
 	"time"
 
 	"github.com/amiwrpremium/macontrol/internal/capability"
+	"github.com/amiwrpremium/macontrol/internal/keychain"
 	"github.com/amiwrpremium/macontrol/internal/runner"
 )
 
@@ -60,5 +62,26 @@ func runDoctor() {
 		fmt.Println("  ✓ `sudo -n pmset -g` works")
 	} else {
 		fmt.Println("  ✗ `sudo -n pmset -g` failed — install sudoers entry via `macontrol setup`")
+	}
+
+	fmt.Println()
+	fmt.Println("keychain:")
+	kc := keychain.New(r)
+	account := currentUser()
+	checkKeychain(ctx, kc, account, keychain.ServiceToken, "bot token")
+	checkKeychain(ctx, kc, account, keychain.ServiceWhitelist, "whitelist")
+}
+
+func checkKeychain(ctx context.Context, kc *keychain.Client, account, service, label string) {
+	_, err := kc.Get(ctx, service, account)
+	switch {
+	case err == nil:
+		fmt.Printf("  ✓ %-9s present in Keychain (%s)\n", label, service)
+	case errors.Is(err, keychain.ErrNotFound):
+		fmt.Printf("  ✗ %-9s missing from Keychain — run `macontrol setup` (or `macontrol token set`/`whitelist add`)\n", label)
+	case errors.Is(err, keychain.ErrLocked):
+		fmt.Printf("  ⚠ %-9s present but Keychain is locked — log in to unlock\n", label)
+	default:
+		fmt.Printf("  ⚠ %-9s lookup failed: %v\n", label, err)
 	}
 }

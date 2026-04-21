@@ -9,15 +9,15 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
-	"golang.org/x/term" // added to go.mod via tidy when needed
+	"golang.org/x/term"
 
-	"github.com/amiwrpremium/macontrol/internal/config"
+	"github.com/amiwrpremium/macontrol/internal/keychain"
+	"github.com/amiwrpremium/macontrol/internal/runner"
 )
 
 func runSetup(args []string) {
@@ -25,13 +25,20 @@ func runSetup(args []string) {
 	fmt.Println("macontrol first-run setup. Press Ctrl-C to abort.")
 	fmt.Println()
 
-	cfgPath, err := config.DefaultConfigPath()
-	if err != nil {
-		fatalf("could not derive config path: %v", err)
-	}
-	if _, statErr := os.Stat(cfgPath); statErr == nil && !reconfigure {
-		fmt.Printf("⚠ config already exists at %s\n   run `macontrol setup --reconfigure` to overwrite.\n", cfgPath)
-		return
+	kc := keychain.New(runner.New())
+	account := currentUser()
+	exe, _ := os.Executable()
+
+	// Refuse to overwrite without --reconfigure.
+	if !reconfigure {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_, err := kc.Get(ctx, keychain.ServiceToken, account)
+		cancel()
+		if err == nil {
+			fmt.Println("⚠ a token is already stored in the Keychain")
+			fmt.Println("   run `macontrol setup --reconfigure` to overwrite.")
+			return
+		}
 	}
 
 	in := bufio.NewReader(os.Stdin)
@@ -59,8 +66,21 @@ func runSetup(args []string) {
 	}
 	fmt.Printf("✓ bot @%s\n", botUser)
 
-	writeConfig(cfgPath, token, ids)
-	fmt.Printf("▸ Writing config to %s  ✓\n", cfgPath)
+	// Store both secrets in the Keychain. Trust the macontrol binary so
+	// the daemon can read silently after the first prompt.
+	storeCtx, storeCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer storeCancel()
+	trusted := []string{}
+	if exe != "" {
+		trusted = append(trusted, exe)
+	}
+	if err := kc.Set(storeCtx, keychain.ServiceToken, account, token, trusted...); err != nil {
+		fatalf("storing token in Keychain: %v", err)
+	}
+	if err := kc.Set(storeCtx, keychain.ServiceWhitelist, account, ids, trusted...); err != nil {
+		fatalf("storing whitelist in Keychain: %v", err)
+	}
+	fmt.Println("▸ Stored token + whitelist in Keychain  ✓")
 
 	installAgent := promptYesNo(in, "▸ Install LaunchAgent so macontrol starts at login? [Y/n] ", true)
 	if installAgent {
@@ -121,16 +141,6 @@ func promptYesNo(in *bufio.Reader, label string, def bool) bool {
 		return def
 	}
 	return s == "y" || s == "yes"
-}
-
-func writeConfig(path, token, ids string) {
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		fatalf("mkdir: %v", err)
-	}
-	body := fmt.Sprintf("TELEGRAM_BOT_TOKEN=%s\nALLOWED_USER_IDS=%s\nLOG_LEVEL=info\n", token, ids)
-	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
-		fatalf("write config: %v", err)
-	}
 }
 
 // verifyToken calls getMe via the Bot API to confirm the token is valid.

@@ -1,5 +1,28 @@
 # Whitelist
 
+The whitelist lives in the macOS Keychain (service
+`com.amiwrpremium.macontrol.whitelist`) — see
+[Configuration → env.md → Where secrets actually live](env.md#where-secrets-actually-live).
+Manage it via the `macontrol whitelist` subcommands (no file editing
+needed):
+
+```bash
+macontrol whitelist list
+macontrol whitelist add 987654321
+macontrol whitelist remove 987654321
+macontrol whitelist clear      # asks for confirmation
+```
+
+After any add/remove, restart the daemon for it to take effect:
+
+```bash
+brew services restart macontrol
+```
+
+The rest of this doc explains the access model.
+
+---
+
 macontrol uses a hard, single-tier whitelist — every user on the list
 gets full access, every other Telegram user is silently ignored.
 
@@ -34,17 +57,31 @@ Numeric IDs are permanent — they don't change if the user renames their
 @username or signs in on a different device. The same user on phone +
 desktop has the same ID (one ID per Telegram account).
 
-### Edit the config
+### Add via the CLI
 
-Open `~/Library/Application Support/macontrol/config.env` and append to
-`ALLOWED_USER_IDS`:
-
-```dotenv
-ALLOWED_USER_IDS=123456789,987654321,555444333
+```bash
+macontrol whitelist add 987654321
 ```
 
-Or use `macontrol setup --reconfigure` and re-enter the comma-separated
-list.
+The command checks that the value parses as an integer, deduplicates
+against existing entries, and writes back to the Keychain. Output:
+
+```text
+✓ added 987654321 (whitelist now has 2 entries)
+restart the daemon for changes to take effect: brew services restart macontrol
+```
+
+If you'd rather rebuild the whole list from scratch, run
+`macontrol setup --reconfigure` and re-enter the comma-separated list.
+
+#### (Legacy) editing a `.env` file
+
+Pre-Keychain installs stored the whitelist in
+`~/Library/Application Support/macontrol/config.env`. That file path is
+still recognised — on first daemon boot after upgrading, both secrets
+are migrated into the Keychain and the file is renamed to
+`config.env.migrated.<unix-ts>`. After migration, edits to that file
+have no effect; use `macontrol whitelist add/remove` instead.
 
 ### Restart the daemon
 
@@ -70,11 +107,16 @@ tail -f ~/Library/Logs/macontrol/macontrol.log
 
 ## Removing a user
 
-Reverse of adding:
+```bash
+macontrol whitelist remove 987654321
+```
 
-1. Edit `config.env`, drop their ID from the comma list.
-2. Restart the daemon.
-3. Their next message gets dropped silently.
+Then restart the daemon. Their next message gets dropped silently.
+
+The CLI refuses to remove the **last** entry as a safety check
+(otherwise the daemon would refuse to start at all). Use `macontrol
+whitelist clear` if you genuinely want to empty the list — it asks
+for explicit confirmation.
 
 There's no "soft remove" — once they're off the list, they have no
 access. They can still see the chat history (Telegram-side data), they

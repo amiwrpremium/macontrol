@@ -94,6 +94,54 @@ sample output.
 
 Always exits `0` (it's a report, not an enforcement tool).
 
+### `whitelist`
+
+Manage the user-ID whitelist stored in the Keychain.
+
+```text
+macontrol whitelist list
+macontrol whitelist add <userid>
+macontrol whitelist remove <userid>
+macontrol whitelist clear
+```
+
+| Action | Effect |
+|---|---|
+| `list` | Print every whitelisted Telegram user ID, one per line. Empty list prints `(empty)`. |
+| `add <id>` | Append the integer to the whitelist. Idempotent (no-op if already present). |
+| `remove <id>` | Drop the integer. Refuses to remove the last entry — use `clear` for that. Aliased as `rm`. |
+| `clear` | Empty the whitelist after explicit `[y/N]` confirmation. |
+
+After any add / remove / clear, restart the daemon for it to pick up
+the change (`brew services restart macontrol`).
+
+**Exit codes**:
+- `0` — operation succeeded
+- `1` — invalid argument or Keychain error
+- `2` — missing required subcommand
+
+### `token`
+
+Manage the bot token stored in the Keychain.
+
+```text
+macontrol token set
+macontrol token clear
+macontrol token reauth
+```
+
+| Action | Effect |
+|---|---|
+| `set` | Hidden-input prompt for a new token, validates via Telegram `getMe`, replaces the Keychain entry. Aborts on validation failure. |
+| `clear` | Remove the token after confirmation. The daemon will refuse to start until a new one is set. |
+| `reauth` | Read the existing token and re-issue the Keychain entry with a fresh `-T <macontrol-binary>` ACL. Use after the binary moved (brew bottle relocation, switched install methods). |
+
+After `set`, restart the daemon. After `reauth`, no restart needed —
+the next read is silent.
+
+**Exit codes**: `0` on success, `1` on Keychain or validation error,
+`2` on missing subcommand.
+
 ### `version` / `--version` / `-v`
 
 Print version metadata.
