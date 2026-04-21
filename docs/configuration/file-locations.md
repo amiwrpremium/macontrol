@@ -46,25 +46,6 @@ discussion of why Keychain.
 
 ## User-specific paths (per-user, no root)
 
-### Legacy config file (pre-Keychain installs)
-
-```text
-~/Library/Application Support/macontrol/config.env
-```
-
-Permissions: `0600` (rw user only). Directory `0700`.
-
-Contents: the legacy env-var format. Kept as a backwards-compatibility
-fallback. On first daemon boot after upgrading to a Keychain-aware
-release, the secrets are migrated into the Keychain and the file is
-renamed to `config.env.migrated.<unix-ts>` as a backup.
-
-Why here: macOS's recommended location for per-user app config.
-Migrated installs leave the `.migrated.<ts>` backup behind so you can
-recover credentials if anything goes wrong with the Keychain transfer.
-Safe to delete after you've confirmed `macontrol doctor` reports both
-secrets as "present in Keychain".
-
 ### Logs
 
 ```text
@@ -151,12 +132,13 @@ you move it after running `macontrol service install`, run
 To see all macontrol-touched paths:
 
 ```bash
-ls -la ~/Library/Application\ Support/macontrol/ \
-       ~/Library/Logs/macontrol/ \
+ls -la ~/Library/Logs/macontrol/ \
        ~/Library/LaunchAgents/com.amiwrpremium.macontrol.plist \
        ~/Library/Caches/macontrol/ \
        /etc/sudoers.d/macontrol \
        2>/dev/null
+security find-generic-password -s com.amiwrpremium.macontrol -a $USER 2>/dev/null
+security find-generic-password -s com.amiwrpremium.macontrol.whitelist -a $USER 2>/dev/null
 ```
 
 ## Clean uninstall
@@ -173,10 +155,16 @@ brew uninstall macontrol           # if installed via brew
 sudo rm /usr/local/bin/macontrol   # if installed manually
 
 # Per-user state
-rm -rf ~/Library/Application\ Support/macontrol
 rm -rf ~/Library/Logs/macontrol
 rm -rf ~/Library/Caches/macontrol
 rm -f  ~/Library/LaunchAgents/com.amiwrpremium.macontrol.plist
+
+# Keychain entries
+macontrol token clear
+macontrol whitelist clear
+# (or directly:)
+security delete-generic-password -s com.amiwrpremium.macontrol -a $USER
+security delete-generic-password -s com.amiwrpremium.macontrol.whitelist -a $USER
 
 # Sudoers (if installed)
 sudo rm /etc/sudoers.d/macontrol

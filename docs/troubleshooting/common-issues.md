@@ -24,22 +24,27 @@ which macontrol      # should print the path
 ls -la $(which macontrol)
 ```
 
-### "macontrol: missing required config: TELEGRAM_BOT_TOKEN, ALLOWED_USER_IDS"
+### "macontrol: missing TELEGRAM_BOT_TOKEN in Keychain" / "missing ALLOWED_USER_IDS in Keychain"
 
-The config file doesn't exist or doesn't define those vars.
+The Keychain doesn't have the entries. Run:
 
 ```bash
 macontrol setup
 ```
 
-If you've already run setup and the file exists but the daemon still
-errors, check the file:
+If you've already run setup, confirm both entries are present:
 
 ```bash
-cat ~/Library/Application\ Support/macontrol/config.env
+security find-generic-password -s com.amiwrpremium.macontrol -a $USER -w
+security find-generic-password -s com.amiwrpremium.macontrol.whitelist -a $USER -w
 ```
 
-Lines should be `KEY=value` with no surrounding whitespace.
+The first should print the bot token; the second a comma-separated
+list of integer user IDs. If either prompts you for permission with
+"macontrol wants to access your keychain", click **Always Allow**.
+
+If either entry is missing, re-run `macontrol setup` (or
+`macontrol token set` / `macontrol whitelist add` to add just one).
 
 ### Daemon crashes immediately after starting
 
@@ -57,12 +62,15 @@ tail -50 ~/Library/Logs/macontrol/macontrol.err.log
 
 Common causes:
 
-- **Invalid bot token** — `bot.New: Unauthorized`. Re-run `macontrol
-  setup --reconfigure` with the correct token.
-- **Invalid `ALLOWED_USER_IDS`** — `parse: strconv.ParseInt: parsing
-  "abc": invalid syntax`. The value must be all integers.
+- **Invalid bot token** — `bot.New: Unauthorized`. Run `macontrol
+  token set` and paste the correct token.
+- **Invalid whitelist value** — `keychain whitelist value: invalid
+  user id "abc"`. The Keychain entry's content must be all integers
+  comma-separated. Re-run `macontrol setup --reconfigure` or fix
+  with `macontrol whitelist add/remove`.
 - **Log path not writable** — `permission denied: ~/Library/Logs/macontrol/`.
-  Create the directory or fix permissions.
+  Create the directory or fix permissions, or pass `--log-file=` to
+  redirect to stderr.
 
 ### "bot exited" loop
 
@@ -80,7 +88,8 @@ If it's a network error (`telegram transport error`), check that
 your Mac can reach `api.telegram.org`:
 
 ```bash
-curl -s https://api.telegram.org/bot$(grep TELEGRAM_BOT_TOKEN ~/Library/Application\ Support/macontrol/config.env | cut -d= -f2)/getMe
+TOKEN=$(security find-generic-password -s com.amiwrpremium.macontrol -a $USER -w)
+curl -s "https://api.telegram.org/bot${TOKEN}/getMe"
 ```
 
 Should return `{"ok":true,...}`. If you get a network error, check
@@ -100,10 +109,11 @@ In order, check:
 
 2. **You're on the whitelist**:
    ```bash
-   grep ALLOWED_USER_IDS ~/Library/Application\ Support/macontrol/config.env
+   macontrol whitelist list
    ```
-   Your numeric Telegram ID should be in the comma list. Get it from
-   [@userinfobot](https://t.me/userinfobot) if unsure.
+   Your numeric Telegram ID should appear. Get it from
+   [@userinfobot](https://t.me/userinfobot) if unsure, then add with
+   `macontrol whitelist add <id>`.
 
 3. **You messaged the bot first** — Telegram doesn't let bots
    initiate; you have to send any message first. If you've never
@@ -228,7 +238,8 @@ ls -la ~/Library/Logs/macontrol/
 
 If empty, either:
 - The daemon never started (check `launchctl list`).
-- Log path is overridden by `MACONTROL_LOG` to somewhere else.
+- Log path is overridden by `--log-file` in the LaunchAgent plist's
+  `ProgramArguments`.
 - The log directory has wrong permissions.
 
 ```bash
@@ -239,15 +250,25 @@ mkdir -p ~/Library/Logs/macontrol/
 
 `lumberjack` rotation should prevent this. If logs are filling disk:
 
-- Check `LOG_LEVEL` — debug is verbose.
+- Check the daemon's `--log-level` flag in the plist — debug is verbose.
 - Check that lumberjack didn't fail to rotate (rare).
 - Manually trim: `>~/Library/Logs/macontrol/macontrol.log`. The
   daemon will continue writing to it.
 
 ### Want more detail in logs
 
-Set `LOG_LEVEL=debug` in `config.env` and restart. Switch back to
-`info` after diagnosing.
+Edit the LaunchAgent plist to add `--log-level=debug` to
+`ProgramArguments`, then `brew services restart macontrol`. Switch
+back to `info` after diagnosing.
+
+For a one-shot debug session without touching the plist:
+
+```bash
+macontrol service stop
+macontrol run --log-level=debug --log-file=
+# Ctrl-C when done
+macontrol service start
+```
 
 ## After upgrading
 

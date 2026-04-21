@@ -9,13 +9,13 @@ intentionally not protected (because it's not in scope).
 We map five increasing levels:
 
 1. **Internet drive-by** — knows the bot exists, no credentials.
-2. **On the whitelist** — has a Telegram account whose ID is on
-   `ALLOWED_USER_IDS`. Either added by you intentionally, or via a
-   compromise that altered the config file.
+2. **On the whitelist** — has a Telegram account whose numeric ID is
+   in the macontrol whitelist Keychain entry. Either added by you
+   intentionally, or via a compromise that wrote to the entry.
 3. **Has the bot token** — can send and receive on the bot, but their
    Telegram account is not whitelisted.
-4. **Filesystem read** on your Mac — can read `~/Library/Application
-   Support/macontrol/config.env`.
+4. **Filesystem read** on your Mac — can read `~/Library/Logs/...`,
+   shell history, etc., but the Keychain itself is encrypted at rest.
 5. **Filesystem write + your shell** — full account compromise.
 
 Each level subsumes the ones above (level 5 has all the powers of
@@ -119,34 +119,31 @@ catastrophic if your whitelist is locked down.
 
 - Read logs — see every action you've taken via the bot, with
   timestamps.
-- Read any other readable file — your terminal history, browser data,
-  SSH keys, etc.
-- Read the **encrypted** `~/Library/Keychains/login.keychain-db`. Can't
-  decrypt it without your account password.
-- Read leftover `config.env.migrated.<ts>` backup files from the
-  Keychain migration. **These are plaintext** — see below.
+- Read any other readable file — your terminal history, browser
+  data, SSH keys, etc.
+- Read the **encrypted** `~/Library/Keychains/login.keychain-db`.
+  Can't decrypt it without your account password.
 
 **What they CAN extract**:
 - The bot's behavior log (Telegram user IDs you've granted).
 - Anything in your terminal history (`history`, `~/.zsh_history`).
-- If they find a `config.env.migrated.<ts>` file you forgot to delete
-  after upgrading, they get the **plaintext token from before the
-  Keychain migration**.
 
 **What they CANNOT do (without escalating)**:
-- Decrypt the live Keychain entries — those need your account password
-  or the macontrol binary running with the right ACL.
+- Read or extract the bot token. macontrol stores it only in the
+  Keychain — there is no plaintext file copy on disk.
+- Read or modify the whitelist. Same reason.
+- Decrypt the live Keychain entries — those need your account
+  password or the macontrol binary running with the right ACL.
 
 **Mitigations**:
 - Bot token + whitelist live in the Keychain (encrypted at rest).
-- FileVault encryption protects against offline disk access (USB boot,
-  drive removal).
-- After confirming `macontrol doctor` reports both secrets as "present
-  in Keychain", **delete any `config.env.migrated.*` backups**.
+- FileVault encryption protects against offline disk access (USB
+  boot, drive removal).
+- macontrol never writes secrets to disk in plaintext, so there is
+  no `.env` file to leak.
 
-**Residual risk**: medium. The migrated Keychain entries are protected;
-the backup file is the weakest link. Delete it once you've verified
-migration succeeded.
+**Residual risk**: low for macontrol-owned data. Anything else
+readable in your home directory is still readable.
 
 ## Level 5 — Filesystem write + shell
 

@@ -17,18 +17,23 @@ If no subcommand is given (`macontrol` alone), `run` is implied.
 Run the daemon.
 
 ```text
-macontrol run
+macontrol run [--log-level=LEVEL] [--log-file=PATH]
 ```
 
-Default if no subcommand. Reads config, detects capabilities, starts
-the long-poll loop. Foreground; `Ctrl-C` (SIGINT) or SIGTERM stops it
-cleanly.
+Default if no subcommand. Reads the bot token + whitelist from the
+Keychain, detects capabilities, starts the long-poll loop.
+Foreground; `Ctrl-C` (SIGINT) or SIGTERM stops it cleanly.
 
 Used by the LaunchAgent plist as the `ProgramArguments`.
 
+| Flag | Default | Notes |
+|---|---|---|
+| `--log-level` | `info` | One of `debug`, `info`, `warn`, `error`. Unknown values silently fall back to `info`. |
+| `--log-file` | `~/Library/Logs/macontrol/macontrol.log` | Lumberjack-rotated. Pass an empty string (`--log-file=`) to log to stderr instead. |
+
 **Exit codes**:
 - `0` — clean exit (signal received, context cancelled).
-- `1` — config error, capability error, or bot init failure.
+- `1` — Keychain entry missing/locked, capability error, or bot init failure.
 
 ### `setup`
 
@@ -180,31 +185,35 @@ Exit code: `0`.
 
 ## Flags
 
-There are intentionally **no global flags** that change daemon behavior.
-Configuration goes through env vars (see [env.md](../configuration/env.md))
-to keep the LaunchAgent plist simple.
+Two flags on the `run` subcommand (`--log-level`, `--log-file`); the
+`setup` subcommand has `--reconfigure`. Everything else is pure
+subcommand dispatch — no global flags.
 
-The `setup` subcommand has one flag (`--reconfigure`); everything
-else is purely subcommand dispatch.
+There are intentionally no env vars that change daemon behavior.
+Secrets live in the macOS Keychain (written by `macontrol setup`),
+runtime knobs are CLI flags. See
+[Configuration → Runtime](../configuration/runtime.md).
 
 ## Environment variable interaction
 
-The CLI subcommands read these env vars:
+The CLI subcommands consult only a handful of process env vars, all
+related to filesystem layout:
 
 | Variable | Used by | Effect |
 |---|---|---|
-| `TELEGRAM_BOT_TOKEN` | `run` | Required. The bot token. |
-| `ALLOWED_USER_IDS` | `run` | Required. Comma-separated user IDs. |
-| `LOG_LEVEL` | `run`, `doctor` | Defaults to `info`. |
-| `MACONTROL_CONFIG` | `run` | Override path for the config file. |
-| `MACONTROL_LOG` | `run` | Override path for the log file. |
-| `HOME` | `setup`, `service` | Resolves where to put config / plist / logs. |
+| `HOME` | `setup`, `service`, `run` | Resolves where to put plist / logs. |
 | `USER` | `setup` | Used in sudoers entry generation if `user.Current()` fails. |
 
-`setup` and `service` write absolute paths into the plist and sudoers
-entry, so they need to be invoked **as the user the daemon will run
-as** — not via `sudo macontrol setup`. The wizard prompts for sudo
-internally only for the file write to `/etc/sudoers.d/`.
+macontrol does **not** read `TELEGRAM_BOT_TOKEN`,
+`ALLOWED_USER_IDS`, `LOG_LEVEL`, `MACONTROL_CONFIG`, or
+`MACONTROL_LOG` — they are all gone. Use Keychain entries (managed
+via `macontrol token` / `macontrol whitelist`) and the `--log-level`
+/ `--log-file` flags on `run`.
+
+`setup` and `service` write absolute paths into the plist and
+sudoers entry, so they need to be invoked **as the user the daemon
+will run as** — not via `sudo macontrol setup`. The wizard prompts
+for sudo internally only for the file write to `/etc/sudoers.d/`.
 
 ## Argv parsing semantics
 

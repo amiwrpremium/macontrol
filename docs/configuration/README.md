@@ -1,60 +1,50 @@
 # Configuration
 
-macontrol's runtime config is small — three environment variables plus
-a few macOS-idiomatic file paths.
+macontrol's runtime config is small: two secrets in the macOS
+Keychain, two optional CLI flags on the daemon.
 
 ## What's here
 
-- **[Environment variables](env.md)** — `TELEGRAM_BOT_TOKEN`,
-  `ALLOWED_USER_IDS`, `LOG_LEVEL`, plus optional overrides.
-- **[File locations](file-locations.md)** — where the config file,
-  logs, LaunchAgent plist, and cache live on macOS.
-- **[Whitelist](whitelist.md)** — adding or removing allowed Telegram
-  user IDs.
+- **[Runtime configuration](runtime.md)** — Keychain entries and
+  the `--log-level` / `--log-file` flags on `macontrol run`.
+- **[File locations](file-locations.md)** — where logs, the
+  LaunchAgent plist, and sudoers entry live on macOS.
+- **[Whitelist](whitelist.md)** — adding or removing allowed
+  Telegram user IDs.
 
 ## At a glance
 
-```dotenv
-# ~/Library/Application Support/macontrol/config.env
-TELEGRAM_BOT_TOKEN=123456789:AAE-aBcDeFgHiJk...
-ALLOWED_USER_IDS=123456789,987654321
-LOG_LEVEL=info
+Everything lives in the Keychain, written by the setup wizard:
+
+```bash
+macontrol setup           # writes both secrets to the Keychain
+brew services start macontrol
 ```
 
-That's the entire config surface for normal use. Everything else has
-defaults that work.
+No `.env` file. No config file. No environment variables.
 
 ## How config is loaded
 
-1. The daemon checks `MACONTROL_CONFIG` env var first. If set, that
-   path is the config file. Required variables come from this file.
-2. Otherwise, the default path
-   `~/Library/Application Support/macontrol/config.env` is read if
-   present.
-3. After file load, the daemon reads from process env (so anything
-   exported in the shell at start time also applies, overriding the
-   file).
-4. `caarlos0/env` validates the resulting env: required fields must
-   be set and non-empty, comma-separated lists are split.
-5. If validation fails, the daemon exits with a friendly error
+1. On startup, `macontrol run` reads two Keychain entries:
+   `com.amiwrpremium.macontrol` (token) and
+   `com.amiwrpremium.macontrol.whitelist` (user IDs).
+2. If either is missing, the daemon exits with a friendly error
    pointing at `macontrol setup`.
-
-You won't normally use `MACONTROL_CONFIG` — it's a hook for testing or
-running multiple daemons against different bots from the same Mac.
+3. Non-secret runtime knobs (`--log-level`, `--log-file`) come
+   from flags on the `run` subcommand — not from env vars. The
+   LaunchAgent plist and Homebrew formula's service block carry
+   any non-default values.
 
 ## How to change config
 
-Three ways, in order of preference:
+| What | Command |
+|---|---|
+| Redo the token + whitelist wizard | `macontrol setup --reconfigure` |
+| Replace just the token | `macontrol token set` |
+| Add/remove a whitelisted user | `macontrol whitelist add 123`, `macontrol whitelist remove 123` |
+| Change log level | edit `~/Library/LaunchAgents/com.amiwrpremium.macontrol.plist`, restart |
 
-1. **`macontrol setup --reconfigure`** — re-runs the wizard, overwrites
-   the config file. Easiest.
-2. **Edit the config file directly** with any text editor.
-   `~/Library/Application Support/macontrol/config.env` is plain
-   `KEY=value` lines (dotenv syntax).
-3. **Export variables in the shell** before starting the daemon.
-   Useful for one-off testing without touching the file.
-
-After changing config, restart the daemon for it to take effect:
+After any of these, restart the daemon for it to take effect:
 
 ```bash
 brew services restart macontrol
@@ -62,4 +52,4 @@ brew services restart macontrol
 macontrol service stop && macontrol service start
 ```
 
-The daemon does not hot-reload config.
+The daemon does not hot-reload configuration.

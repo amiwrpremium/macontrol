@@ -163,9 +163,11 @@ curl-script paths are the install paths.
 
 ### Config UI
 
-A web UI to edit `config.env`. Adds a web server and an attack
-surface for very little gain — `vim ~/Library/Application
-Support/macontrol/config.env` is fine.
+A web UI to edit the Keychain entries or the plist. Adds a web
+server and an attack surface for very little gain —
+`macontrol setup` / `macontrol token set` / `macontrol whitelist`
+already cover every write, and the LaunchAgent plist is two lines
+of XML you can edit with any text editor.
 
 ## How to propose changes
 

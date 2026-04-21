@@ -22,7 +22,8 @@ macontrol first-run setup. Press Ctrl-C to abort.
 ▸ Additional user IDs to allow, comma-separated (blank = none):
 
 ▸ Verifying token…  ✓ bot @amiwrpremium_macontrol_bot
-▸ Writing config to /Users/you/Library/Application Support/macontrol/config.env  ✓
+▸ Writing token to Keychain (com.amiwrpremium.macontrol)  ✓
+▸ Writing whitelist to Keychain (com.amiwrpremium.macontrol.whitelist)  ✓
 ▸ Install LaunchAgent so macontrol starts at login? [Y/n] y
 ▸ LaunchAgent installed  ✓
 ▸ Install narrow sudoers entry (shutdown/pmset/wdutil/powermetrics/systemsetup)? [y/N] y

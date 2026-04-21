@@ -47,8 +47,9 @@ Add a `!` after the type/scope and a `BREAKING CHANGE:` footer:
 ```text
 feat(bot)!: switch from numeric user IDs to OAuth tokens
 
-BREAKING CHANGE: ALLOWED_USER_IDS is no longer used. Existing config
-files require re-running `macontrol setup` to migrate.
+BREAKING CHANGE: numeric user-ID whitelist removed. Existing users
+need to re-run `macontrol setup` to write the new format to the
+Keychain.
 ```
 
 Triggers a major version bump.
@@ -132,7 +133,7 @@ for an explicit version pin.
 ### Dependency bump (Dependabot opens these)
 
 ```text
-chore(deps): bump github.com/caarlos0/env/v11 from 11.3.1 to 11.4.0
+chore(deps): bump github.com/go-telegram/bot from 1.20.0 to 1.21.0
 
 …
 ```

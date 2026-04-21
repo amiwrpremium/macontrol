@@ -85,12 +85,14 @@ Typed env loader:
 
 ```text
 internal/config/
-├── config.go        # Load(), DefaultConfigPath(), DefaultLogPath()
+├── config.go        # Load(), DefaultLogPath()
 └── config_test.go
 ```
 
-Uses `caarlos0/env/v11` for parsing and `joho/godotenv` for `.env`
-files. Friendly error wrapping for missing required fields.
+Reads the bot token and whitelist from the macOS Keychain via
+`internal/keychain`. No env vars, no config file, no migration.
+Returns a friendly "missing X; run `macontrol setup`" error when
+either Keychain entry is absent.
 
 ## `internal/version/`
 

@@ -4,7 +4,6 @@ go 1.25.9
 
 require (
 	github.com/go-telegram/bot v1.20.0
-	github.com/joho/godotenv v1.5.1
 	golang.org/x/term v0.42.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )

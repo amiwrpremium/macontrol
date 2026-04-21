@@ -139,35 +139,41 @@ directly.
 
 ### Where is the config file?
 
-`~/Library/Application Support/macontrol/config.env`. See
+There isn't one. The bot token and whitelist live in the macOS
+Keychain (written by `macontrol setup`); runtime knobs are CLI
+flags. See
+[Configuration → Runtime](configuration/runtime.md) and
 [Configuration → File locations](configuration/file-locations.md).
 
 ### How do I add another whitelisted user?
 
-Edit the config file and append to `ALLOWED_USER_IDS`:
-
-```dotenv
-ALLOWED_USER_IDS=123456789,987654321
+```bash
+macontrol whitelist add 987654321
+brew services restart macontrol
 ```
 
-Then restart the daemon. See [Configuration → Whitelist](configuration/whitelist.md).
+See [Configuration → Whitelist](configuration/whitelist.md).
 
 ### How do I change the log level?
 
-Add to the config file:
+Edit `~/Library/LaunchAgents/com.amiwrpremium.macontrol.plist` and
+set `ProgramArguments` to include `--log-level=debug`, then
+`brew services restart macontrol`. Switch back to `info` after
+diagnosing.
 
-```dotenv
-LOG_LEVEL=debug
+For an ad-hoc session without touching the plist:
+
+```bash
+macontrol service stop
+macontrol run --log-level=debug --log-file=
 ```
-
-Restart the daemon. Switch back to `info` after diagnosing.
 
 ### Can I run multiple bot tokens against the same Mac?
 
-Yes, but each daemon needs its own config and LaunchAgent label. Run
-the second one with `MACONTROL_CONFIG=path/to/other.env macontrol
-run`. Note that two daemons polling the same token will fight; each
-needs its own bot.
+Yes, but cleanest is to run each daemon under a separate macOS
+user. Each user has its own login keychain, so the tokens stay
+isolated, and each gets its own LaunchAgent label and log
+directory.
 
 ## Permissions
 

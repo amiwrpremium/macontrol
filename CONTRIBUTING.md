@@ -48,8 +48,9 @@ Say you want to add `/spotify`:
 # Cross-compile for the target
 make build                      # GOOS=darwin GOARCH=arm64
 
-# Run against a dev bot token
-TELEGRAM_BOT_TOKEN=... ALLOWED_USER_IDS=... go run ./cmd/macontrol
+# Run against a dev bot token (on a real Mac)
+macontrol setup                 # writes a dev token + whitelist to the Keychain
+go run ./cmd/macontrol run --log-file=
 ```
 
 You can iterate on most of the tree from a Linux box — the domain layer is

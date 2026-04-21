@@ -57,9 +57,9 @@ Use this token to access the HTTP API:
 Keep your token secure and store it safely, it can be used by anyone to control your bot.
 ```
 
-The long string after "Use this token to access the HTTP API:" is your
-`TELEGRAM_BOT_TOKEN`. Copy it somewhere temporary (paste buffer or a
-scratch note).
+The long string after "Use this token to access the HTTP API:" is the
+**bot token**. Copy it somewhere temporary (paste buffer or a scratch
+note) — `macontrol setup` will ask for it next.
 
 **Treat this token like a password.** Anyone with it can impersonate
 your bot and, if your user ID isn't whitelisted, also send messages *as
@@ -109,18 +109,20 @@ It replies instantly with something like:
 💬 Language: en
 ```
 
-The number after `Id:` is your `ALLOWED_USER_IDS` entry. It's a 9–10
-digit number.
+The number after `Id:` is your **whitelist entry**. It's a 9–10 digit
+number.
 
 ### Multiple users
 
 If you want to allow more than one person (e.g. your phone and your
 laptop's Telegram Desktop on the same account — they share the same
 user ID — or a family member on a different account), collect each
-user's ID the same way and comma-separate them later:
+user's ID the same way and comma-separate them later when the wizard
+asks. Or, after setup:
 
-```dotenv
-ALLOWED_USER_IDS=123456789,987654321,555444333
+```bash
+macontrol whitelist add 987654321
+macontrol whitelist add 555444333
 ```
 
 ## 3. Send a message to your own bot
@@ -190,8 +192,9 @@ If you see:
 
 You now have:
 
-- `TELEGRAM_BOT_TOKEN` — the long `123456789:AAE-…` string.
-- `ALLOWED_USER_IDS` — your numeric user ID (comma-separated list if
-  more than one).
+- The **bot token** — the long `123456789:AAE-…` string.
+- Your **Telegram user ID** — a 9–10 digit number (and any extras).
 
 → [Quickstart](quickstart.md) — run `macontrol setup` and paste these.
+The wizard writes both into the macOS Keychain; you'll never need to
+keep the values around in a file.

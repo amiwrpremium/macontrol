@@ -10,8 +10,15 @@ macontrol run
 macontrol
 ```
 
-Runs the daemon attached to your terminal. Logs go to **stderr** in
-this mode (also still rotated to `~/Library/Logs/macontrol/`).
+Runs the daemon attached to your terminal. By default logs are
+written to `~/Library/Logs/macontrol/macontrol.log`. To see them in
+the terminal instead, pass an empty `--log-file`:
+
+```bash
+macontrol run --log-file= --log-level=debug
+```
+
+`--log-level` accepts `debug`, `info` (default), `warn`, or `error`.
 
 Use when:
 
@@ -92,6 +99,7 @@ The plist that ends up in `~/Library/LaunchAgents/com.amiwrpremium.macontrol.pli
     <array>
         <string>/opt/homebrew/bin/macontrol</string>
         <string>run</string>
+        <string>--log-level=info</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
@@ -118,8 +126,11 @@ Key fields:
 
 - **Label** — must be globally unique on your Mac. macontrol uses
   reverse-DNS form `com.amiwrpremium.macontrol`.
-- **ProgramArguments** — argv. First element is the binary path, second
-  is the `run` subcommand.
+- **ProgramArguments** — argv. First element is the binary path,
+  second is the `run` subcommand, then any non-default flags
+  (`--log-level=…`, `--log-file=…`). See
+  [Configuration → Runtime](../configuration/runtime.md) for the
+  full flag list.
 - **RunAtLoad** — start the daemon as soon as the plist is loaded
   (i.e. at login).
 - **KeepAlive** — restart on exit, regardless of exit code.
@@ -159,10 +170,11 @@ long-polling delivers each update to whichever client is polling at
 the moment, so updates are randomly split between the two. The bot
 will appear flaky.
 
-If you really want two daemons (for testing, or for a dev + prod bot),
-each must have its own bot token (and its own LaunchAgent label). The
-code path is `MACONTROL_CONFIG=path/to/test.env macontrol run` for the
-dev side, started manually or via a custom plist.
+If you really want two daemons (for testing, or for a dev + prod
+bot), each must have its own bot token (and its own LaunchAgent
+label). Run each as a different Unix user, since each user has a
+separate login keychain — that's the cleanest isolation, and matches
+how macontrol stores the token.
 
 ## Wake from sleep
 
