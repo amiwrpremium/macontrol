@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/amiwrpremium/macontrol/compare/v0.1.2...v0.1.3) (2026-04-21)
+
+
+### Bug Fixes
+
+* reply-keyboard routing + /lock on macOS 26 ([#17](https://github.com/amiwrpremium/macontrol/issues/17)) ([43d8e52](https://github.com/amiwrpremium/macontrol/commit/43d8e5204454fa4c99e8a15a9cb96464f6d91ecc))
+
 ## [0.1.2](https://github.com/amiwrpremium/macontrol/compare/v0.1.1...v0.1.2) (2026-04-21)
 
 
