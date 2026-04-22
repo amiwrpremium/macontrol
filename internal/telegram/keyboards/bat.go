@@ -27,7 +27,7 @@ func Battery(st battery.Status) (text string, markup *models.InlineKeyboardMarku
 				{Text: "🔄 Refresh", CallbackData: callbacks.Encode(callbacks.NSBattery, "refresh")},
 				{Text: "📊 Health", CallbackData: callbacks.Encode(callbacks.NSBattery, "health")},
 			},
-			Nav(),
+			NavWithBack(callbacks.NSNav, "home"),
 		},
 	}
 	return

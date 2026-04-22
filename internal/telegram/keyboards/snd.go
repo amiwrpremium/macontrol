@@ -42,7 +42,7 @@ func Sound(state sound.State) (text string, markup *models.InlineKeyboardMarkup)
 				{Text: "🔊 MAX (100)", CallbackData: callbacks.Encode(callbacks.NSSound, "max")},
 				{Text: "🔄 Refresh", CallbackData: callbacks.Encode(callbacks.NSSound, "refresh")},
 			},
-			Nav(),
+			NavWithBack(callbacks.NSNav, "home"),
 		},
 	}
 	return

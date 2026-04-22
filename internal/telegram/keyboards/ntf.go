@@ -17,7 +17,7 @@ func Notify() (text string, markup *models.InlineKeyboardMarkup) {
 			{
 				{Text: "🗣 Say…", CallbackData: callbacks.Encode(callbacks.NSNotify, "say")},
 			},
-			Nav(),
+			NavWithBack(callbacks.NSNav, "home"),
 		},
 	}
 	return

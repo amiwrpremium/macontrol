@@ -28,7 +28,7 @@ func Bluetooth(st bluetooth.State) (text string, markup *models.InlineKeyboardMa
 			{
 				{Text: "🔄 Refresh", CallbackData: callbacks.Encode(callbacks.NSBT, "refresh")},
 			},
-			Nav(),
+			NavWithBack(callbacks.NSNav, "home"),
 		},
 	}
 	return
@@ -47,7 +47,9 @@ type BluetoothDeviceRow struct {
 func BluetoothDevices(devs []BluetoothDeviceRow) (text string, markup *models.InlineKeyboardMarkup) {
 	if len(devs) == 0 {
 		text = "🔵 *Bluetooth Devices*\n\n_No paired devices._"
-		markup = &models.InlineKeyboardMarkup{InlineKeyboard: [][]models.InlineKeyboardButton{Nav()}}
+		markup = &models.InlineKeyboardMarkup{InlineKeyboard: [][]models.InlineKeyboardButton{
+			NavWithBack(callbacks.NSBT, "open"),
+		}}
 		return
 	}
 	text = "🔵 *Bluetooth Devices*\n\nTap a device to toggle connection."

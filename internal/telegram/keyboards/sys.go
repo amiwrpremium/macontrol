@@ -29,7 +29,7 @@ func System() (text string, markup *models.InlineKeyboardMarkup) {
 				{Text: "📋 Top 10 processes", CallbackData: callbacks.Encode(callbacks.NSSystem, "top")},
 				{Text: "🔪 Kill process…", CallbackData: callbacks.Encode(callbacks.NSSystem, "kill")},
 			},
-			Nav(),
+			NavWithBack(callbacks.NSNav, "home"),
 		},
 	}
 	return
