@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.11](https://github.com/amiwrpremium/macontrol/compare/v0.1.10...v0.1.11) (2026-04-22)
+
+
+### Bug Fixes
+
+* **system:** parse memory, label fields, add top-3 RAM hogs ([#39](https://github.com/amiwrpremium/macontrol/issues/39)) ([ca890e6](https://github.com/amiwrpremium/macontrol/commit/ca890e6c99c4de8b1f40977e160b82ea2a04ea31))
+
 ## [0.1.10](https://github.com/amiwrpremium/macontrol/compare/v0.1.9...v0.1.10) (2026-04-22)
 
 
