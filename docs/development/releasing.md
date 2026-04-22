@@ -134,15 +134,43 @@ macontrol` works for users.
 
 ## Required configuration
 
-`HOMEBREW_TAP_TOKEN` secret in the macontrol repo settings. A
-fine-grained PAT with write access to `amiwrpremium/homebrew-tap`
-only. See [GitHub setup → Step 5](../../) for how to create it (the
-walkthrough lives in `~/macontrol-github-setup.md` for the
-maintainer).
+Two repository secrets:
 
-If this token is missing or expired, `release.yml` fails the
-homebrew-tap update step. The GitHub Release is still created with
-the tarball; you'd just need to manually update the formula.
+| Secret | Used by | Scope |
+|---|---|---|
+| `RELEASE_PLEASE_PAT` | `release-please.yml` | Fine-grained PAT, `amiwrpremium/macontrol` only, `Contents: write` + `Pull requests: write`. Tag created by this PAT triggers `release.yml` (the workflow's default `GITHUB_TOKEN` doesn't cascade — see GitHub's anti-recursion rule). |
+| `HOMEBREW_TAP_TOKEN` | `release.yml` (GoReleaser) | Fine-grained PAT, `amiwrpremium/homebrew-tap` only, `Contents: write`. Used to push the formula update. |
+
+If `RELEASE_PLEASE_PAT` is missing or expired:
+
+- The `release-please.yml` job fails when trying to push commits or
+  create the tag.
+- No release PR opens (or the existing one stops updating).
+- Fix: rotate the PAT (see runbook below).
+
+If `HOMEBREW_TAP_TOKEN` is missing or expired:
+
+- `release.yml` fails the homebrew-tap update step.
+- The GitHub Release is still created with the tarball; you'd just
+  need to manually update the formula.
+
+### `RELEASE_PLEASE_PAT` rotation
+
+Fine-grained PATs expire after at most 1 year. Set a calendar
+reminder ~11 months out. To rotate:
+
+1. Generate a new fine-grained PAT under
+   <https://github.com/settings/personal-access-tokens/new>:
+   - Repository access: only `amiwrpremium/macontrol`
+   - Permissions: `Contents: Read and write`, `Pull requests: Read and write`
+2. Replace the secret:
+   ```bash
+   echo 'github_pat_…' | gh secret set RELEASE_PLEASE_PAT --repo amiwrpremium/macontrol
+   ```
+3. Delete the old PAT under
+   <https://github.com/settings/personal-access-tokens>.
+4. Verify by pushing an empty commit to master and watching
+   release-please.yml run cleanly.
 
 ## Initial-version override
 
