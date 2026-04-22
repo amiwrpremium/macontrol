@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.8](https://github.com/amiwrpremium/macontrol/compare/v0.1.7...v0.1.8) (2026-04-22)
+
+
+### Bug Fixes
+
+* **display:** surface real brightness CLI error instead of misleading install hint ([#33](https://github.com/amiwrpremium/macontrol/issues/33)) ([e8a0136](https://github.com/amiwrpremium/macontrol/commit/e8a01363f02c2f62eefe9c422e37bebb38eae58a))
+
 ## [0.1.7](https://github.com/amiwrpremium/macontrol/compare/v0.1.6...v0.1.7) (2026-04-22)
 
 
