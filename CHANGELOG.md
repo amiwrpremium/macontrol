@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/amiwrpremium/macontrol/compare/v0.2.1...v0.2.2) (2026-04-22)
+
+
+### Bug Fixes
+
+* **bot:** clear stale reply keyboard on /start and boot ping ([#47](https://github.com/amiwrpremium/macontrol/issues/47)) ([9aad8ab](https://github.com/amiwrpremium/macontrol/commit/9aad8ab271c5bea0f728d76508c9c55618c6f39f))
+
 ## [0.2.1](https://github.com/amiwrpremium/macontrol/compare/v0.2.0...v0.2.1) (2026-04-22)
 
 
