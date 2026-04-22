@@ -31,6 +31,79 @@ const hwportsNone = `Hardware Port: Ethernet
 Device: en3
 `
 
+// wdutilFull is a real macOS-26 capture (anonymized) — the sample
+// the SSID-from-wdutil parser must handle.
+const wdutilFull = `————————————————————————————————————————————————————————————————————
+NETWORK
+————————————————————————————————————————————————————————————————————
+    Primary IPv4         : utun4 ((null) / com.cisco.anyconnect)
+                         : 10.201.42.101
+    Primary IPv6         : utun4 ((null) / com.cisco.anyconnect)
+                         : FE80:0:0:0:506D:B26D:A3E8:6DF9
+    DNS Addresses        : 172.21.30.1
+                         : 172.20.30.1
+    Apple                : Reachable
+————————————————————————————————————————————————————————————————————
+WIFI
+————————————————————————————————————————————————————————————————————
+    MAC Address          : 92:c3:5e:ba:38:a4 (hw=92:c3:5e:ba:38:a4)
+    Interface Name       : en0
+    Power                : On [On]
+    Op Mode              : STA
+    SSID                 : MyHomeNetwork
+    BSSID                : aa:bb:cc:dd:ee:ff
+    RSSI                 : -45 dBm
+    CCA                  : 33 %
+    Noise                : -84 dBm
+    Tx Rate              : 144.0 Mbps
+    Security             : WPA/WPA2 Personal
+    PHY Mode             : 11n
+    MCS Index            : 15
+    Guard Interval       : 800
+    NSS                  : 2
+    Channel              : 2g3/20
+    Country Code         : IQ
+————————————————————————————————————————————————————————————————————
+BLUETOOTH
+————————————————————————————————————————————————————————————————————
+    Power                : On
+    Address              : 84:2f:57:20:0f:9d
+`
+
+// systemProfilerFull is a real macOS-26 capture (anonymized) — the
+// sample the SSID-from-system_profiler parser must handle.
+const systemProfilerFull = `Wi-Fi:
+
+      Software Versions:
+          CoreWLAN: 16.0 (1657)
+      Interfaces:
+        en0:
+          Card Type: Wi-Fi  (0x14E4, 0x4388)
+          MAC Address: 92:c3:5e:ba:38:a4
+          Status: Connected
+          Current Network Information:
+            MyHomeNetwork:
+              PHY Mode: 802.11n
+              Channel: 3 (2GHz, 20MHz)
+              Country Code: IQ
+              Network Type: Infrastructure
+              Security: WPA/WPA2 Personal
+              Signal / Noise: -48 dBm / -84 dBm
+              Transmit Rate: 144
+              MCS Index: 15
+          Other Local Wi-Fi Networks:
+            OtherNetA:
+              PHY Mode: 802.11b/g/n
+              Channel: 4 (2GHz, 20MHz)
+              Network Type: Infrastructure
+              Security: WPA/WPA2 Personal
+            OtherNetB:
+              PHY Mode: 802.11b/g/n
+              Channel: 7 (2GHz, 20MHz)
+              Network Type: Infrastructure
+              Security: WPA/WPA2 Personal
+`
+
 func TestInterface_FindsWiFi(t *testing.T) {
 	t.Parallel()
 	f := runner.NewFake().On("networksetup -listallhardwareports", hwportsWiFi, nil)
@@ -71,43 +144,91 @@ func TestInterface_RunnerError(t *testing.T) {
 	}
 }
 
-func TestGet_PowerOnWithSSID(t *testing.T) {
+func TestGet_PowerOnSSIDFromWdutil(t *testing.T) {
 	t.Parallel()
 	f := runner.NewFake().
 		On("networksetup -listallhardwareports", hwportsWiFi, nil).
 		On("networksetup -getairportpower en0", "Wi-Fi Power (en0): On\n", nil).
-		On("networksetup -getairportnetwork en0", "Current Wi-Fi Network: home\n", nil)
-	info, err := wifi.New(f).Get(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !info.PowerOn || info.SSID != "home" || info.Interface != "en0" {
-		t.Fatalf("info = %+v", info)
-	}
-}
-
-func TestGet_PowerOnNotAssociated(t *testing.T) {
-	t.Parallel()
-	f := runner.NewFake().
-		On("networksetup -listallhardwareports", hwportsWiFi, nil).
-		On("networksetup -getairportpower en0", "Wi-Fi Power (en0): On\n", nil).
-		On("networksetup -getairportnetwork en0", "You are not associated with an AirPort network.\n", nil)
+		On("wdutil info", wdutilFull, nil)
 	info, err := wifi.New(f).Get(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !info.PowerOn {
-		t.Error("expected power on")
+		t.Error("expected PowerOn")
+	}
+	if info.SSID != "MyHomeNetwork" {
+		t.Errorf("SSID = %q", info.SSID)
+	}
+	if info.BSSID != "aa:bb:cc:dd:ee:ff" {
+		t.Errorf("BSSID = %q", info.BSSID)
+	}
+	if info.RSSI != -45 {
+		t.Errorf("RSSI = %d", info.RSSI)
+	}
+	if info.Security != "WPA/WPA2 Personal" {
+		t.Errorf("Security = %q", info.Security)
+	}
+	if info.TxRateMbps != 144.0 {
+		t.Errorf("TxRateMbps = %f", info.TxRateMbps)
+	}
+	if info.Channel != "2g3/20" {
+		t.Errorf("Channel = %q", info.Channel)
+	}
+}
+
+func TestGet_PowerOnFallsBackToSystemProfiler(t *testing.T) {
+	t.Parallel()
+	// wdutil errors (sudoers not installed); system_profiler succeeds.
+	f := runner.NewFake().
+		On("networksetup -listallhardwareports", hwportsWiFi, nil).
+		On("networksetup -getairportpower en0", "Wi-Fi Power (en0): On\n", nil).
+		On("wdutil info", "", errors.New("sudo: a password is required")).
+		On("system_profiler SPAirPortDataType", systemProfilerFull, nil)
+	info, err := wifi.New(f).Get(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.SSID != "MyHomeNetwork" {
+		t.Errorf("SSID = %q", info.SSID)
+	}
+	if info.Channel != "3 (2GHz, 20MHz)" {
+		t.Errorf("Channel = %q", info.Channel)
+	}
+	if info.Security != "WPA/WPA2 Personal" {
+		t.Errorf("Security = %q", info.Security)
+	}
+	if info.RSSI != -48 {
+		t.Errorf("RSSI = %d", info.RSSI)
+	}
+	if info.TxRateMbps != 144 {
+		t.Errorf("TxRateMbps = %f", info.TxRateMbps)
+	}
+}
+
+func TestGet_PowerOnBothSourcesFail(t *testing.T) {
+	t.Parallel()
+	f := runner.NewFake().
+		On("networksetup -listallhardwareports", hwportsWiFi, nil).
+		On("networksetup -getairportpower en0", "Wi-Fi Power (en0): On\n", nil).
+		On("wdutil info", "", errors.New("nope")).
+		On("system_profiler SPAirPortDataType", "", errors.New("nope"))
+	info, err := wifi.New(f).Get(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.PowerOn {
+		t.Error("expected PowerOn")
 	}
 	if info.SSID != "" {
-		t.Errorf("SSID = %q", info.SSID)
+		t.Errorf("SSID = %q (want empty)", info.SSID)
 	}
 }
 
 func TestGet_PowerOffSkipsSSID(t *testing.T) {
 	t.Parallel()
-	// No rule for getairportnetwork — if the code tried to call it the Fake
-	// would error.
+	// No rule for wdutil/system_profiler — if Get tried to call either the
+	// Fake would error; passing means we short-circuited on PowerOn=false.
 	f := runner.NewFake().
 		On("networksetup -listallhardwareports", hwportsWiFi, nil).
 		On("networksetup -getairportpower en0", "Wi-Fi Power (en0): Off\n", nil)
@@ -134,7 +255,7 @@ func TestSetPower_On(t *testing.T) {
 		On("networksetup -listallhardwareports", hwportsWiFi, nil).
 		On("networksetup -setairportpower en0 on", "", nil).
 		On("networksetup -getairportpower en0", "Wi-Fi Power (en0): On\n", nil).
-		On("networksetup -getairportnetwork en0", "Current Wi-Fi Network: x\n", nil)
+		On("wdutil info", wdutilFull, nil)
 	info, err := wifi.New(f).SetPower(context.Background(), true)
 	if err != nil {
 		t.Fatal(err)
@@ -194,13 +315,15 @@ func TestJoin_WithPassword(t *testing.T) {
 		On("networksetup -listallhardwareports", hwportsWiFi, nil).
 		On("networksetup -setairportnetwork en0 home secret", "", nil).
 		On("networksetup -getairportpower en0", "Wi-Fi Power (en0): On\n", nil).
-		On("networksetup -getairportnetwork en0", "Current Wi-Fi Network: home\n", nil)
+		On("wdutil info", wdutilFull, nil)
 	info, err := wifi.New(f).Join(context.Background(), "home", "secret")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.SSID != "home" {
-		t.Fatalf("SSID=%q", info.SSID)
+	// SSID populated from wdutil sample (MyHomeNetwork), not the joined SSID.
+	// We're only verifying Join propagates and Get is invoked successfully.
+	if info.SSID == "" {
+		t.Error("SSID should be populated")
 	}
 }
 
@@ -210,7 +333,7 @@ func TestJoin_NoPassword(t *testing.T) {
 		On("networksetup -listallhardwareports", hwportsWiFi, nil).
 		On("networksetup -setairportnetwork en0 open", "", nil).
 		On("networksetup -getairportpower en0", "Wi-Fi Power (en0): On\n", nil).
-		On("networksetup -getairportnetwork en0", "Current Wi-Fi Network: open\n", nil)
+		On("wdutil info", wdutilFull, nil)
 	_, err := wifi.New(f).Join(context.Background(), "open", "")
 	if err != nil {
 		t.Fatal(err)

@@ -23,11 +23,12 @@ func minSuccessfulFake() *runner.Fake {
 		On("system_profiler SPHardwareDataType", "Total Number of Cores: 8\n", nil).
 		// battery.go
 		On("pmset -g batt", " -InternalBattery-0 (id=1)	80%; charging; 0:30 remaining present: true\n", nil).
-		// wifi.go
+		// wifi.go — SSID now comes from wdutil info (sudoers-authorized),
+		// not the broken networksetup -getairportnetwork on macOS 14.4+.
 		On("networksetup -listallhardwareports",
 			"Hardware Port: Wi-Fi\nDevice: en0\n", nil).
 		On("networksetup -getairportpower en0", "Wi-Fi Power (en0): On\n", nil).
-		On("networksetup -getairportnetwork en0", "Current Wi-Fi Network: home\n", nil)
+		On("wdutil info", "WIFI\n    SSID                 : home\n", nil)
 }
 
 func TestSnapshot_AllSucceed(t *testing.T) {
