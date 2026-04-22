@@ -410,19 +410,30 @@ func TestParseSwap(t *testing.T) {
 
 func TestCPU_Parses(t *testing.T) {
 	t.Parallel()
-	top := "Processes: 500 total\nCPU usage: 5.10% user, 3.20% sys, 91.70% idle\n"
+	top := "Processes: 500 total\nCPU usage: 20.85% user, 16.25% sys, 62.88% idle\n"
+	psOut := "  PID  %CPU %MEM COMM\n" +
+		"  100 12.4  1.0 /Applications/Chrome\n" +
+		"  101  8.7  0.5 some-process\n" +
+		"  102  5.1  0.2 WindowServer\n"
 	f := runner.NewFake().
-		On("uptime", " 10:00 up 1 day, load average: 0.5 0.6 0.7\n", nil).
-		On("top -l 1 -s 0", top, nil)
+		On("uptime", "21:46  up 3 days,  6:29, 1 user, load averages: 5.41 4.92 4.39\n", nil).
+		On("top -l 1 -s 0", top, nil).
+		On("ps -Ao pid,pcpu,pmem,comm -r", psOut, nil)
 	c, err := system.New(f).CPU(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(c.LoadAverage, "load average") {
-		t.Errorf("load = %q", c.LoadAverage)
+	if c.UserPct != 20.85 || c.SysPct != 16.25 || c.IdlePct != 62.88 {
+		t.Errorf("usage: user=%v sys=%v idle=%v", c.UserPct, c.SysPct, c.IdlePct)
 	}
-	if !strings.Contains(c.TopHeader, "CPU usage") {
-		t.Errorf("top = %q", c.TopHeader)
+	if c.Load1 != 5.41 || c.Load5 != 4.92 || c.Load15 != 4.39 {
+		t.Errorf("load = %v / %v / %v", c.Load1, c.Load5, c.Load15)
+	}
+	if len(c.TopByCPU) != 3 || c.TopByCPU[0].CPU < 12 {
+		t.Errorf("topByCPU = %+v", c.TopByCPU)
+	}
+	if !strings.Contains(c.Raw, "CPU usage:") {
+		t.Errorf("raw should preserve top line; got %q", c.Raw)
 	}
 }
 
@@ -430,13 +441,62 @@ func TestCPU_UptimeFails(t *testing.T) {
 	t.Parallel()
 	f := runner.NewFake().
 		On("uptime", "", errors.New("x")).
-		On("top -l 1 -s 0", "CPU usage: 1% user\n", nil)
+		On("top -l 1 -s 0", "CPU usage: 1.0% user, 1.0% sys, 98.0% idle\n", nil).
+		On("ps -Ao pid,pcpu,pmem,comm -r", "", errors.New("x"))
 	c, err := system.New(f).CPU(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.LoadAverage != "" {
-		t.Errorf("load = %q", c.LoadAverage)
+	if c.Load1 != 0 || c.Load5 != 0 || c.Load15 != 0 {
+		t.Errorf("load should be zero on uptime failure; got %v/%v/%v", c.Load1, c.Load5, c.Load15)
+	}
+	if c.UserPct != 1.0 {
+		t.Errorf("user = %v (top still parsed)", c.UserPct)
+	}
+}
+
+func TestParseCPUUsage_Variants(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name  string
+		line  string
+		check func(*testing.T, float64, float64, float64)
+	}{
+		{
+			name: "live macos26 line",
+			line: "CPU usage: 20.85% user, 16.25% sys, 62.88% idle",
+			check: func(t *testing.T, user, sys, idle float64) {
+				if user != 20.85 || sys != 16.25 || idle != 62.88 {
+					t.Errorf("got %v/%v/%v", user, sys, idle)
+				}
+			},
+		},
+		{
+			name: "trailing punctuation",
+			line: "CPU usage: 5.10% user, 3.20% sys, 91.70% idle.",
+			check: func(t *testing.T, user, sys, idle float64) {
+				if user != 5.10 || idle != 91.70 {
+					t.Errorf("got %v/%v/%v", user, sys, idle)
+				}
+			},
+		},
+		{
+			name: "garbage line",
+			line: "this is not top output",
+			check: func(t *testing.T, user, sys, idle float64) {
+				if user != 0 || sys != 0 || idle != 0 {
+					t.Errorf("expected zeros; got %v/%v/%v", user, sys, idle)
+				}
+			},
+		},
+	}
+	for _, c := range cases {
+		c := c
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			user, sys, idle := system.ParseCPUUsage(c.line)
+			c.check(t, user, sys, idle)
+		})
 	}
 }
 

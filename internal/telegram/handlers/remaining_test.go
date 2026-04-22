@@ -526,11 +526,30 @@ func TestSys_CPU(t *testing.T) {
 	t.Parallel()
 	h := newHarness(t)
 	h.Fake.
-		On("uptime", " 10:00 up 1 day, load average: 1 1 1\n", nil).
-		On("top -l 1 -s 0", "CPU usage: 5% user\n", nil)
+		On("uptime", "21:46  up 3 days,  6:29, 1 user, load averages: 5.41 4.92 4.39\n", nil).
+		On("top -l 1 -s 0",
+			"Processes: 500\nCPU usage: 20.85% user, 16.25% sys, 62.88% idle\n", nil).
+		On("ps -Ao pid,pcpu,pmem,comm -r",
+			"  PID  %CPU %MEM COMM\n"+
+				"  100 12.4 1.0 /Applications/Chrome\n"+
+				"  101  8.7 0.5 some-process\n"+
+				"  102  5.1 0.2 WindowServer\n", nil).
+		// CPU panel also calls Info() to get CPUCores for per-core %.
+		On("sw_vers", "ProductName: macOS\nProductVersion: 26.0\n", nil).
+		On("hostname", "tower\n", nil).
+		On("sysctl -n hw.model", "Mac16,8\n", nil).
+		On("sysctl -n machdep.cpu.brand_string", "Apple M4 Pro\n", nil).
+		On("sysctl -n hw.memsize", "25769803776\n", nil).
+		On("system_profiler SPHardwareDataType", "Total Number of Cores: 12\n", nil)
 	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
 		newCallbackUpdate("id", "sys:cpu")); err != nil {
 		t.Fatal(err)
+	}
+	text := h.Recorder.Last().Fields["text"]
+	for _, want := range []string{"Busy:", "37%", "User", "Kernel", "Idle", "Load avg", "5.41", "12 cores", "Top by CPU:", "12.4%", "Chrome"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("text missing %q; got %q", want, text)
+		}
 	}
 }
 
