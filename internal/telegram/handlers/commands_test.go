@@ -22,8 +22,23 @@ func TestCommandRouter_Start(t *testing.T) {
 		newMessageUpdate("/start")); err != nil {
 		t.Fatal(err)
 	}
-	if len(h.Recorder.ByMethod("sendMessage")) != 1 {
-		t.Fatal("expected sendMessage")
+	// /start now does TWO sends (clear-kb + home grid) and ONE delete.
+	sends := h.Recorder.ByMethod("sendMessage")
+	if len(sends) != 2 {
+		t.Fatalf("expected 2 sendMessage (clear + home), got %d", len(sends))
+	}
+	// First send is the throwaway clear-keyboard message.
+	if !strings.Contains(sends[0].Fields["reply_markup"], `"remove_keyboard":true`) {
+		t.Errorf("first send must carry ReplyKeyboardRemove; got %q",
+			sends[0].Fields["reply_markup"])
+	}
+	// Second send is the home grid (inline keyboard).
+	if !strings.Contains(sends[1].Fields["reply_markup"], `"inline_keyboard"`) {
+		t.Errorf("second send must carry the home inline grid; got %q",
+			sends[1].Fields["reply_markup"])
+	}
+	if len(h.Recorder.ByMethod("deleteMessage")) != 1 {
+		t.Errorf("expected 1 deleteMessage to clean up the throwaway")
 	}
 }
 
@@ -34,8 +49,9 @@ func TestCommandRouter_MenuWithBotSuffix(t *testing.T) {
 		newMessageUpdate("/menu@macontrol_bot")); err != nil {
 		t.Fatal(err)
 	}
-	if len(h.Recorder.ByMethod("sendMessage")) != 1 {
-		t.Fatal("expected sendMessage")
+	// Same shape as /start — clear-kb plus home grid.
+	if len(h.Recorder.ByMethod("sendMessage")) != 2 {
+		t.Fatal("expected 2 sendMessage")
 	}
 }
 

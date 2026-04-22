@@ -55,6 +55,7 @@ func parseCommand(text string) (cmd string, rest string) {
 }
 
 func cmdMenu(ctx context.Context, d *bot.Deps, u *models.Update) error {
+	ClearLegacyReplyKB(ctx, d, u.Message.Chat.ID)
 	_, err := d.Bot.SendMessage(ctx, &tgbot.SendMessageParams{
 		ChatID:      u.Message.Chat.ID,
 		Text:        bot.MDToHTML(keyboards.HomeInlineTitle),

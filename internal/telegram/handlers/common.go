@@ -26,6 +26,28 @@ func isConfirm(args []string) bool {
 	return len(args) > 0 && args[0] == "ok"
 }
 
+// ClearLegacyReplyKB sends a tiny throwaway message that carries a
+// ReplyKeyboardRemove markup, then deletes it. The removal lands on
+// the client before the delete, so users who interacted before
+// v0.1.4 (when we still rendered a persistent reply keyboard) see
+// the stale buttons disappear without any visible message left in
+// the chat. Errors are swallowed — best-effort cleanup that must
+// never block the caller's user-visible flow.
+func ClearLegacyReplyKB(ctx context.Context, d *bot.Deps, chatID int64) {
+	msg, err := d.Bot.SendMessage(ctx, &tgbot.SendMessageParams{
+		ChatID:      chatID,
+		Text:        "·",
+		ReplyMarkup: &models.ReplyKeyboardRemove{RemoveKeyboard: true},
+	})
+	if err != nil || msg == nil {
+		return
+	}
+	_, _ = d.Bot.DeleteMessage(ctx, &tgbot.DeleteMessageParams{
+		ChatID:    chatID,
+		MessageID: msg.ID,
+	})
+}
+
 // sendFlowPrompt sends the first message of a newly-installed flow.
 func sendFlowPrompt(ctx context.Context, r Reply, chatID int64, resp flows.Response) error {
 	if resp.Text == "" {
