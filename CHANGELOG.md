@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/amiwrpremium/macontrol/compare/v0.1.4...v0.1.5) (2026-04-22)
+
+
+### Bug Fixes
+
+* **release:** switch smctemp dep from narugit/tap to same-tap mirror ([#26](https://github.com/amiwrpremium/macontrol/issues/26)) ([a8db083](https://github.com/amiwrpremium/macontrol/commit/a8db0835634903cff815635ce79ebc9467af5eda))
+
 ## [0.1.4](https://github.com/amiwrpremium/macontrol/compare/v0.1.3...v0.1.4) (2026-04-22)
 
 
