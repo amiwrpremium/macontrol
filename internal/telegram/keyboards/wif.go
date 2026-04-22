@@ -71,7 +71,7 @@ func WiFi(info wifi.Info, features capability.Features) (text string, markup *mo
 	rows = append(rows, []models.InlineKeyboardButton{
 		{Text: "🔄 Refresh", CallbackData: callbacks.Encode(callbacks.NSWifi, "refresh")},
 	})
-	rows = append(rows, Nav())
+	rows = append(rows, NavWithBack(callbacks.NSNav, "home"))
 	markup = &models.InlineKeyboardMarkup{InlineKeyboard: rows}
 	return
 }

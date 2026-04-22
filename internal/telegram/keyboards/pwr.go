@@ -24,19 +24,20 @@ func Power() (text string, markup *models.InlineKeyboardMarkup) {
 				{Text: "☕ Keep awake…", CallbackData: callbacks.Encode(callbacks.NSPower, "keepawake")},
 				{Text: "🌑 Cancel awake", CallbackData: callbacks.Encode(callbacks.NSPower, "cancelawake")},
 			},
-			Nav(),
+			NavWithBack(callbacks.NSNav, "home"),
 		},
 	}
 	return
 }
 
 // PowerConfirm renders the confirmation sub-keyboard for a destructive
-// action (e.g. shutdown, restart, logout).
+// action (e.g. shutdown, restart, logout). Cancel returns to the
+// Power dashboard rather than jumping all the way Home.
 func PowerConfirm(action, label string) (text string, markup *models.InlineKeyboardMarkup) {
 	text = "⚠ *Confirm " + label + "*\n\nThis will affect your Mac immediately. Tap *Confirm* to proceed."
 	markup = &models.InlineKeyboardMarkup{
 		InlineKeyboard: [][]models.InlineKeyboardButton{
-			ConfirmRow(callbacks.NSPower, action),
+			ConfirmRow(callbacks.NSPower, action, callbacks.NSPower, "open"),
 		},
 	}
 	return

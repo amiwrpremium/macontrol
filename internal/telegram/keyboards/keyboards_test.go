@@ -61,7 +61,8 @@ func assertContainsButton(t *testing.T, kb *models.InlineKeyboardMarkup, substr 
 	t.Errorf("no button containing %q in keyboard", substr)
 }
 
-// assertNavPresent asserts the last row is the standard Nav (🏠 Home).
+// assertNavPresent asserts the last row contains the always-on Home
+// button.
 func assertNavPresent(t *testing.T, kb *models.InlineKeyboardMarkup) {
 	t.Helper()
 	if len(kb.InlineKeyboard) == 0 {
@@ -77,6 +78,21 @@ func assertNavPresent(t *testing.T, kb *models.InlineKeyboardMarkup) {
 	if !foundHome {
 		t.Errorf("final row missing Home button: %+v", last)
 	}
+}
+
+// assertBackPresent asserts the keyboard contains a "← Back" button
+// somewhere. Every nested menu (anything reached from the home grid
+// or deeper) must surface this affordance.
+func assertBackPresent(t *testing.T, kb *models.InlineKeyboardMarkup) {
+	t.Helper()
+	for _, row := range kb.InlineKeyboard {
+		for _, b := range row {
+			if strings.Contains(b.Text, "Back") {
+				return
+			}
+		}
+	}
+	t.Errorf("keyboard missing Back button (every nested menu should have one)")
 }
 
 // ---------------- Home ----------------
@@ -128,19 +144,38 @@ func TestNav_ContainsHome(t *testing.T) {
 	}
 }
 
-func TestConfirmRow(t *testing.T) {
-	row := keyboards.ConfirmRow(callbacks.NSPower, "shutdown")
+func TestNavWithBack_BackBeforeHome(t *testing.T) {
+	row := keyboards.NavWithBack(callbacks.NSPower, "open")
 	if len(row) != 2 {
 		t.Fatalf("expected 2 buttons, got %d", len(row))
 	}
-	if !strings.Contains(row[0].Text, "Confirm") {
-		t.Errorf("first = %q", row[0].Text)
+	if !strings.Contains(row[0].Text, "Back") {
+		t.Errorf("first = %q (want Back)", row[0].Text)
+	}
+	if row[0].CallbackData != "pwr:open" {
+		t.Errorf("back callback = %q", row[0].CallbackData)
+	}
+	if !strings.Contains(row[1].Text, "Home") {
+		t.Errorf("second = %q (want Home)", row[1].Text)
+	}
+	if row[1].CallbackData != "nav:home" {
+		t.Errorf("home callback = %q", row[1].CallbackData)
+	}
+}
+
+func TestConfirmRow_CancelGoesToParent(t *testing.T) {
+	// PowerConfirm-style: confirm fires the destructive action with "ok",
+	// cancel returns to the parent dashboard (NOT all the way Home).
+	row := keyboards.ConfirmRow(callbacks.NSPower, "shutdown", callbacks.NSPower, "open")
+	if len(row) != 2 {
+		t.Fatalf("expected 2 buttons, got %d", len(row))
 	}
 	if row[0].CallbackData != "pwr:shutdown:ok" {
 		t.Errorf("confirm callback = %q", row[0].CallbackData)
 	}
-	if row[1].CallbackData != "nav:home" {
-		t.Errorf("cancel callback = %q", row[1].CallbackData)
+	if row[1].CallbackData != "pwr:open" {
+		t.Errorf("cancel callback = %q (regression: must NOT route to nav:home)",
+			row[1].CallbackData)
 	}
 }
 
@@ -164,6 +199,7 @@ func TestSound_Unmuted(t *testing.T) {
 	assertContainsButton(t, kb, "🔇 Mute")
 	assertAllRoundtrip(t, kb)
 	assertNavPresent(t, kb)
+	assertBackPresent(t, kb)
 }
 
 func TestSound_Muted(t *testing.T) {
@@ -184,6 +220,7 @@ func TestDisplay_WithLevel(t *testing.T) {
 	}
 	assertAllRoundtrip(t, kb)
 	assertNavPresent(t, kb)
+	assertBackPresent(t, kb)
 }
 
 func TestDisplay_ErrorSurfaced(t *testing.T) {
@@ -215,6 +252,7 @@ func TestPower_HasAllActions(t *testing.T) {
 	}
 	assertAllRoundtrip(t, kb)
 	assertNavPresent(t, kb)
+	assertBackPresent(t, kb)
 }
 
 func TestPowerConfirm(t *testing.T) {
@@ -224,6 +262,12 @@ func TestPowerConfirm(t *testing.T) {
 	}
 	if len(kb.InlineKeyboard) != 1 || len(kb.InlineKeyboard[0]) != 2 {
 		t.Fatalf("expected single row of 2; got %+v", kb.InlineKeyboard)
+	}
+	// Cancel must return to the Power dashboard, not all the way Home.
+	cancel := kb.InlineKeyboard[0][1]
+	if cancel.CallbackData != "pwr:open" {
+		t.Errorf("Cancel callback = %q; want pwr:open (was nav:home before fix)",
+			cancel.CallbackData)
 	}
 	assertAllRoundtrip(t, kb)
 }
@@ -241,6 +285,8 @@ func TestBattery_Present(t *testing.T) {
 	assertContainsButton(t, kb, "Refresh")
 	assertContainsButton(t, kb, "Health")
 	assertAllRoundtrip(t, kb)
+	assertBackPresent(t, kb)
+	assertNavPresent(t, kb)
 }
 
 func TestBattery_NotPresent(t *testing.T) {
@@ -299,6 +345,8 @@ func TestWiFi_OnAssociated(t *testing.T) {
 	assertContainsButton(t, kb, "Turn off")
 	assertContainsButton(t, kb, "Speed test")
 	assertAllRoundtrip(t, kb)
+	assertBackPresent(t, kb)
+	assertNavPresent(t, kb)
 }
 
 func TestWiFi_Off(t *testing.T) {
@@ -348,6 +396,8 @@ func TestBluetooth_On(t *testing.T) {
 	assertContainsButton(t, kb, "Turn off")
 	assertContainsButton(t, kb, "Paired")
 	assertAllRoundtrip(t, kb)
+	assertBackPresent(t, kb)
+	assertNavPresent(t, kb)
 }
 
 func TestBluetooth_Off(t *testing.T) {
@@ -361,6 +411,9 @@ func TestBluetoothDevices_Empty(t *testing.T) {
 		t.Errorf("text = %q", text)
 	}
 	assertAllRoundtrip(t, kb)
+	// Empty state must still let the user back out — Back to bt:open.
+	assertBackPresent(t, kb)
+	assertNavPresent(t, kb)
 }
 
 func TestBluetoothDevices_List(t *testing.T) {
@@ -386,6 +439,7 @@ func TestSystem_Menu(t *testing.T) {
 	}
 	assertAllRoundtrip(t, kb)
 	assertNavPresent(t, kb)
+	assertBackPresent(t, kb)
 }
 
 func TestSystemPanel(t *testing.T) {
@@ -403,6 +457,8 @@ func TestMedia_AllButtons(t *testing.T) {
 		assertContainsButton(t, kb, word)
 	}
 	assertAllRoundtrip(t, kb)
+	assertBackPresent(t, kb)
+	assertNavPresent(t, kb)
 }
 
 // ---------------- Notify ----------------
@@ -412,6 +468,8 @@ func TestNotify_Keyboard(t *testing.T) {
 	assertContainsButton(t, kb, "Send notification")
 	assertContainsButton(t, kb, "Say")
 	assertAllRoundtrip(t, kb)
+	assertBackPresent(t, kb)
+	assertNavPresent(t, kb)
 }
 
 // ---------------- Tools ----------------
@@ -422,6 +480,8 @@ func TestTools_WithShortcuts(t *testing.T) {
 	assertContainsButton(t, kb, "Timezone")
 	assertContainsButton(t, kb, "Run Shortcut")
 	assertAllRoundtrip(t, kb)
+	assertBackPresent(t, kb)
+	assertNavPresent(t, kb)
 }
 
 func TestTools_WithoutShortcuts(t *testing.T) {

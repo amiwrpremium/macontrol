@@ -36,7 +36,7 @@ func Display(state display.State, err error) (text string, markup *models.Inline
 				{Text: "🌙 Screensaver", CallbackData: callbacks.Encode(callbacks.NSDisplay, "screensaver")},
 				{Text: "🔄 Refresh", CallbackData: callbacks.Encode(callbacks.NSDisplay, "refresh")},
 			},
-			Nav(),
+			NavWithBack(callbacks.NSNav, "home"),
 		},
 	}
 	return

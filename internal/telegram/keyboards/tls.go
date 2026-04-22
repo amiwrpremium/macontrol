@@ -29,7 +29,7 @@ func Tools(features capability.Features) (text string, markup *models.InlineKeyb
 			{Text: "⚡ Run Shortcut…", CallbackData: callbacks.Encode(callbacks.NSTools, "shortcut")},
 		})
 	}
-	rows = append(rows, Nav())
+	rows = append(rows, NavWithBack(callbacks.NSNav, "home"))
 	markup = &models.InlineKeyboardMarkup{InlineKeyboard: rows}
 	return
 }

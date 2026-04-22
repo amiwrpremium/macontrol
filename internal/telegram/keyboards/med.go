@@ -19,7 +19,7 @@ func Media() (text string, markup *models.InlineKeyboardMarkup) {
 				{Text: "📹 Record…", CallbackData: callbacks.Encode(callbacks.NSMedia, "record")},
 				{Text: "📸 Webcam photo", CallbackData: callbacks.Encode(callbacks.NSMedia, "photo")},
 			},
-			Nav(),
+			NavWithBack(callbacks.NSNav, "home"),
 		},
 	}
 	return
