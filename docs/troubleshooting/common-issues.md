@@ -178,6 +178,34 @@ False alarm. `pkill -x` exits 1 when there's nothing to kill —
 macontrol treats that as success. If you see this in the log it's
 informational, not an error.
 
+### Wi-Fi dashboard shows SSID `—` or `(not associated)` even though I'm connected
+
+Since macOS 14.4 Apple restricted `networksetup -getairportnetwork` —
+it returns `"You are not associated with an AirPort network"` even when
+you clearly are, unless the calling process has Location permission.
+
+macontrol works around this by reading SSID (and BSSID, RSSI, Security,
+Tx Rate, Channel) from `sudo wdutil info`, which is already covered by
+the narrow sudoers entry. If that's not installed, it falls back to
+`system_profiler SPAirPortDataType` (slower, ~2-3s, no sudo).
+
+If you see SSID empty:
+
+1. Confirm the sudoers entry is installed:
+   ```bash
+   sudo -n /usr/bin/wdutil info >/dev/null && echo OK || echo MISSING
+   ```
+   If `MISSING`, run `macontrol setup --reconfigure` and answer `y` to
+   the sudoers prompt — see [Permissions → Sudoers](../permissions/sudoers.md).
+
+2. If sudoers is in but SSID still empty, both sources may have failed.
+   Test each by hand:
+   ```bash
+   sudo wdutil info | grep -A1 '^WIFI'
+   system_profiler SPAirPortDataType | grep -A2 'Current Network'
+   ```
+   If both return nothing useful, you may genuinely be disconnected.
+
 ### Sudo prompts in the log
 
 ```text

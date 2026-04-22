@@ -7,6 +7,7 @@ speed test. No brew deps; some features require sudo or macOS 12+.
 
 ```text
 📶 Wi-Fi — on · SSID home · iface en0
+WPA2 Personal · -45 dBm · 144 Mbps · ch 2g3/20
 
 [ ⏻ Turn off ] [ ℹ Info ]
 [        🔗 Join network…        ]
@@ -16,13 +17,38 @@ speed test. No brew deps; some features require sudo or macOS 12+.
 [          🏠 Home                 ]
 ```
 
-Header shows:
+Header (line 1):
 
 - `on` / `off` — whether the Wi-Fi radio is enabled
 - `SSID <name>` — name of the associated network, or `(not associated)`
   if disconnected, or `—` if Wi-Fi is off
 - `iface <name>` — the Wi-Fi interface name (usually `en0`, sometimes
   `en1` on Macs with multiple network ports)
+
+Rich link details (line 2 — only when associated AND wdutil/system_profiler
+returned data):
+
+- **Security** — e.g. `WPA2 Personal`, `WPA/WPA2 Personal`, `Open`
+- **Signal** — RSSI in dBm (closer to 0 = stronger; -45 is very strong,
+  -75 is borderline)
+- **Tx Rate** — current PHY link rate in Mbps
+- **Channel** — e.g. `2g3/20` from wdutil (band/number/width) or
+  `3 (2GHz, 20MHz)` from system_profiler
+
+The second line is omitted entirely if no rich data is available (Wi-Fi
+off, not associated, or both `wdutil` and `system_profiler` couldn't
+be queried).
+
+### How SSID is read
+
+Since macOS 14.4 Apple restricted `networksetup -getairportnetwork` —
+it returns `"You are not associated with an AirPort network"` even when
+connected, unless the calling process has Location permission. macontrol
+sidesteps this by reading SSID (and the rich fields above) from
+`sudo wdutil info` (already in macontrol's narrow sudoers entry).
+If the sudoers entry isn't installed, falls back to
+`system_profiler SPAirPortDataType` (slower, ~2-3s, no sudo). If both
+fail, SSID stays empty and the dashboard shows `(not associated)`.
 
 ## Buttons
 

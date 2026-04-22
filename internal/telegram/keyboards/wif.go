@@ -2,6 +2,7 @@ package keyboards
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/go-telegram/bot/models"
 
@@ -24,6 +25,24 @@ func WiFi(info wifi.Info, features capability.Features) (text string, markup *mo
 		}
 	}
 	text = fmt.Sprintf("📶 *Wi-Fi* — `%s` · SSID `%s` · iface `%s`", power, ssid, info.Interface)
+	// Optional second line with rich link details (only if any of them
+	// are populated — wdutil/system_profiler may not be available).
+	if info.PowerOn && info.SSID != "" && (info.Security != "" || info.RSSI != 0 || info.TxRateMbps != 0 || info.Channel != "") {
+		var parts []string
+		if info.Security != "" {
+			parts = append(parts, fmt.Sprintf("`%s`", info.Security))
+		}
+		if info.RSSI != 0 {
+			parts = append(parts, fmt.Sprintf("`%d dBm`", info.RSSI))
+		}
+		if info.TxRateMbps != 0 {
+			parts = append(parts, fmt.Sprintf("`%g Mbps`", info.TxRateMbps))
+		}
+		if info.Channel != "" {
+			parts = append(parts, fmt.Sprintf("ch `%s`", info.Channel))
+		}
+		text += "\n" + strings.Join(parts, " · ")
+	}
 
 	toggle := "⏻ Turn on"
 	if info.PowerOn {
