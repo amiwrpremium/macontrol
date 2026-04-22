@@ -115,6 +115,9 @@ func pingOnBoot(ctx context.Context, d *bot.Deps) {
 	}
 	text := bot.MDToHTML(handlers.BootPing(ctx, d))
 	for _, uid := range d.Whitelist.Members() {
+		// Best-effort clear of any stale reply keyboard left over from
+		// pre-v0.1.4 clients. See handlers.ClearLegacyReplyKB.
+		handlers.ClearLegacyReplyKB(ctx, d, uid)
 		_, err := d.Bot.SendMessage(ctx, &tgbot.SendMessageParams{
 			ChatID:    uid,
 			Text:      text,
