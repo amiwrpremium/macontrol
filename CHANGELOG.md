@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/amiwrpremium/macontrol/compare/v0.1.12...v0.2.0) (2026-04-22)
+
+
+### Features
+
+* **bot:** tappable processes in Top 10 with Kill / Force Kill ([#43](https://github.com/amiwrpremium/macontrol/issues/43)) ([dd508c9](https://github.com/amiwrpremium/macontrol/commit/dd508c96bd97d0603458900a198d7643e01000dc))
+
 ## [0.1.12](https://github.com/amiwrpremium/macontrol/compare/v0.1.11...v0.1.12) (2026-04-22)
 
 
