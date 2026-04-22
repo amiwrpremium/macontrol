@@ -17,4 +17,11 @@ jobs:
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # Fine-grained PAT (contents:write + pull-requests:write on
+          # this repo only). Using a user PAT instead of the workflow's
+          # default GITHUB_TOKEN is what lets the tag release-please
+          # creates cascade to release.yml. Tags pushed by GITHUB_TOKEN
+          # do not trigger downstream workflows; tags pushed by a real
+          # user (PAT or GitHub App) do. Rotate yearly — see
+          # docs/development/releasing.md for the runbook.
+          token: ${{ secrets.RELEASE_PLEASE_PAT }}
