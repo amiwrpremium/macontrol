@@ -33,6 +33,21 @@ func Battery(st battery.Status) (text string, markup *models.InlineKeyboardMarku
 	return
 }
 
+// BatteryHealthPanel renders the trailing keyboard for the health
+// drill-down: refresh the same view, or back to the main battery
+// dashboard.
+func BatteryHealthPanel() *models.InlineKeyboardMarkup {
+	return &models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{
+			{
+				{Text: "🔄 Refresh", CallbackData: callbacks.Encode(callbacks.NSBattery, "health")},
+				{Text: "← Back", CallbackData: callbacks.Encode(callbacks.NSBattery, "open")},
+			},
+			Nav(),
+		},
+	}
+}
+
 func batteryIcon(pct int, state battery.ChargeState) string {
 	if state == battery.StateCharging {
 		return "⚡"

@@ -251,6 +251,22 @@ func TestBattery_NotPresent(t *testing.T) {
 	assertAllRoundtrip(t, kb)
 }
 
+func TestBatteryHealthPanel_RefreshAndBack(t *testing.T) {
+	kb := keyboards.BatteryHealthPanel()
+	assertContainsButton(t, kb, "Refresh")
+	assertContainsButton(t, kb, "Back")
+	assertNavPresent(t, kb)
+	assertAllRoundtrip(t, kb)
+	// Health drill-down must NOT carry the original Health button.
+	for _, row := range kb.InlineKeyboard {
+		for _, btn := range row {
+			if strings.Contains(btn.Text, "Health") {
+				t.Error("Health button should be absent from the health drill-down panel")
+			}
+		}
+	}
+}
+
 func TestBattery_IconByState(t *testing.T) {
 	cases := []struct {
 		pct   int
@@ -306,6 +322,22 @@ func TestWiFi_OnNotAssociated(t *testing.T) {
 		capability.Features{})
 	if !strings.Contains(text, "not associated") {
 		t.Errorf("text = %q", text)
+	}
+}
+
+func TestWiFiDiagPanel_RefreshAndBack(t *testing.T) {
+	kb := keyboards.WiFiDiagPanel()
+	assertContainsButton(t, kb, "Refresh")
+	assertContainsButton(t, kb, "Back")
+	assertNavPresent(t, kb)
+	assertAllRoundtrip(t, kb)
+	// Diagnostics drill-down must NOT carry the original Info button.
+	for _, row := range kb.InlineKeyboard {
+		for _, btn := range row {
+			if strings.Contains(btn.Text, "Info") {
+				t.Error("Info button should be absent from the diagnostics drill-down panel")
+			}
+		}
 	}
 }
 

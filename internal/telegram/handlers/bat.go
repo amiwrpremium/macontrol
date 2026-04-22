@@ -33,9 +33,7 @@ func handleBattery(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, da
 		}
 		body := fmt.Sprintf("🔋 *Battery health*\n\n• Condition: `%s`\n• Cycle count: `%d`\n• Maximum capacity: `%s`\n• Adapter: `%s`",
 			h.Condition, h.CycleCount, h.MaxCapacity, h.ChargerWattage)
-		st, _ := svc.Get(ctx)
-		_, kb := keyboards.Battery(st)
-		return r.Edit(ctx, q, body, kb)
+		return r.Edit(ctx, q, body, keyboards.BatteryHealthPanel())
 	}
 	r.Toast(ctx, q, "Unknown battery action.")
 	return nil
