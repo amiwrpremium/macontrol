@@ -100,15 +100,18 @@ No. macontrol is request-response, not push-driven. For "tell me when
 X happens" use macOS's Shortcuts app personal automations, which has
 triggers for battery level, time of day, location, etc.
 
-### Why does the home keyboard disappear after I tap a category?
+### Why isn't there a button bar at the bottom of the chat?
 
-It's a one-shot keyboard by design. Send `/menu` to bring it back.
-See [Usage → UX model](usage/ux-model.md) for the rationale.
+We dropped the bottom-of-input ("reply") keyboard in v0.1.4 because
+it duplicated the inline home grid. All navigation now happens via
+inline keyboards attached to messages: every category dashboard has
+a 🏠 Home button that returns to the inline grid, and `/menu` always
+sends a fresh grid. See
+[Usage → UX model](usage/ux-model.md) for the rationale.
 
 ### How do I cancel a multi-step flow?
 
-Send `/cancel`. Or tap the **❌ Cancel** button on the home reply
-keyboard. Either way, the active flow drops and the next message you
+Send `/cancel`. The active flow drops and the next message you
 send is treated as a normal message.
 
 ### Why is the speedtest button missing?

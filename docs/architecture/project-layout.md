@@ -179,7 +179,7 @@ internal/telegram/
 │   ├── data_test.go
 │   └── shortmap_test.go
 ├── keyboards/
-│   ├── home.go             # ReplyHome, InlineHome, Categories
+│   ├── home.go             # InlineHome, Categories, HomeInlineTitle
 │   ├── common.go           # Nav, ConfirmRow, SingleRow
 │   ├── snd.go              # Sound dashboard
 │   ├── dsp.go              # Display dashboard

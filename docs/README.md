@@ -28,7 +28,7 @@ This directory is the full reference. The top-level
 
 ### Usage
 
-- [UX model](usage/ux-model.md) — one-shot reply keyboard, inline edits, flows, confirms
+- [UX model](usage/ux-model.md) — inline keyboards, flows, confirm sub-keyboards
 - [Slash commands](usage/commands.md) — `/start`, `/menu`, `/status`, `/help`, `/cancel`, `/lock`, `/screenshot`
 - [Categories](usage/categories/README.md) — every button in every dashboard
 
