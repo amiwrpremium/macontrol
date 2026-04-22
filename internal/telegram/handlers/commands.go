@@ -57,9 +57,9 @@ func parseCommand(text string) (cmd string, rest string) {
 func cmdMenu(ctx context.Context, d *bot.Deps, u *models.Update) error {
 	_, err := d.Bot.SendMessage(ctx, &tgbot.SendMessageParams{
 		ChatID:      u.Message.Chat.ID,
-		Text:        bot.MDToHTML(keyboards.HomeWelcome),
+		Text:        bot.MDToHTML(keyboards.HomeInlineTitle),
 		ParseMode:   models.ParseModeHTML,
-		ReplyMarkup: keyboards.ReplyHome(),
+		ReplyMarkup: keyboards.InlineHome(),
 	})
 	return err
 }

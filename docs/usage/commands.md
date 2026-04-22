@@ -8,9 +8,9 @@ Everything else is keyboard-driven — see
 
 | Command | Category | Description |
 |---|---|---|
-| `/start` | Entry | Welcome + install home reply keyboard |
-| `/menu` | Entry | Re-summon the home reply keyboard |
-| `/status` | Status | Dashboard snapshot (text + inline home) |
+| `/start` | Entry | Send the home inline keyboard with all 10 categories |
+| `/menu` | Entry | Same as `/start` — send the home inline keyboard |
+| `/status` | Status | Dashboard snapshot (text + inline home grid) |
 | `/help` | Help | Static help text with the command list |
 | `/cancel` | Flow | Cancel any active multi-step flow |
 | `/lock` | Shortcut | Lock the screen immediately |
@@ -31,14 +31,14 @@ Reply:
 ```text
 🏠 macontrol
 
-Pick a category below, or tap an inline button to dive into a
-dashboard.
+Pick a category below.
 ```
 
-…plus the home reply keyboard below the input field.
+…with an inline keyboard showing all 10 categories attached to the
+message.
 
-Use when: first time, or any time after the keyboard has collapsed
-(e.g. after a flow).
+Use when: first time, or whenever you want a fresh home grid (e.g.
+after scrolling away from a previous one).
 
 ## /status
 
@@ -85,8 +85,7 @@ Two cases:
   and nothing else happens.
 
 Use when: you started a flow (e.g. tapped **Set exact value…**) and
-changed your mind. The home reply keyboard has an **❌ Cancel** button
-that sends `/cancel` for the same effect.
+changed your mind.
 
 ## /lock
 

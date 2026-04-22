@@ -80,37 +80,6 @@ func assertNavPresent(t *testing.T, kb *models.InlineKeyboardMarkup) {
 
 // ---------------- Home ----------------
 
-func TestReplyHome_OneShotAndResizable(t *testing.T) {
-	kb := keyboards.ReplyHome()
-	if !kb.OneTimeKeyboard {
-		t.Error("expected OneTimeKeyboard=true")
-	}
-	if !kb.ResizeKeyboard {
-		t.Error("expected ResizeKeyboard=true")
-	}
-	if kb.IsPersistent {
-		t.Error("expected IsPersistent=false")
-	}
-}
-
-func TestReplyHome_AllCategoriesPresent(t *testing.T) {
-	kb := keyboards.ReplyHome()
-	texts := map[string]bool{}
-	for _, row := range kb.Keyboard {
-		for _, btn := range row {
-			texts[btn.Text] = true
-		}
-	}
-	for _, c := range keyboards.Categories {
-		if !texts[c.Label] {
-			t.Errorf("missing category %q", c.Label)
-		}
-	}
-	if !texts["❓ Help"] || !texts["❌ Cancel"] {
-		t.Error("utility row missing")
-	}
-}
-
 func TestInlineHome_Roundtrips(t *testing.T) {
 	assertAllRoundtrip(t, keyboards.InlineHome())
 }

@@ -99,11 +99,11 @@ In your bot's DM, send `/start` (or `/menu`). The bot replies with:
 ```text
 🏠 macontrol
 
-Pick a category below, or tap an inline button to dive into a dashboard.
+Pick a category below.
 ```
 
-…and below the input field, a **reply keyboard** appears with one
-button per category:
+…with an **inline keyboard** of all 10 categories attached to the
+message:
 
 ```text
 ┌──────────────┬──────────────┬──────────────┐
@@ -112,14 +112,14 @@ button per category:
 │  📶 Wi-Fi    │  🔵 Bluetooth│  ⚡ Power    │
 ├──────────────┼──────────────┼──────────────┤
 │  🖥 System   │  📸 Media    │  🔔 Notify   │
-├──────────────┼──────────────┼──────────────┤
-│  🛠 Tools    │  ❓ Help     │  ❌ Cancel   │
-└──────────────┴──────────────┴──────────────┘
+├──────────────┴──────────────┴──────────────┤
+│              🛠 Tools                       │
+└─────────────────────────────────────────────┘
 ```
 
-The keyboard is **one-shot**: tapping any button collapses the keyboard
-and replaces it with an inline-keyboard dashboard for that category.
-Send `/menu` again any time to re-summon it.
+Tapping any category **edits the same message** into that category's
+dashboard. Each dashboard has a 🏠 Home button that returns you to
+this grid, so you can navigate without sending `/menu` again.
 
 ## 4. Tap a category
 

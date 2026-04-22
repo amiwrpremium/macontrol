@@ -36,9 +36,9 @@ from cold start to bot-responding-in-Telegram is under ten minutes.
   Keychain — encrypted at rest, ACL-restricted to the macontrol
   binary. No `.env` file. No config file.
 - Rotating logs at `~/Library/Logs/macontrol/macontrol.log`.
-- A Telegram bot that responds to `/menu` by showing a one-shot keyboard
-  with one button per category (Sound, Display, Wi-Fi, Bluetooth,
-  Battery, Power, System, Media, Notify, Tools).
+- A Telegram bot that responds to `/menu` by sending an inline
+  keyboard with one button per category (Sound, Display, Wi-Fi,
+  Bluetooth, Battery, Power, System, Media, Notify, Tools).
 
 ## If anything goes wrong
 

@@ -58,18 +58,39 @@ The Shortcuts runner (`tls:shortcut`) is the deliberate compromise:
 **you** author the shortcut, naming it explicitly, and it's runnable
 by name — no arbitrary shell, but full power if you set it up.
 
-## Why a one-shot reply keyboard
+## Why no reply keyboard (inline-only navigation)
 
-Reply keyboards have two modes: persistent and one-shot.
+Telegram offers two keyboard surfaces: **reply keyboards** (the bar
+that appears below the input field) and **inline keyboards**
+(buttons attached to a specific message). Early macontrol had both
+— the home grid existed as a reply keyboard for discovery *and* as
+an inline grid on `/status` for in-flight navigation. That
+redundancy was dropped in v0.1.4.
 
-- **Persistent**: stays at the bottom of the chat forever. Eats half
-  the screen on phones. Feels cluttered when you're in a flow.
-- **One-shot**: collapses after one tap. Send `/menu` again to bring
-  it back.
+Reasons the reply keyboard went away:
 
-For a bot you interact with sporadically (not all day), one-shot is
-less invasive. The inline keyboards are the workhorse anyway — most
-of your time is spent tapping inline buttons, not the reply keyboard.
+- **Chat pollution.** Tapping a reply-keyboard button makes
+  Telegram echo the label as a user-sent message. After a few
+  taps, chat history is a wall of `🔊 Sound / 💡 Display /
+  🔊 Sound` bubbles with no context — noise, not signal.
+- **Redundant.** Every category label on the reply keyboard also
+  exists as an inline button on the home grid. Two paths to the
+  same place confuses users without adding capability.
+- **Eats input area or collapses awkwardly.** Persistent keyboards
+  consume ~40% of phone screen; one-shot keyboards disappear after
+  first tap, requiring `/menu` to resummon.
+- **Inline keyboards edit in place** — the Sound dashboard mutates
+  when you tap `+5` without spawning a new message. Reply
+  keyboards can't do that.
+
+The inline home grid is reachable three ways: send `/menu`, send
+`/status`, or tap the 🏠 Home button on any leaf dashboard (which
+edits the current message back to the home grid). That's enough
+navigation surface without a second redundant one.
+
+Slash-command discoverability comes from Telegram's
+`/setcommands` menu (configured via `@BotFather`), which shows
+the `/` button next to the input field.
 
 ## Why inline keyboards edit-in-place
 

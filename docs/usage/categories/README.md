@@ -49,8 +49,9 @@ remaining`; the menu has Refresh and Health.
 ## Navigation
 
 Every leaf dashboard ends with a 🏠 Home row. Tapping it edits the
-current message to the inline home grid, from which you can pick any
-category again without re-summoning the reply keyboard.
+current message to the inline home grid, from which you can pick
+any category again without sending `/menu`.
 
-Destructive actions in the Power category show a confirm sub-keyboard
-first. See [UX model → Confirm sub-keyboards](../ux-model.md#5-confirm-sub-keyboards-destructive-actions).
+Destructive actions in the Power category show a confirm
+sub-keyboard first. See
+[UX model → Confirm sub-keyboards](../ux-model.md#4-confirm-sub-keyboards-destructive-actions).

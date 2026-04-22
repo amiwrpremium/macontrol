@@ -90,8 +90,8 @@ Full walkthrough: [docs/getting-started/credentials-telegram.md](docs/getting-st
 
 ### UX model in three lines
 
-- `/menu` shows a one-shot reply keyboard with one button per category.
-- Each category opens an inline keyboard that edits in place as you tap.
+- `/menu` sends an inline keyboard with one button per category.
+- Tapping a category edits the message into that category's dashboard, which itself edits in place as you tap (`+5`, `MUTE`, `🔄 Refresh`, …).
 - Free-text input (set exact volume, join wifi, …) drops into a 5-min flow.
 
 Deep explanation: [docs/usage/ux-model.md](docs/usage/ux-model.md).

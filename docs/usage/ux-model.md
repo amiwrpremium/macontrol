@@ -1,55 +1,32 @@
 # UX model
 
-macontrol's interaction model has four distinct surfaces. Knowing which
-one you're in tells you what the next button-press will do, what
-collapses, and what edits.
+macontrol's interaction model has three distinct surfaces. Knowing
+which one you're in tells you what the next button-press will do,
+what collapses, and what edits.
 
 ## 1. Slash commands (entry points)
 
-Six built-in slash commands; everything else is reachable from a
-keyboard. See [Commands](commands.md) for the full list.
+Six built-in slash commands; everything else is reachable from an
+inline keyboard. See [Commands](commands.md) for the full list.
 
 | Command | Effect |
 |---|---|
-| `/start`, `/menu` | Sends the welcome message and the home reply keyboard |
-| `/status` | Sends a one-message dashboard snapshot (no keyboard) |
+| `/start`, `/menu` | Sends the home inline keyboard with all 10 categories |
+| `/status` | Sends a one-message dashboard snapshot with the home grid attached |
 | `/help` | Static help text |
 | `/cancel` | Cancels any active flow for this chat |
 | `/lock` | Locks the screen immediately (no confirm) |
 | `/screenshot` | Sends a silent full-screen screenshot |
 
-Slash commands trigger the same code paths as the keyboard equivalents
-where they overlap (e.g. `/lock` calls the same domain function as
-**⚡ Power → 🔒 Lock**).
+Slash commands trigger the same code paths as the keyboard
+equivalents where they overlap (e.g. `/lock` calls the same domain
+function as **⚡ Power → 🔒 Lock**).
 
-## 2. The home reply keyboard (one-shot)
+The slash commands also appear in Telegram's command menu (the
+`/` button next to the input field) for discoverability — set via
+`@BotFather → /setcommands`.
 
-```text
-[ 🔊 Sound  ] [ 💡 Display  ] [ 🔋 Battery  ]
-[ 📶 Wi-Fi  ] [ 🔵 Bluetooth] [ ⚡ Power    ]
-[ 🖥 System ] [ 📸 Media    ] [ 🔔 Notify   ]
-[ 🛠 Tools  ] [ ❓ Help     ] [ ❌ Cancel   ]
-```
-
-Lives **below the input field**, not as part of any message. Properties:
-
-- **One-shot** (`one_time_keyboard: true`): tapping any button
-  collapses it. To bring it back, send `/menu` again.
-- **Resizable** (`resize_keyboard: true`): Telegram clients shrink it
-  to fit the available space.
-- **Not persistent**: it's only shown when you explicitly request it,
-  not on every message.
-
-Why one-shot instead of always-visible? Persistent keyboards eat half
-the screen on phones and feel cluttered when you're in a flow. One-shot
-keeps the chat focused on the dashboard message you're interacting
-with.
-
-The 10 category labels each map to a callback (`<ns>:open`) that opens
-that category's inline-keyboard dashboard. Tapping a category sends a
-fresh message with the inline keyboard.
-
-## 3. Inline keyboards (edit-in-place dashboards)
+## 2. Inline keyboards (edit-in-place dashboards)
 
 ```text
 🔊 Sound — 60% · unmuted
@@ -84,7 +61,7 @@ This is intentional — auto-refreshing every dashboard would mean a
 constant stream of `editMessageText` calls and would drain the
 daemon's CPU even when nobody's looking.
 
-## 4. Flows (multi-step text input)
+## 3. Flows (multi-step text input)
 
 Some actions need data you can't encode in a button. Set-exact-volume
 needs a number from 0–100; join-wifi needs an SSID and a password;
@@ -106,8 +83,7 @@ The flow takes over the chat for the duration. Properties:
 - **Times out**: 5 minutes of inactivity and the flow is dropped
   silently. Sending text after that is treated as a regular non-command
   message and ignored.
-- **Cancellable**: send `/cancel` (or tap the **❌ Cancel** button on
-  the home reply keyboard) to abort at any time.
+- **Cancellable**: send `/cancel` to abort at any time.
 - **Multi-step**: some flows have more than one step. Join-Wifi asks
   for the SSID, then the password.
 
@@ -115,7 +91,7 @@ Flow prompts arrive as new messages (not edits to the dashboard you
 came from). When the flow finishes, it sends a confirmation message —
 the original dashboard remains where you left it.
 
-## 5. Confirm sub-keyboards (destructive actions)
+## 4. Confirm sub-keyboards (destructive actions)
 
 For actions that you can't undo with a tap (`Restart`, `Shutdown`,
 `Logout`), the first tap doesn't fire the action. It edits the message
