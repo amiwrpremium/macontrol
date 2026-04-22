@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/amiwrpremium/macontrol/compare/v0.1.3...v0.1.4) (2026-04-22)
+
+
+### Refactors
+
+* **bot:** drop reply keyboard, navigate via inline keyboards only ([#22](https://github.com/amiwrpremium/macontrol/issues/22)) ([aab94f5](https://github.com/amiwrpremium/macontrol/commit/aab94f54308b4bd9a85b33fc26e8443c8f35f37e))
+
 ## [0.1.3](https://github.com/amiwrpremium/macontrol/compare/v0.1.2...v0.1.3) (2026-04-21)
 
 
