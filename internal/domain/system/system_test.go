@@ -20,7 +20,7 @@ func TestInfo_FullHappyPath(t *testing.T) {
 		On("sysctl -n hw.model", "MacBookPro18,3\n", nil).
 		On("sysctl -n machdep.cpu.brand_string", "Apple M3 Pro\n", nil).
 		On("sysctl -n hw.memsize", "34359738368\n", nil).
-		On("uptime", " 10:00 up 3 days, load average: 1.2 1.3 1.4\n", nil).
+		On("uptime", "21:44  up 3 days,  6:27, 1 user, load averages: 4.97 4.57 4.19\n", nil).
 		On("system_profiler SPHardwareDataType",
 			"  Hardware Overview:\n  Total Number of Cores: 11 (6 performance and 5 efficiency)\n", nil)
 
@@ -43,11 +43,112 @@ func TestInfo_FullHappyPath(t *testing.T) {
 	if info.TotalRAMBytes != 34359738368 {
 		t.Errorf("ram = %d", info.TotalRAMBytes)
 	}
-	if !strings.Contains(info.Uptime, "3 days") {
-		t.Errorf("uptime = %q", info.Uptime)
+	if info.Uptime.Duration != "3 days,  6h 27m" {
+		t.Errorf("uptime duration = %q", info.Uptime.Duration)
+	}
+	if info.Uptime.Users != 1 {
+		t.Errorf("uptime users = %d", info.Uptime.Users)
+	}
+	if info.Uptime.Load1 != 4.97 || info.Uptime.Load5 != 4.57 || info.Uptime.Load15 != 4.19 {
+		t.Errorf("load avg = %v / %v / %v", info.Uptime.Load1, info.Uptime.Load5, info.Uptime.Load15)
 	}
 	if !strings.Contains(info.CPUCores, "11") {
 		t.Errorf("cores = %q", info.CPUCores)
+	}
+}
+
+func TestParseUptime_Variants(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name  string
+		raw   string
+		want  system.Uptime
+		check func(*testing.T, system.Uptime)
+	}{
+		{
+			name: "live macos26 line",
+			raw:  "21:44  up 3 days,  6:27, 1 user, load averages: 4.97 4.57 4.19",
+			check: func(t *testing.T, u system.Uptime) {
+				if u.Duration != "3 days,  6h 27m" {
+					t.Errorf("duration = %q", u.Duration)
+				}
+				if u.Users != 1 || u.Load1 != 4.97 || u.Load15 != 4.19 {
+					t.Errorf("got %+v", u)
+				}
+			},
+		},
+		{
+			name: "short uptime, singular load average",
+			raw:  "10:00  up 47 mins, 1 user, load average: 0.5 0.3 0.2",
+			check: func(t *testing.T, u system.Uptime) {
+				if u.Duration != "47 mins" {
+					t.Errorf("duration = %q", u.Duration)
+				}
+				if u.Load1 != 0.5 {
+					t.Errorf("load1 = %v", u.Load1)
+				}
+			},
+		},
+		{
+			name: "sub-day HH:MM, plural users",
+			raw:  "10:00  up 18:23, 2 users, load averages: 1 2 3",
+			check: func(t *testing.T, u system.Uptime) {
+				if u.Duration != "18h 23m" {
+					t.Errorf("duration = %q", u.Duration)
+				}
+				if u.Users != 2 {
+					t.Errorf("users = %d", u.Users)
+				}
+			},
+		},
+		{
+			name: "garbage line preserves raw, leaves rest zero",
+			raw:  "this is not uptime output",
+			check: func(t *testing.T, u system.Uptime) {
+				if u.Raw != "this is not uptime output" {
+					t.Errorf("raw = %q", u.Raw)
+				}
+				if u.Duration != "" || u.Users != 0 || u.Load1 != 0 {
+					t.Errorf("expected zero parsed fields, got %+v", u)
+				}
+			},
+		},
+	}
+	for _, c := range cases {
+		c := c
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			f := runner.NewFake().
+				On("sw_vers", "", errors.New("skip")).
+				On("hostname", "", errors.New("skip")).
+				On("sysctl -n hw.model", "", errors.New("skip")).
+				On("sysctl -n machdep.cpu.brand_string", "", errors.New("skip")).
+				On("sysctl -n hw.memsize", "", errors.New("skip")).
+				On("uptime", c.raw+"\n", nil).
+				On("system_profiler SPHardwareDataType", "", errors.New("skip"))
+			info, _ := system.New(f).Info(context.Background())
+			c.check(t, info.Uptime)
+		})
+	}
+}
+
+func TestFirstInt(t *testing.T) {
+	t.Parallel()
+	cases := map[string]struct {
+		want int
+		ok   bool
+	}{
+		"12 (8 performance and 4 efficiency)": {12, true},
+		"11":                                  {11, true},
+		"":                                    {0, false},
+		"no digits here":                      {0, false},
+		"  42  trailing junk":                 {42, true},
+	}
+	for in, want := range cases {
+		got, ok := system.FirstInt(in)
+		if got != want.want || ok != want.ok {
+			t.Errorf("FirstInt(%q) = %d, %v; want %d, %v", in, got, ok, want.want, want.ok)
+		}
 	}
 }
 

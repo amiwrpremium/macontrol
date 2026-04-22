@@ -38,8 +38,19 @@ Panel:
 • Chip: Apple M3 Pro
 • Cores: 11 (6 performance and 5 efficiency)
 • RAM: 32 GiB
-• 10:22 up 6 days, 3:14, 4 users, load averages: 0.92 0.87 0.85
+• Uptime: 6 days, 3h 14m
+• Logged-in users: 4
+• Load avg (1/5/15m): 0.92 / 0.87 / 0.85 (~8% / 8% / 8% of 11 cores)
 ```
+
+The load averages are macOS's scheduler run-queue averages over the
+last 1, 5, and 15 minutes. As a rule of thumb, sustained values above
+**1.0 per core** mean the CPU is saturated; below that, there's
+headroom. The percentage is `load ÷ cores × 100` and is purely a
+convenience — it can briefly exceed 100% under burst.
+
+If `uptime`'s output can't be parsed (unexpected format), macontrol
+falls back to showing the raw line on a single bullet.
 
 Sources:
 
@@ -51,7 +62,7 @@ Sources:
 | Chip | `sysctl -n machdep.cpu.brand_string` |
 | Cores | `system_profiler SPHardwareDataType` → `Total Number of Cores` |
 | RAM | `sysctl -n hw.memsize` |
-| Uptime | `uptime` |
+| Uptime / users / load avg | `uptime` (parsed into separate bullets) |
 
 Best-effort: if any subprocess fails, the panel still renders with the
 fields that did succeed. Only fails entirely if **all** of them fail.

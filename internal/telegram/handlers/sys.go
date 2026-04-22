@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-telegram/bot/models"
 
+	"github.com/amiwrpremium/macontrol/internal/domain/system"
 	"github.com/amiwrpremium/macontrol/internal/telegram/bot"
 	"github.com/amiwrpremium/macontrol/internal/telegram/callbacks"
 	"github.com/amiwrpremium/macontrol/internal/telegram/flows"
@@ -29,13 +30,15 @@ func handleSystem(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, dat
 		if err != nil {
 			return errEdit(ctx, r, q, "🖥 *System info* — unavailable", err)
 		}
-		body := fmt.Sprintf(
-			"🖥 *System info*\n\n• %s %s (%s)\n• Host: `%s`\n• Model: `%s`\n• Chip: `%s`\n• Cores: `%s`\n• RAM: `%s`\n• %s",
+		var body strings.Builder
+		fmt.Fprintf(&body,
+			"🖥 *System info*\n\n• %s %s (%s)\n• Host: `%s`\n• Model: `%s`\n• Chip: `%s`\n• Cores: `%s`\n• RAM: `%s`",
 			info.ProductName, info.ProductVersion, info.BuildVersion,
 			info.Hostname, info.Model, info.ChipName, info.CPUCores,
-			fmtBytes(info.TotalRAMBytes), info.Uptime,
+			fmtBytes(info.TotalRAMBytes),
 		)
-		return r.Edit(ctx, q, body, keyboards.SystemPanel("info"))
+		writeUptimeBlock(&body, info.Uptime, info.CPUCores)
+		return r.Edit(ctx, q, body.String(), keyboards.SystemPanel("info"))
 
 	case "temp":
 		r.Ack(ctx, q)
@@ -106,4 +109,37 @@ func fmtBytes(n uint64) string {
 		return "?"
 	}
 	return fmt.Sprintf("%.0f GiB", float64(n)/float64(GiB))
+}
+
+// writeUptimeBlock appends labelled uptime/users/load-avg bullets to b.
+// Falls back to the raw `uptime` line if parsing didn't catch the
+// load triplet (the most informative field).
+func writeUptimeBlock(b *strings.Builder, u system.Uptime, cpuCores string) {
+	if u.Load1 == 0 && u.Load5 == 0 && u.Load15 == 0 {
+		fmt.Fprintf(b, "\n• %s", u.Raw)
+		return
+	}
+	if u.Duration != "" {
+		fmt.Fprintf(b, "\n• Uptime: `%s`", u.Duration)
+	}
+	if u.Users > 0 {
+		noun := "users"
+		if u.Users == 1 {
+			noun = "user"
+		}
+		fmt.Fprintf(b, "\n• Logged-in %s: `%d`", noun, u.Users)
+	}
+	cores, ok := system.FirstInt(cpuCores)
+	if ok && cores > 0 {
+		fmt.Fprintf(b,
+			"\n• Load avg (1/5/15m): `%.2f / %.2f / %.2f` (~%.0f%% / %.0f%% / %.0f%% of %d cores)",
+			u.Load1, u.Load5, u.Load15,
+			u.Load1/float64(cores)*100,
+			u.Load5/float64(cores)*100,
+			u.Load15/float64(cores)*100,
+			cores)
+	} else {
+		fmt.Fprintf(b, "\n• Load avg (1/5/15m): `%.2f / %.2f / %.2f`",
+			u.Load1, u.Load5, u.Load15)
+	}
 }
