@@ -14,7 +14,6 @@ release-please reads commits since last tag
         │
         ▼
 Opens (or updates) a "chore(release): vX.Y.Z" PR
-        │  - bumps version.txt
         │  - updates CHANGELOG.md from commits
         │  - .release-please-manifest.json bumped
         ▼
@@ -86,9 +85,13 @@ This PR was generated with Release Please.
 
 Files changed in the release PR:
 
-- `version.txt` — bumped (`0.1.0` → `0.2.0`)
-- `.release-please-manifest.json` — bumped to match
+- `.release-please-manifest.json` — bumped (`0.1.0` → `0.2.0`)
 - `CHANGELOG.md` — new section prepended
+
+The version embedded in the binary comes from the git tag at build
+time (via `git describe` in the Makefile, or
+`-X main.version={{ .Version }}` in `.goreleaser.yaml`) — there is
+no separate version file to keep in sync.
 
 You can edit the PR's body if you want to add release notes beyond the
 auto-generated CHANGELOG (e.g. upgrade notes, breaking-change
@@ -182,8 +185,7 @@ lives in `release-please-config.json`:
 "packages": {
   ".": {
     "package-name": "macontrol",
-    "initial-version": "0.1.0",
-    "extra-files": ["version.txt"]
+    "initial-version": "0.1.0"
   }
 }
 ```
@@ -196,7 +198,8 @@ When the project graduates to v1.0.0 (stable API, breaking changes
 managed via SemVer):
 
 - Either merge a PR with a `feat!:` commit (auto-bumps to 1.0.0).
-- Or manually bump `version.txt` to `1.0.0` in a release PR.
+- Or manually edit `.release-please-manifest.json` to `{".": "1.0.0"}`
+  in a release PR.
 
 ## Hotfix releases
 
