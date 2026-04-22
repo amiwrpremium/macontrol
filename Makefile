@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 GOFLAGS    ?= -trimpath
-LDFLAGS    ?= -s -w -X main.version=$(shell cat version.txt 2>/dev/null || echo dev) -X main.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo none)
+LDFLAGS    ?= -s -w -X main.version=$(shell git describe --tags --always --dirty 2>/dev/null | sed 's/^v//' || echo dev) -X main.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 BIN_NAME   := macontrol
 BIN_DIR    := dist
 TARGET_OS  := darwin
@@ -82,4 +82,4 @@ clean: ## Remove build artifacts
 	rm -rf $(BIN_DIR) coverage.* dist/
 
 version: ## Print the version that would be embedded
-	@echo "$(shell cat version.txt 2>/dev/null || echo dev) ($(shell git rev-parse --short HEAD 2>/dev/null || echo none))"
+	@echo "$(shell git describe --tags --always --dirty 2>/dev/null | sed 's/^v//' || echo dev) ($(shell git rev-parse --short HEAD 2>/dev/null || echo none))"
