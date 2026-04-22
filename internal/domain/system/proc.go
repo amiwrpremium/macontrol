@@ -76,6 +76,15 @@ func (s *Service) Kill(ctx context.Context, pid int) error {
 	return err
 }
 
+// KillForce sends SIGKILL to a PID. The process can't clean up.
+func (s *Service) KillForce(ctx context.Context, pid int) error {
+	if pid <= 0 {
+		return fmt.Errorf("pid must be positive, got %d", pid)
+	}
+	_, err := s.r.Exec(ctx, "kill", "-9", strconv.Itoa(pid))
+	return err
+}
+
 // KillByName sends SIGTERM to every process matching name.
 func (s *Service) KillByName(ctx context.Context, name string) error {
 	if name == "" {
