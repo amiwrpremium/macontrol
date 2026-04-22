@@ -267,6 +267,67 @@ issues:
   list.
 - **Checksum mismatch** — almost never; would be a GoReleaser bug.
 
+## What if the cascade DOESN'T work
+
+You merged the release-please PR but `release.yml` never fired —
+the GitHub Release stays empty (no assets) and the tap formula
+isn't bumped. Symptom: `gh run list --workflow=release.yml --limit 1`
+shows no new run.
+
+Most likely causes, in order:
+
+1. **`RELEASE_PLEASE_PAT` reverted to `GITHUB_TOKEN`.** Tags pushed
+   by `GITHUB_TOKEN` don't cascade. Verify with:
+   ```bash
+   grep token: .github/workflows/release-please.yml
+   # should print: token: ${{ secrets.RELEASE_PLEASE_PAT }}
+   ```
+   Fix: restore the PAT reference.
+
+2. **`RELEASE_PLEASE_PAT` expired or has wrong scope.** The
+   `release-please.yml` job log shows a 401/403 from GitHub. Fix:
+   rotate per the runbook above.
+
+3. **Ruleset blocks the tag push.** The `release-tags` ruleset
+   blocks `deletion` / `non_fast_forward` / `update`, but **not**
+   `create`. If someone added a `create` rule, release-please will
+   fail to push the tag. Fix: remove `create` from the ruleset's
+   rules, or add the PAT user as a bypass actor.
+
+### Manual recovery
+
+If you need to ship now while debugging:
+
+```bash
+# The tag exists (release-please created it). Manually trigger
+# release.yml against it. Requires temporarily adding
+# `workflow_dispatch:` to release.yml's `on:` block, OR fall back
+# to the legacy ruleset-off / delete-and-recreate-tag dance.
+```
+
+The legacy dance (used for v0.1.0 → v0.1.3 before `RELEASE_PLEASE_PAT`
+landed) is:
+
+```bash
+# 1. Disable the release-tags ruleset
+gh api repos/amiwrpremium/macontrol/rulesets/<id> \
+  | jq '.enforcement = "disabled" | {name, target, enforcement, conditions, rules, bypass_actors}' \
+  | gh api repos/amiwrpremium/macontrol/rulesets/<id> -X PUT --input -
+
+# 2. Delete the empty release + tag
+gh release delete v0.X.Y --repo amiwrpremium/macontrol --cleanup-tag --yes
+
+# 3. Recreate the tag and push (real git push DOES cascade)
+git tag v0.X.Y <merge-commit-sha>
+git push origin v0.X.Y
+
+# 4. Re-enable the ruleset (flip "disabled" back to "active")
+```
+
+This is the original workaround documented in the project's git
+history (PRs #15, #17, #18). Should not be needed in normal
+operation post-PR-#19.
+
 ## Skipping a release
 
 To merge `feat:` commits without triggering a release (rare):
