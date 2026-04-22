@@ -151,6 +151,15 @@ By installing and running this software you acknowledge and accept that:
   commitment to fix any specific bug.
 - **Use at your own risk.**
 
+## Related projects
+
+- **[shellboto](https://github.com/amiwrpremium/shellboto)** — the
+  Linux-VPS sibling. Where macontrol exposes only named commands on
+  macOS, shellboto gives whitelisted users a live, pty-backed bash
+  shell on a Linux server with SHA-256 hash-chained audit logs and
+  per-user RBAC. Different scope, different security model — same
+  author, same Go + Telegram-bot patterns.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
