@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/go-telegram/bot/models"
@@ -81,12 +82,51 @@ func handleSystem(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, dat
 		if err != nil {
 			return errEdit(ctx, r, q, "📋 *Top* — unavailable", err)
 		}
-		var b strings.Builder
-		fmt.Fprintf(&b, "%-6s %5s %5s  %s\n", "PID", "%CPU", "%MEM", "CMD")
-		for _, p := range procs {
-			fmt.Fprintf(&b, "%-6d %5.1f %5.1f  %s\n", p.PID, p.CPU, p.Mem, p.Command)
+		return r.Edit(ctx, q, "📋 *Top 10 by CPU*\n\nTap a process for actions.",
+			keyboards.SystemTopList(procs))
+
+	case "proc":
+		r.Ack(ctx, q)
+		pid, ok := pidArg(data)
+		if !ok {
+			return errEdit(ctx, r, q, "📋 *Process*", fmt.Errorf("missing or invalid PID"))
 		}
-		return r.Edit(ctx, q, "📋 *Top 10 by CPU*\n"+Code(b.String()), keyboards.SystemPanel("top"))
+		p, found := findProc(ctx, svc, pid)
+		if !found {
+			return r.Edit(ctx, q,
+				fmt.Sprintf("📋 *PID %d* — not in current Top 10 (may have exited).", pid),
+				keyboards.SystemProcPanel(pid))
+		}
+		body := fmt.Sprintf("📋 *%s*\nPID: `%d` · CPU: `%.1f%%` · RAM: `%.1f%%`\n`%s`",
+			leafOfPath(p.Command), p.PID, p.CPU, p.Mem, p.Command)
+		return r.Edit(ctx, q, body, keyboards.SystemProcPanel(pid))
+
+	case "kill-pid":
+		r.Ack(ctx, q)
+		pid, ok := pidArg(data)
+		if !ok {
+			return errEdit(ctx, r, q, "🔪 *Kill*", fmt.Errorf("missing or invalid PID"))
+		}
+		if err := svc.Kill(ctx, pid); err != nil {
+			return errEdit(ctx, r, q, fmt.Sprintf("🔪 *Kill PID %d* — failed", pid), err)
+		}
+		return rerenderTopWithToast(ctx, r, q, svc, fmt.Sprintf("✅ SIGTERM sent to PID `%d`.", pid))
+
+	case "kill9":
+		r.Ack(ctx, q)
+		pid, ok := pidArg(data)
+		if !ok {
+			return errEdit(ctx, r, q, "💀 *Force kill*", fmt.Errorf("missing or invalid PID"))
+		}
+		if !isConfirm(data.Args[1:]) {
+			name := procNameByPID(ctx, svc, pid)
+			text, kb := keyboards.SystemKillConfirm(pid, name)
+			return r.Edit(ctx, q, text, kb)
+		}
+		if err := svc.KillForce(ctx, pid); err != nil {
+			return errEdit(ctx, r, q, fmt.Sprintf("💀 *Force kill PID %d* — failed", pid), err)
+		}
+		return rerenderTopWithToast(ctx, r, q, svc, fmt.Sprintf("💀 SIGKILL sent to PID `%d`.", pid))
 
 	case "kill":
 		r.Ack(ctx, q)
@@ -97,6 +137,64 @@ func handleSystem(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, dat
 	}
 	r.Toast(ctx, q, "Unknown system action.")
 	return nil
+}
+
+// pidArg extracts a positive PID from data.Args[0].
+func pidArg(data callbacks.Data) (int, bool) {
+	if len(data.Args) == 0 {
+		return 0, false
+	}
+	n, err := strconv.Atoi(data.Args[0])
+	if err != nil || n <= 0 {
+		return 0, false
+	}
+	return n, true
+}
+
+// findProc looks up the current Top 10 and returns the matching
+// process. Returns ok=false if the PID isn't in the current snapshot
+// (process exited or fell off the list).
+func findProc(ctx context.Context, svc *system.Service, pid int) (system.Process, bool) {
+	procs, err := svc.TopN(ctx, 10)
+	if err != nil {
+		return system.Process{}, false
+	}
+	for _, p := range procs {
+		if p.PID == pid {
+			return p, true
+		}
+	}
+	return system.Process{}, false
+}
+
+// procNameByPID returns the leaf-of-cmd for a PID if it's in the
+// current Top 10. Empty string if not found.
+func procNameByPID(ctx context.Context, svc *system.Service, pid int) string {
+	p, ok := findProc(ctx, svc, pid)
+	if !ok {
+		return ""
+	}
+	return leafOfPath(p.Command)
+}
+
+// rerenderTopWithToast re-renders the Top 10 list with a status line
+// at the top (used after a successful kill so the user sees what
+// happened without a separate dispatched message).
+func rerenderTopWithToast(ctx context.Context, r Reply, q *models.CallbackQuery,
+	svc *system.Service, msg string,
+) error {
+	procs, _ := svc.TopN(ctx, 10)
+	text := "📋 *Top 10 by CPU*\n\n" + msg
+	return r.Edit(ctx, q, text, keyboards.SystemTopList(procs))
+}
+
+// leafOfPath returns the basename of a command path, matching
+// keyboards.leafOf so the handler text and button labels agree.
+func leafOfPath(cmd string) string {
+	if i := strings.LastIndex(cmd, "/"); i >= 0 {
+		return cmd[i+1:]
+	}
+	return cmd
 }
 
 func fmtBytes(n uint64) string {

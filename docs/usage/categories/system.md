@@ -182,24 +182,51 @@ Sources:
 
 ### Top 10 processes
 
-Monospace table of the 10 highest-CPU processes:
+Each process is a tappable button. Tap one to drill into a per-process
+panel with kill actions.
 
 ```text
 📋 Top 10 by CPU
-```
-```text
-PID     %CPU  %MEM  CMD
-100     12.5   3.2  /Applications/App.app
-205      8.7   5.1  /usr/bin/python3
-341      6.0   1.0  /System/Library/PrivateFrameworks/…/WindowServer
+
+Tap a process for actions.
+
+[ 100 · 12.5% · App ]
+[ 205 ·  8.7% · python3 ]
+[ 341 ·  6.0% · WindowServer ]
 …
+[🔄 Refresh] [← Back]
+[      🏠 Home      ]
 ```
 
-Runs `ps -Ao pid,pcpu,pmem,comm -r | head -n 11`.
+Per-process drill-down:
 
-Snapshot only — not live. Tap Refresh to re-fetch.
+```text
+📋 App
+PID: 100 · CPU: 12.5% · RAM: 3.2%
+/Applications/App.app/Contents/MacOS/App
+
+[🔪 Kill (SIGTERM)] [💀 Force Kill]
+[🔄 Refresh] [← Back to Top]
+[      🏠 Home      ]
+```
+
+- **Kill (SIGTERM)** sends the polite signal — apps can save state and
+  shut down gracefully. One tap; no confirmation. Equivalent to
+  `kill <pid>`.
+- **Force Kill (SIGKILL)** routes through a confirmation page before
+  invoking `kill -9 <pid>`. The process can't clean up. Use only when
+  SIGTERM has been ignored.
+- **Refresh** re-fetches the per-process row from the latest Top 10. If
+  the PID has dropped off the list (process exited or no longer in the
+  top), the panel says so but keeps the buttons visible.
+
+Source: `ps -Ao pid,pcpu,pmem,comm -r`. Snapshot only — tap Refresh
+to re-sample.
 
 ### Kill process… (flow)
+
+For PIDs that aren't in the current Top 10 (background daemons,
+helpers), the typed-PID flow remains:
 
 ```text
 Bot: Send a PID (integer) or a process name to kill. Reply /cancel to abort.
@@ -207,18 +234,18 @@ You: 341
 Bot: ✅ SIGTERM sent to pid 341.
 ```
 
-Or by name:
+Or by name (uses `killall <name>`):
 
 ```text
 You: Safari
 Bot: ✅ killall Safari done.
 ```
 
-PID path uses `kill <pid>` (SIGTERM only — no SIGKILL).
-Name path uses `killall <name>`.
+The flow path uses SIGTERM only. For SIGKILL, drill into the
+process from Top 10 and use Force Kill, or run `kill -9 <pid>` from
+your terminal.
 
-Errors (no such process, permission denied) are reported in-line and
-the flow ends.
+Errors (no such process, permission denied) are reported in-line.
 
 There is no undo. The bot will kill anything it can kill with your
 user's permissions.

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/amiwrpremium/macontrol/internal/telegram/handlers"
+	"github.com/amiwrpremium/macontrol/internal/telegram/telegramtest"
 )
 
 // ============================ nav ============================
@@ -557,10 +558,93 @@ func TestSys_Top(t *testing.T) {
 	t.Parallel()
 	h := newHarness(t)
 	h.Fake.On("ps -Ao pid,pcpu,pmem,comm -r",
-		"PID %CPU %MEM COMM\n100 10 5 /App\n", nil)
+		"  PID  %CPU %MEM COMM\n"+
+			"  100  10.0 5.0 /Applications/App.app/Contents/MacOS/App\n"+
+			"  200  20.0 1.0 /usr/bin/foo\n", nil)
 	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
 		newCallbackUpdate("id", "sys:top")); err != nil {
 		t.Fatal(err)
+	}
+	last := h.Recorder.Last()
+	text := last.Fields["text"]
+	if !strings.Contains(text, "Top 10 by CPU") || !strings.Contains(text, "Tap a process") {
+		t.Errorf("text = %q", text)
+	}
+	kb := telegramtest.MustDecodeInlineKeyboard(t, last)
+	// Per-process buttons should encode sys:proc:<pid>.
+	wantPIDs := map[string]bool{"sys:proc:100": false, "sys:proc:200": false}
+	for _, row := range kb.InlineKeyboard {
+		for _, btn := range row {
+			if _, want := wantPIDs[btn.CallbackData]; want {
+				wantPIDs[btn.CallbackData] = true
+			}
+		}
+	}
+	for cb, found := range wantPIDs {
+		if !found {
+			t.Errorf("missing per-process button %q", cb)
+		}
+	}
+}
+
+func TestSys_Proc_DrillDown(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.Fake.On("ps -Ao pid,pcpu,pmem,comm -r",
+		"  PID  %CPU %MEM COMM\n"+
+			"  100  10.0 5.0 /Applications/App.app/Contents/MacOS/App\n", nil)
+	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "sys:proc:100")); err != nil {
+		t.Fatal(err)
+	}
+	text := h.Recorder.Last().Fields["text"]
+	for _, want := range []string{"App", "PID:", "100", "10.0%", "5.0%", "/Applications/App.app"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("drill-down missing %q; got %q", want, text)
+		}
+	}
+}
+
+func TestSys_KillPID_SendsSIGTERM(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.Fake.
+		On("kill 100", "", nil).
+		On("ps -Ao pid,pcpu,pmem,comm -r",
+			"  PID  %CPU %MEM COMM\n  200  5.0 1.0 /usr/bin/foo\n", nil)
+	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "sys:kill-pid:100")); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "SIGTERM sent to PID") {
+		t.Errorf("text = %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
+func TestSys_Kill9_RequiresConfirm(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.Fake.On("ps -Ao pid,pcpu,pmem,comm -r",
+		"  PID  %CPU %MEM COMM\n  100  10.0 5.0 /Apps/App\n", nil)
+
+	// First tap — no confirmation argument; should render the confirm page,
+	// NOT call kill -9.
+	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id1", "sys:kill9:100")); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "Force kill PID 100") {
+		t.Errorf("expected confirm page; got %q", h.Recorder.Last().Fields["text"])
+	}
+
+	// Second tap with the "ok" confirmation arg — must invoke kill -9.
+	h.Fake.On("kill -9 100", "", nil)
+	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id2", "sys:kill9:100:ok")); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "SIGKILL sent to PID") {
+		t.Errorf("text = %q", h.Recorder.Last().Fields["text"])
 	}
 }
 

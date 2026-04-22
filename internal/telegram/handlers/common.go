@@ -19,6 +19,13 @@ func errEdit(ctx context.Context, r Reply, q *models.CallbackQuery, header strin
 	return r.Edit(ctx, q, text, nil)
 }
 
+// isConfirm reports whether the args slice starts with the "ok"
+// confirmation marker. Used by destructive actions (power off, force
+// kill) that round-trip through a confirmation page.
+func isConfirm(args []string) bool {
+	return len(args) > 0 && args[0] == "ok"
+}
+
 // sendFlowPrompt sends the first message of a newly-installed flow.
 func sendFlowPrompt(ctx context.Context, r Reply, chatID int64, resp flows.Response) error {
 	if resp.Text == "" {

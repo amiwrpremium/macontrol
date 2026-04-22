@@ -65,10 +65,6 @@ func handlePower(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data
 	return nil
 }
 
-func isConfirm(args []string) bool {
-	return len(args) > 0 && args[0] == "ok"
-}
-
 func labelFor(action string) string {
 	switch action {
 	case "restart":

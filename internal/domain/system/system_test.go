@@ -597,6 +597,32 @@ func TestKill_Propagates(t *testing.T) {
 	}
 }
 
+func TestKillForce_Success(t *testing.T) {
+	t.Parallel()
+	f := runner.NewFake().On("kill -9 123", "", nil)
+	if err := system.New(f).KillForce(context.Background(), 123); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestKillForce_RejectsNonPositive(t *testing.T) {
+	t.Parallel()
+	svc := system.New(runner.NewFake())
+	for _, pid := range []int{0, -1, -999} {
+		if err := svc.KillForce(context.Background(), pid); err == nil {
+			t.Errorf("pid=%d should be rejected", pid)
+		}
+	}
+}
+
+func TestKillForce_Propagates(t *testing.T) {
+	t.Parallel()
+	f := runner.NewFake().On("kill -9 1", "", errors.New("Operation not permitted"))
+	if err := system.New(f).KillForce(context.Background(), 1); err == nil {
+		t.Fatal("expected error")
+	}
+}
+
 func TestKillByName(t *testing.T) {
 	t.Parallel()
 	f := runner.NewFake().On("killall Safari", "", nil)
