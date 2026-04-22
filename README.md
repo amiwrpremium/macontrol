@@ -186,7 +186,8 @@ macontrol stands on the shoulders of:
 - Homebrew formulae bundled as runtime deps:
   **[brightness](https://github.com/nriley/brightness)**,
   **[blueutil](https://github.com/toy/blueutil)**,
-  **[smctemp](https://github.com/narugit/smctemp)** (via the `narugit/tap`),
+  **[smctemp](https://github.com/narugit/smctemp)** (upstream by
+  [@narugit](https://github.com/narugit), formula mirrored in our tap — see [FAQ](docs/faq.md)),
   **[imagesnap](https://github.com/rharder/imagesnap)**,
   **[terminal-notifier](https://github.com/julienXX/terminal-notifier)**
 - Apple's macOS CLIs that do all the actual work:
