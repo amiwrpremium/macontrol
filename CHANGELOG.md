@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.7](https://github.com/amiwrpremium/macontrol/compare/v0.1.6...v0.1.7) (2026-04-22)
+
+
+### Bug Fixes
+
+* **bot:** omit reply_markup when nil to avoid Telegram rejection ([#31](https://github.com/amiwrpremium/macontrol/issues/31)) ([58bd0f3](https://github.com/amiwrpremium/macontrol/commit/58bd0f3e9538db94288424c097bc58891c7cb66c))
+
 ## [0.1.6](https://github.com/amiwrpremium/macontrol/compare/v0.1.5...v0.1.6) (2026-04-22)
 
 
