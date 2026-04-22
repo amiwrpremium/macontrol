@@ -205,6 +205,27 @@ Either:
   we mirror the formula in our own tap so it installs without
   requiring `brew tap narugit/tap` first.
 
+### Why is there a `smctemp` formula in your tap when it's actually `narugit/smctemp`?
+
+`smctemp` lives outside `homebrew-core` (in
+[narugit/homebrew-tap](https://github.com/narugit/homebrew-tap)),
+and Homebrew's `depends_on "external-tap/formula"` syntax does
+not auto-tap on install. So if macontrol's formula declared
+`narugit/tap/smctemp` as a dep, fresh users would hit a "tap it
+explicitly first" error and one-command install would break.
+
+We sidestep that by mirroring the smctemp formula into
+`amiwrpremium/homebrew-tap` verbatim — same `url`, same `sha256`,
+same build recipe — so it's a same-tap dep that resolves
+automatically when you run `brew install
+amiwrpremium/tap/macontrol`.
+
+The actual `smctemp` source code lives at
+[narugit/smctemp](https://github.com/narugit/smctemp); credit and
+ongoing maintenance belong to
+[@narugit](https://github.com/narugit). We sync the formula
+manually whenever narugit ships a new release upstream.
+
 ### Do I have to install the sudoers entry?
 
 No, but you'll lose:
