@@ -26,29 +26,51 @@ type Service struct{ r runner.Runner }
 func New(r runner.Runner) *Service { return &Service{r: r} }
 
 // Get reads the current brightness. Requires `brightness` CLI.
+//
+// The tool's success format is one line per display:
+//
+//	display 0: brightness 0.682354
+//
+// On macOS 15+ / modern Apple Silicon, CoreDisplay's private API is
+// often denied and the tool exits 0 but emits a header + error line:
+//
+//	display 0: main, active, awake, online, built-in, ID 0x1
+//	brightness: failed to get brightness of display 0x1 (error -536870201)
+//
+// The parser matches only `display <N>: brightness <float>` so the
+// header line can't be mistaken for a value, and surfaces the tool's
+// own error line in the returned error so the dashboard can render
+// something honest.
 func (s *Service) Get(ctx context.Context) (State, error) {
 	out, err := s.r.Exec(ctx, "brightness", "-l")
 	if err != nil {
 		return State{Level: -1}, err
 	}
-	// Output lines look like:
-	//   display 0: brightness 0.682354
 	for _, line := range strings.Split(string(out), "\n") {
-		line = strings.TrimSpace(line)
-		if !strings.HasPrefix(line, "display 0:") {
+		fields := strings.Fields(strings.TrimSpace(line))
+		if len(fields) < 4 || fields[0] != "display" || fields[2] != "brightness" {
 			continue
 		}
-		fields := strings.Fields(line)
-		if len(fields) < 4 {
+		level, perr := strconv.ParseFloat(fields[3], 64)
+		if perr != nil {
 			continue
-		}
-		level, err := strconv.ParseFloat(fields[3], 64)
-		if err != nil {
-			return State{Level: -1}, fmt.Errorf("parse brightness: %w", err)
 		}
 		return State{Level: clamp01(level)}, nil
 	}
-	return State{Level: -1}, fmt.Errorf("display 0 not found in brightness output: %q", out)
+	return State{Level: -1}, fmt.Errorf("brightness CLI returned no readable level: %s", firstErrLine(string(out)))
+}
+
+// firstErrLine returns the first line that looks like the brightness
+// tool's own error output (`brightness: …`). Falls back to a generic
+// message if none is present.
+func firstErrLine(out string) string {
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "brightness:") {
+			return line
+		}
+	}
+	return "no `display N: brightness <value>` line in output"
 }
 
 // Set writes absolute brightness (0.0..1.0).

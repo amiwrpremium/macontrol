@@ -178,6 +178,25 @@ False alarm. `pkill -x` exits 1 when there's nothing to kill —
 macontrol treats that as success. If you see this in the log it's
 informational, not an error.
 
+### Display shows `level unknown` with `error -536870201`
+
+Known issue with the upstream `brightness` CLI on macOS 15+ /
+modern Apple Silicon. CoreDisplay's private API is restricted for
+unsigned callers; the tool exits 0 but prints
+`brightness: failed to get brightness of display 0x1 (error -536870201)`
+to stdout instead of a value. macontrol surfaces that line verbatim
+in the dashboard so you know it's not a missing-tool problem.
+
+The ±5/±10 buttons may still work — the brightness CLI's *set* path
+sometimes succeeds where *get* doesn't. Tap one to verify; if it
+errors, the dashboard now shows the real error from the SET call too.
+
+`brightness` itself is installed automatically as a brew dep (see
+`brew deps macontrol`). Reinstalling won't help — this is an upstream
+limitation tracked at
+<https://github.com/nriley/brightness>. macontrol may switch to a
+Shortcuts-based or other backend in a future release.
+
 ### Wi-Fi dashboard shows SSID `—` or `(not associated)` even though I'm connected
 
 Since macOS 14.4 Apple restricted `networksetup -getairportnetwork` —

@@ -3,6 +3,7 @@ package display_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/amiwrpremium/macontrol/internal/domain/display"
@@ -30,8 +31,8 @@ func TestGet_MultipleDisplays_FirstWins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if st.Level != 0.5 {
-		t.Fatalf("level=%f want 0.5", st.Level)
+	if st.Level != 0.1 {
+		t.Fatalf("level=%f want 0.1 (first matching line wins)", st.Level)
 	}
 }
 
@@ -63,11 +64,26 @@ func TestGet_BrewMissing(t *testing.T) {
 	}
 }
 
-func TestGet_NoDisplay0(t *testing.T) {
+// TestGet_HeaderAndErrorOnly mirrors the live Mac output on macOS 15+
+// where CoreDisplay denies the brightness CLI's private-API call. The
+// tool exits 0 but only emits the header line and an error line; no
+// `display N: brightness <float>` line ever appears. Old parser used
+// to grab the header line as a value and crash with a parse error;
+// new parser must surface the tool's own error line.
+func TestGet_HeaderAndErrorOnly(t *testing.T) {
 	t.Parallel()
-	f := runner.NewFake().On("brightness -l", "display 1: brightness 0.5\n", nil)
-	if _, err := display.New(f).Get(context.Background()); err == nil {
-		t.Fatal("expected error — display 0 missing")
+	out := "display 0: main, active, awake, online, built-in, ID 0x1\n" +
+		"brightness: failed to get brightness of display 0x1 (error -536870201)\n"
+	f := runner.NewFake().On("brightness -l", out, nil)
+	st, err := display.New(f).Get(context.Background())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if st.Level != -1 {
+		t.Errorf("level=%f want -1", st.Level)
+	}
+	if !strings.Contains(err.Error(), "error -536870201") {
+		t.Errorf("error should surface tool's own message, got: %v", err)
 	}
 }
 
