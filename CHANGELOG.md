@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/amiwrpremium/macontrol/compare/v0.2.0...v0.2.1) (2026-04-22)
+
+
+### Bug Fixes
+
+* **bot:** back button on every nested menu + PowerConfirm cancel fix ([#45](https://github.com/amiwrpremium/macontrol/issues/45)) ([5a8cac8](https://github.com/amiwrpremium/macontrol/commit/5a8cac8eddc6cf7d73af56ac3da9e9d3b6c9165a))
+
 ## [0.2.0](https://github.com/amiwrpremium/macontrol/compare/v0.1.12...v0.2.0) (2026-04-22)
 
 
