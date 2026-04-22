@@ -35,18 +35,28 @@ func (r Reply) Send(ctx context.Context, chatID int64, text string, markup model
 }
 
 // Edit replaces the text + markup of the message backing the callback.
+//
+// A nil markup means "leave the keyboard untouched" — we deliberately
+// omit the field rather than pass the typed-nil pointer through. The
+// underlying ReplyMarkup field is `any`, and a typed-nil pointer
+// assigned to an interface is non-nil (carries type info), defeating
+// `omitempty` and producing `"reply_markup": null` — which Telegram
+// rejects with "object expected as reply markup".
 func (r Reply) Edit(ctx context.Context, q *models.CallbackQuery, text string, markup *models.InlineKeyboardMarkup) error {
 	msg := q.Message.Message
 	if msg == nil {
 		return fmt.Errorf("callback message is not accessible")
 	}
-	_, err := r.Deps.Bot.EditMessageText(ctx, &tgbot.EditMessageTextParams{
-		ChatID:      msg.Chat.ID,
-		MessageID:   msg.ID,
-		Text:        bot.MDToHTML(text),
-		ParseMode:   models.ParseModeHTML,
-		ReplyMarkup: markup,
-	})
+	params := &tgbot.EditMessageTextParams{
+		ChatID:    msg.Chat.ID,
+		MessageID: msg.ID,
+		Text:      bot.MDToHTML(text),
+		ParseMode: models.ParseModeHTML,
+	}
+	if markup != nil {
+		params.ReplyMarkup = markup
+	}
+	_, err := r.Deps.Bot.EditMessageText(ctx, params)
 	return err
 }
 
