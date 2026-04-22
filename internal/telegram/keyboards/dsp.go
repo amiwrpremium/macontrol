@@ -9,11 +9,16 @@ import (
 	"github.com/amiwrpremium/macontrol/internal/telegram/callbacks"
 )
 
-// Display renders the 💡 Display dashboard.
-func Display(state display.State) (text string, markup *models.InlineKeyboardMarkup) {
-	if state.Level < 0 {
-		text = "💡 *Display* — `unknown` (install `brew install brightness` for level readings)"
-	} else {
+// Display renders the 💡 Display dashboard. err carries any failure
+// from the underlying brightness read so the dashboard can surface it
+// instead of guessing whether the tool is missing.
+func Display(state display.State, err error) (text string, markup *models.InlineKeyboardMarkup) {
+	switch {
+	case err != nil:
+		text = fmt.Sprintf("💡 *Display* — `level unknown`\n⚠ `%v`", err)
+	case state.Level < 0:
+		text = "💡 *Display* — `level unknown`"
+	default:
 		text = fmt.Sprintf("💡 *Display* — `%.0f%%`", state.Level*100)
 	}
 	markup = &models.InlineKeyboardMarkup{

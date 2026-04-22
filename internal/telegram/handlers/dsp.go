@@ -20,13 +20,7 @@ func handleDisplay(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, da
 	case "open", "refresh":
 		r.Ack(ctx, q)
 		st, err := svc.Get(ctx)
-		if err != nil {
-			// Show the panel anyway — Get may fail if `brightness` CLI is missing.
-			text, kb := keyboards.Display(st)
-			_ = r.Edit(ctx, q, text, kb)
-			return nil
-		}
-		text, kb := keyboards.Display(st)
+		text, kb := keyboards.Display(st, err)
 		return r.Edit(ctx, q, text, kb)
 
 	case "up", "down":
@@ -45,7 +39,7 @@ func handleDisplay(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, da
 		if err != nil {
 			return errEdit(ctx, r, q, "💡 *Display* — adjust failed", err)
 		}
-		text, kb := keyboards.Display(st)
+		text, kb := keyboards.Display(st, nil)
 		return r.Edit(ctx, q, text, kb)
 
 	case "set":

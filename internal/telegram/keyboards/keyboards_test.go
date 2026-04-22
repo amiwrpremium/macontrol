@@ -1,6 +1,7 @@
 package keyboards_test
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -177,7 +178,7 @@ func TestSound_Muted(t *testing.T) {
 // ---------------- Display ----------------
 
 func TestDisplay_WithLevel(t *testing.T) {
-	text, kb := keyboards.Display(display.State{Level: 0.5})
+	text, kb := keyboards.Display(display.State{Level: 0.5}, nil)
 	if !strings.Contains(text, "50%") {
 		t.Errorf("text = %q", text)
 	}
@@ -185,9 +186,22 @@ func TestDisplay_WithLevel(t *testing.T) {
 	assertNavPresent(t, kb)
 }
 
-func TestDisplay_Unknown(t *testing.T) {
-	text, _ := keyboards.Display(display.State{Level: -1})
-	if !strings.Contains(text, "unknown") {
+func TestDisplay_ErrorSurfaced(t *testing.T) {
+	text, kb := keyboards.Display(display.State{Level: -1},
+		errors.New("brightness: failed (error -536870201)"))
+	if !strings.Contains(text, "level unknown") {
+		t.Errorf("text = %q", text)
+	}
+	if !strings.Contains(text, "-536870201") {
+		t.Errorf("expected error text in dashboard, got %q", text)
+	}
+	// Buttons must still be present so the user can try ± anyway.
+	assertContainsButton(t, kb, "+5")
+}
+
+func TestDisplay_UnknownNoError(t *testing.T) {
+	text, _ := keyboards.Display(display.State{Level: -1}, nil)
+	if !strings.Contains(text, "level unknown") {
 		t.Errorf("text = %q", text)
 	}
 }
