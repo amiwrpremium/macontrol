@@ -75,3 +75,18 @@ func WiFi(info wifi.Info, features capability.Features) (text string, markup *mo
 	markup = &models.InlineKeyboardMarkup{InlineKeyboard: rows}
 	return
 }
+
+// WiFiDiagPanel renders the trailing keyboard for the diagnostics
+// drill-down (sudo wdutil info dump): refresh the same view, or back
+// to the main Wi-Fi dashboard.
+func WiFiDiagPanel() *models.InlineKeyboardMarkup {
+	return &models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{
+			{
+				{Text: "🔄 Refresh", CallbackData: callbacks.Encode(callbacks.NSWifi, "info")},
+				{Text: "← Back", CallbackData: callbacks.Encode(callbacks.NSWifi, "open")},
+			},
+			Nav(),
+		},
+	}
+}

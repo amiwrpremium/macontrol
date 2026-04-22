@@ -42,9 +42,7 @@ func handleWiFi(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data 
 		if err != nil {
 			return errEdit(ctx, r, q, "📶 *Wi-Fi info* — unavailable", err)
 		}
-		info, _ := svc.Get(ctx)
-		_, kb := keyboards.WiFi(info, feat)
-		return r.Edit(ctx, q, "📶 *Wi-Fi diagnostics*\n"+Code(truncate(out, 3500)), kb)
+		return r.Edit(ctx, q, "📶 *Wi-Fi diagnostics*\n"+Code(truncate(out, 3500)), keyboards.WiFiDiagPanel())
 
 	case "dns":
 		r.Ack(ctx, q)
