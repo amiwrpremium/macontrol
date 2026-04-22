@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.12](https://github.com/amiwrpremium/macontrol/compare/v0.1.11...v0.1.12) (2026-04-22)
+
+
+### Bug Fixes
+
+* **system:** parse CPU panel, label fields, add top-3 CPU hogs ([#41](https://github.com/amiwrpremium/macontrol/issues/41)) ([6f69a2d](https://github.com/amiwrpremium/macontrol/commit/6f69a2dcb3ae0ecea14741652f2abaf19225dba8))
+
 ## [0.1.11](https://github.com/amiwrpremium/macontrol/compare/v0.1.10...v0.1.11) (2026-04-22)
 
 
