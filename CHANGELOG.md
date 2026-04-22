@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.9](https://github.com/amiwrpremium/macontrol/compare/v0.1.8...v0.1.9) (2026-04-22)
+
+
+### Bug Fixes
+
+* **bot:** drill-down panels stop reusing the parent dashboard keyboard ([#35](https://github.com/amiwrpremium/macontrol/issues/35)) ([8eb174f](https://github.com/amiwrpremium/macontrol/commit/8eb174fe7fdcc5fced48c0965b7815d028d71ef3))
+
 ## [0.1.8](https://github.com/amiwrpremium/macontrol/compare/v0.1.7...v0.1.8) (2026-04-22)
 
 
