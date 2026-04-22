@@ -101,13 +101,44 @@ Panel:
 ```text
 🧠 Memory
 
-PhysMem: 18G used (2G wired), 6G unused.
+• Used: 23.0 GiB / 24.0 GiB (95%) · Free: 550 MiB
+• Wired: 3.3 GiB (kernel-pinned)
+• Compressed: 8.2 GiB (in-RAM compression)
+• Swap used: 1.2 GiB of 2.0 GiB
+• Pressure: Warning (18% free)
 
-• The system has 70% of its memory free.
+Top by RAM:
+  12.4%  Google Chrome
+   8.7%  Slack
+   5.1%  WindowServer
 ```
 
-Sources: `top -l 1 -s 0` for the PhysMem line, `memory_pressure` for
-the pressure summary, `vm_stat` captured in the raw output.
+Field meanings:
+
+- **Wired** — memory pinned in physical RAM by the kernel and other
+  privileged code; never swapped to disk.
+- **Compressed** — pages macOS has compressed in place to free working
+  memory; decompressed on access.
+- **Swap** — disk-backed paging file. Heavy swap activity correlates
+  with sluggishness; small swap usage is normal even with plenty of
+  free RAM.
+- **Pressure** — derived from `memory_pressure`'s "free percentage"
+  line: ≥30% free is `Normal`, 10–29% is `Warning`, <10% is
+  `Critical`. Critical means macOS is actively reclaiming memory and
+  apps may be jettisoned.
+
+Sources:
+
+| Line | Command |
+|---|---|
+| Used / Wired / Compressed / Free | `top -l 1 -s 0` (PhysMem line, parsed) |
+| Pressure / free % | `memory_pressure` (System-wide free percentage line) |
+| Swap | `sysctl vm.swapusage` |
+| Top by RAM | `ps -Ao pid,pcpu,pmem,comm -m` |
+| Total RAM (denominator) | `sysctl -n hw.memsize` (from `Info`) |
+
+Best-effort: if a source fails, that section is omitted. Falls back to
+the raw PhysMem line if the `top` parser can't extract numbers.
 
 ### CPU
 

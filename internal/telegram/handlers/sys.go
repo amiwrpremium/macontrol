@@ -61,14 +61,9 @@ func handleSystem(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, dat
 		if err != nil {
 			return errEdit(ctx, r, q, "🧠 *Memory* — unavailable", err)
 		}
-		body := "🧠 *Memory*\n\n"
-		if m.PhysMemSummary != "" {
-			body += Code(m.PhysMemSummary) + "\n"
-		}
-		if m.PressureLevel != "" {
-			body += "• " + m.PressureLevel + "\n"
-		}
-		return r.Edit(ctx, q, body, keyboards.SystemPanel("mem"))
+		info, _ := svc.Info(ctx)
+		return r.Edit(ctx, q, buildMemoryPanel(m, info.TotalRAMBytes),
+			keyboards.SystemPanel("mem"))
 
 	case "cpu":
 		r.Ack(ctx, q)
@@ -109,6 +104,90 @@ func fmtBytes(n uint64) string {
 		return "?"
 	}
 	return fmt.Sprintf("%.0f GiB", float64(n)/float64(GiB))
+}
+
+// buildMemoryPanel renders the 🧠 Memory panel: parsed values
+// labelled, jargon explained briefly, swap and a top-3 RAM hogs
+// list when available. Falls back to the raw `top` PhysMem line if
+// parsing failed.
+func buildMemoryPanel(m system.Memory, totalRAMBytes uint64) string {
+	var b strings.Builder
+	b.WriteString("🧠 *Memory*\n")
+
+	if m.UsedBytes > 0 || totalRAMBytes > 0 {
+		fmt.Fprintf(&b, "\n• Used: `%s / %s` (%d%%) · Free: `%s`",
+			humanBytes(m.UsedBytes), humanBytes(totalRAMBytes),
+			percentOf(m.UsedBytes, totalRAMBytes),
+			humanBytes(m.UnusedBytes))
+	} else if m.Raw != "" {
+		fmt.Fprintf(&b, "\n• %s", m.Raw)
+	}
+	if m.WiredBytes > 0 {
+		fmt.Fprintf(&b, "\n• Wired: `%s` _(kernel-pinned)_", humanBytes(m.WiredBytes))
+	}
+	if m.CompressedBytes > 0 {
+		fmt.Fprintf(&b, "\n• Compressed: `%s` _(in-RAM compression)_", humanBytes(m.CompressedBytes))
+	}
+	if m.SwapTotalBytes > 0 {
+		fmt.Fprintf(&b, "\n• Swap used: `%s` of `%s`",
+			humanBytes(m.SwapUsedBytes), humanBytes(m.SwapTotalBytes))
+	}
+	if m.FreePercent >= 0 {
+		fmt.Fprintf(&b, "\n• Pressure: `%s` (%d%% free)",
+			pressureLabel(m.FreePercent), m.FreePercent)
+	}
+	if len(m.TopByMem) > 0 {
+		b.WriteString("\n\nTop by RAM:\n")
+		var t strings.Builder
+		for _, p := range m.TopByMem {
+			fmt.Fprintf(&t, "%5.1f%%  %s\n", p.Mem, p.Command)
+		}
+		b.WriteString(Code(strings.TrimRight(t.String(), "\n")))
+	}
+	return b.String()
+}
+
+// pressureLabel maps a free-percentage to a human label using
+// rough thresholds: <10% Critical, <30% Warning, else Normal.
+func pressureLabel(freePct int) string {
+	switch {
+	case freePct >= 30:
+		return "Normal"
+	case freePct >= 10:
+		return "Warning"
+	default:
+		return "Critical"
+	}
+}
+
+// humanBytes renders a byte count as GiB or MiB depending on
+// magnitude. Returns "?" for zero (i.e., unknown).
+func humanBytes(n uint64) string {
+	if n == 0 {
+		return "?"
+	}
+	const (
+		MiB = 1 << 20
+		GiB = 1 << 30
+	)
+	if n >= GiB {
+		return fmt.Sprintf("%.1f GiB", float64(n)/float64(GiB))
+	}
+	return fmt.Sprintf("%.0f MiB", float64(n)/float64(MiB))
+}
+
+// percentOf returns 100 * num / denom, guarded against zero.
+// Result is clamped to 0..100 to keep the int conversion safe even
+// for hostile inputs.
+func percentOf(num, denom uint64) int {
+	if denom == 0 {
+		return 0
+	}
+	p := num * 100 / denom
+	if p > 100 {
+		p = 100
+	}
+	return int(p)
 }
 
 // writeUptimeBlock appends labelled uptime/users/load-avg bullets to b.

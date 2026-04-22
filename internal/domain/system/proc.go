@@ -17,10 +17,25 @@ type Process struct {
 
 // TopN returns the top N processes by CPU%.
 func (s *Service) TopN(ctx context.Context, n int) ([]Process, error) {
+	return s.topNBySort(ctx, n, "-r")
+}
+
+// TopByMem returns the top N processes by RAM% (defaults to 3 when
+// n <= 0). Uses `ps -m` to sort by resident memory.
+func (s *Service) TopByMem(ctx context.Context, n int) ([]Process, error) {
+	if n <= 0 {
+		n = 3
+	}
+	return s.topNBySort(ctx, n, "-m")
+}
+
+// topNBySort runs `ps -Ao pid,pcpu,pmem,comm <sortFlag>` and parses
+// the first n rows. sortFlag is `-r` (CPU) or `-m` (memory).
+func (s *Service) topNBySort(ctx context.Context, n int, sortFlag string) ([]Process, error) {
 	if n <= 0 {
 		n = 10
 	}
-	out, err := s.r.Exec(ctx, "ps", "-Ao", "pid,pcpu,pmem,comm", "-r")
+	out, err := s.r.Exec(ctx, "ps", "-Ao", "pid,pcpu,pmem,comm", sortFlag)
 	if err != nil {
 		return nil, err
 	}

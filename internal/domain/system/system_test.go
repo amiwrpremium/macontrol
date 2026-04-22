@@ -278,36 +278,131 @@ func TestThermal_PowermetricsUnavailable(t *testing.T) {
 
 func TestMemory_AllParts(t *testing.T) {
 	t.Parallel()
-	pressure := "The system has 36720 pages free out of 8388608.\nSystem-wide memory free percentage: 70%\n"
-	vmstat := "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free: 36720\n"
-	top := "Processes: 500 total\nPhysMem: 18G used (2G wired), 6G unused.\n"
+	// Real macOS 26 shape: noisy "The system has …" intro then the
+	// stable percentage line.
+	pressure := "The system has 25769803776 (1572864 pages with a page size of 16384).\n" +
+		"The system has 4938395648 (301367 pages) wired down.\n" +
+		"System-wide memory free percentage: 18%\n"
+	top := "Processes: 500 total\nPhysMem: 23G used (3401M wired, 8367M compressor), 550M unused.\n"
+	swap := "vm.swapusage: total = 2048.00M  used = 1234.56M  free = 813.44M  (encrypted)\n"
+	psOut := "  PID  %CPU %MEM COMM\n" +
+		"  100  10.5 12.4 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\n" +
+		"  101   3.1  8.7 /Applications/Slack.app/Contents/MacOS/Slack\n" +
+		"  102   1.0  5.1 WindowServer\n"
 	f := runner.NewFake().
+		On("top -l 1 -s 0", top, nil).
 		On("memory_pressure", pressure, nil).
-		On("vm_stat", vmstat, nil).
-		On("top -l 1 -s 0", top, nil)
+		On("sysctl vm.swapusage", swap, nil).
+		On("ps -Ao pid,pcpu,pmem,comm -m", psOut, nil)
 	m, err := system.New(f).Memory(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(m.PressureLevel, "system has") {
-		t.Errorf("pressureLevel = %q", m.PressureLevel)
+	if m.UsedBytes != 23*(1<<30) {
+		t.Errorf("used = %d bytes", m.UsedBytes)
 	}
-	if !strings.Contains(m.VMStatRaw, "Pages free") {
-		t.Error("vmstat missing")
+	if m.WiredBytes != 3401*(1<<20) {
+		t.Errorf("wired = %d", m.WiredBytes)
 	}
-	if !strings.Contains(m.PhysMemSummary, "PhysMem") {
-		t.Errorf("physmem = %q", m.PhysMemSummary)
+	if m.CompressedBytes != 8367*(1<<20) {
+		t.Errorf("compressed = %d", m.CompressedBytes)
+	}
+	if m.UnusedBytes != 550*(1<<20) {
+		t.Errorf("unused = %d", m.UnusedBytes)
+	}
+	if m.FreePercent != 18 {
+		t.Errorf("free%% = %d (regression: parser must skip the 'system has' intro lines)", m.FreePercent)
+	}
+	if m.SwapTotalBytes == 0 || m.SwapUsedBytes == 0 {
+		t.Errorf("swap = %d / %d", m.SwapUsedBytes, m.SwapTotalBytes)
+	}
+	if len(m.TopByMem) != 3 || m.TopByMem[0].Mem < 12 {
+		t.Errorf("topByMem = %+v", m.TopByMem)
+	}
+	if !strings.Contains(m.Raw, "PhysMem:") {
+		t.Errorf("raw should preserve PhysMem line; got %q", m.Raw)
 	}
 }
 
 func TestMemory_AllFail(t *testing.T) {
 	t.Parallel()
 	f := runner.NewFake().
+		On("top -l 1 -s 0", "", errors.New("x")).
 		On("memory_pressure", "", errors.New("x")).
-		On("vm_stat", "", errors.New("x")).
-		On("top -l 1 -s 0", "", errors.New("x"))
+		On("sysctl vm.swapusage", "", errors.New("x")).
+		On("ps -Ao pid,pcpu,pmem,comm -m", "", errors.New("x"))
 	if _, err := system.New(f).Memory(context.Background()); err == nil {
 		t.Fatal("expected error when no data at all")
+	}
+}
+
+func TestParsePhysMem_Variants(t *testing.T) {
+	t.Parallel()
+	// With compressor (modern macOS).
+	used, wired, compressed, unused := system.ParsePhysMem(
+		"PhysMem: 23G used (3401M wired, 8367M compressor), 550M unused.")
+	if used != 23*(1<<30) || wired != 3401*(1<<20) || compressed != 8367*(1<<20) || unused != 550*(1<<20) {
+		t.Errorf("with compressor: used=%d wired=%d compressed=%d unused=%d", used, wired, compressed, unused)
+	}
+	// Without compressor (older macOS / lighter loads).
+	used, wired, compressed, unused = system.ParsePhysMem("PhysMem: 18G used (2G wired), 6G unused.")
+	if used != 18*(1<<30) || wired != 2*(1<<30) || compressed != 0 || unused != 6*(1<<30) {
+		t.Errorf("no compressor: used=%d wired=%d compressed=%d unused=%d", used, wired, compressed, unused)
+	}
+	// K-suffixed (small values, defensive).
+	used, _, _, _ = system.ParsePhysMem("PhysMem: 512K used (256K wired), 128K unused.")
+	if used != 512*(1<<10) {
+		t.Errorf("K-suffix: used=%d", used)
+	}
+	// Unparseable line — all zero.
+	used, wired, compressed, unused = system.ParsePhysMem("garbage line")
+	if used != 0 || wired != 0 || compressed != 0 || unused != 0 {
+		t.Errorf("garbage should yield zeros; got %d/%d/%d/%d", used, wired, compressed, unused)
+	}
+}
+
+func TestParseFreePercent(t *testing.T) {
+	t.Parallel()
+	// macOS 15 fixture style.
+	pct, ok := system.ParseFreePercent(
+		"The system has 36720 pages free out of 8388608.\nSystem-wide memory free percentage: 70%\n")
+	if !ok || pct != 70 {
+		t.Errorf("macos15: got %d, ok=%v", pct, ok)
+	}
+	// macOS 26 fixture — the "system has" intro line is now noisy and
+	// must NOT be picked. Only the percentage line counts.
+	pct, ok = system.ParseFreePercent(
+		"The system has 25769803776 (1572864 pages with a page size of 16384).\n" +
+			"System-wide memory free percentage: 18%\n")
+	if !ok || pct != 18 {
+		t.Errorf("macos26: got %d, ok=%v", pct, ok)
+	}
+	// Missing percentage line.
+	if _, ok := system.ParseFreePercent("nothing here\n"); ok {
+		t.Error("expected ok=false when no percentage line")
+	}
+}
+
+func TestParseSwap(t *testing.T) {
+	t.Parallel()
+	used, total := system.ParseSwap("vm.swapusage: total = 2048.00M  used = 1234.56M  free = 813.44M  (encrypted)")
+	if total != uint64(2048*(1<<20)) {
+		t.Errorf("total = %d", total)
+	}
+	mib := float64(uint64(1) << 20)
+	wantUsed := uint64(1234.56 * mib)
+	if used != wantUsed {
+		t.Errorf("used = %d, want %d", used, wantUsed)
+	}
+	// Zero swap — both fields parse to 0 cleanly.
+	used, total = system.ParseSwap("vm.swapusage: total = 0.00M  used = 0.00M  free = 0.00M")
+	if used != 0 || total != 0 {
+		t.Errorf("zero swap: used=%d total=%d", used, total)
+	}
+	// Garbage.
+	used, total = system.ParseSwap("not swap output")
+	if used != 0 || total != 0 {
+		t.Errorf("garbage: used=%d total=%d", used, total)
 	}
 }
 
