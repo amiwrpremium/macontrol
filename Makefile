@@ -26,7 +26,7 @@ build-local: ## Build for the host OS/arch (developer convenience)
 	@mkdir -p $(BIN_DIR)
 	CGO_ENABLED=0 go build $(GOFLAGS) -ldflags='$(LDFLAGS)' -o $(BIN_DIR)/$(BIN_NAME) ./cmd/macontrol
 
-run: ## Run the daemon locally with .env in CWD
+run: ## Run the daemon locally (reads token + whitelist from your Keychain)
 	go run ./cmd/macontrol
 
 # --- quality -------------------------------------------------------------
