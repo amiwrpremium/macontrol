@@ -98,8 +98,12 @@ func renderStatus(s status.Snapshot) string {
 		}
 		fmt.Fprintf(&b, "• 📶 Wi-Fi `%s` · SSID `%s`\n", power, ssid)
 	}
-	if s.InfoErr == nil && s.Info.Uptime != "" {
-		fmt.Fprintf(&b, "• ⏱ %s\n", s.Info.Uptime)
+	if s.InfoErr == nil {
+		if d := s.Info.Uptime.Duration; d != "" {
+			fmt.Fprintf(&b, "• ⏱ up `%s`\n", d)
+		} else if s.Info.Uptime.Raw != "" {
+			fmt.Fprintf(&b, "• ⏱ %s\n", s.Info.Uptime.Raw)
+		}
 	}
 	return b.String()
 }

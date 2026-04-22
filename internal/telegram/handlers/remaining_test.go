@@ -459,14 +459,17 @@ func TestSys_Info(t *testing.T) {
 		On("sysctl -n hw.model", "MacBookPro\n", nil).
 		On("sysctl -n machdep.cpu.brand_string", "Apple M3\n", nil).
 		On("sysctl -n hw.memsize", "34359738368\n", nil).
-		On("uptime", " 10:00 up 1 day\n", nil).
-		On("system_profiler SPHardwareDataType", "Total Number of Cores: 8\n", nil)
+		On("uptime", "21:44  up 3 days,  6:27, 1 user, load averages: 4.97 4.57 4.19\n", nil).
+		On("system_profiler SPHardwareDataType", "Total Number of Cores: 12\n", nil)
 	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
 		newCallbackUpdate("id", "sys:info")); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(h.Recorder.Last().Fields["text"], "macOS 15.3") {
-		t.Errorf("text = %q", h.Recorder.Last().Fields["text"])
+	text := h.Recorder.Last().Fields["text"]
+	for _, want := range []string{"macOS 15.3", "Uptime:", "3 days", "6h 27m", "Logged-in user", "Load avg", "4.97", "12 cores"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("text missing %q; got %q", want, text)
+		}
 	}
 }
 
