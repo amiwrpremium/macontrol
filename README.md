@@ -4,14 +4,16 @@
 
 # macontrol
 
-> Control your Mac from Telegram — system, media, network, power, and more.
-> Apple Silicon · Go · single binary.
+> Control your Mac from Telegram — system, media, network, power.
+> Self-hosted · no cloud middleman · named commands only · Apple Silicon · Go.
 
 [![CI](https://github.com/amiwrpremium/macontrol/actions/workflows/ci.yml/badge.svg)](https://github.com/amiwrpremium/macontrol/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/amiwrpremium/macontrol?sort=semver)](https://github.com/amiwrpremium/macontrol/releases)
 [![Go Reference](https://pkg.go.dev/badge/github.com/amiwrpremium/macontrol.svg)](https://pkg.go.dev/github.com/amiwrpremium/macontrol)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg)](https://www.conventionalcommits.org)
+
+**[Why](#why) · [Features](#features) · [Install](#install) · [Documentation](#documentation) · [Quick reference](#quick-reference) · [Development](#development) · [Security](#security) · [Disclaimer](#disclaimer) · [Related projects](#related-projects) · [Acknowledgments](#acknowledgments) · [License](#license)**
 
 `macontrol` is a tiny Go daemon that runs on your Mac and exposes a
 **menu-first Telegram bot** for remote control: change volume / brightness,
@@ -20,6 +22,18 @@ send desktop notifications, lock / sleep / restart, and more.
 
 <!-- TODO: insert assets/demo.gif once recorded on a real Mac -->
 <!-- demo: home → Sound → −5 → Refresh → Main menu -->
+
+## Why
+
+For when you're away from your Mac and need to lock it, take a screenshot,
+peek at battery or Wi-Fi state, or run one of your Shortcuts — without
+exposing SSH, without a SaaS middleman, without paying anyone.
+
+The daemon lives on your Mac, talks to Telegram via outbound long-poll
+only (no inbound port), keeps secrets in the macOS Keychain, and uses
+a hard Telegram-user-ID whitelist as the auth boundary. Named commands
+only — no `/sh` escape hatch — so a leaked token alone can't run arbitrary
+code on your Mac.
 
 ## Features
 
@@ -67,7 +81,7 @@ The [`docs/`](docs/) directory is the full reference. Pick a group:
 |---|---|
 | [Getting started](docs/getting-started/) | Install → credentials → quickstart → first message |
 | [Usage](docs/usage/) | UX model, slash commands, every button in every category |
-| [Configuration](docs/configuration/) | Env vars, file paths, whitelist management |
+| [Configuration](docs/configuration/) | Runtime config (CLI flags + Keychain), file paths, whitelist management |
 | [Permissions](docs/permissions/) | TCC grants and the narrow sudoers entry |
 | [Operations](docs/operations/) | Running, logs, doctor, upgrades |
 | [Architecture](docs/architecture/) | Overview, project layout, design decisions, testing |
@@ -76,6 +90,7 @@ The [`docs/`](docs/) directory is the full reference. Pick a group:
 | [Troubleshooting](docs/troubleshooting/) | Common issues, permission errors, Telegram errors |
 | [Development](docs/development/) | Contributing, conventional commits, adding a capability, releasing |
 | [FAQ](docs/faq.md) | Quick answers grouped by topic |
+| [Changelog](CHANGELOG.md) | What changed in each release |
 
 ## Quick reference
 
@@ -109,7 +124,8 @@ Conventional Commits required for PR titles. Releases are cut by
 the version PR triggers GoReleaser, which builds the tarball and updates
 the Homebrew tap automatically.
 
-Full guide: [docs/development/](docs/development/).
+Full guide: [docs/development/](docs/development/). By contributing
+you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Security
 
@@ -159,6 +175,23 @@ By installing and running this software you acknowledge and accept that:
   shell on a Linux server with SHA-256 hash-chained audit logs and
   per-user RBAC. Different scope, different security model — same
   author, same Go + Telegram-bot patterns.
+
+## Acknowledgments
+
+macontrol stands on the shoulders of:
+
+- **[go-telegram/bot](https://github.com/go-telegram/bot)** — the Go Telegram-Bot client
+- **[GoReleaser](https://goreleaser.com)** + **[release-please](https://github.com/googleapis/release-please)** — the release automation
+- **[lumberjack](https://github.com/natefinch/lumberjack)** — log rotation
+- Homebrew formulae bundled as runtime deps:
+  **[brightness](https://github.com/nriley/brightness)**,
+  **[blueutil](https://github.com/toy/blueutil)**,
+  **[smctemp](https://github.com/narugit/smctemp)** (via the `narugit/tap`),
+  **[imagesnap](https://github.com/rharder/imagesnap)**,
+  **[terminal-notifier](https://github.com/julienXX/terminal-notifier)**
+- Apple's macOS CLIs that do all the actual work:
+  `pmset`, `osascript`, `networksetup`, `security`, `screencapture`, `wdutil`, `pbpaste`/`pbcopy`, `say`
+- Design inspiration: **[Mac-CLI](https://github.com/guarinogabriel/Mac-CLI)** and **[m-cli](https://github.com/rgcr/m-cli)**, which mapped the macOS CLI surface as local tools.
 
 ## License
 
