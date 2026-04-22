@@ -34,7 +34,7 @@ brew deps (auto-installed when macontrol is installed via Homebrew):
   ✓ terminal-notifier  🔔 rich notifications (fallback: osascript)
      └ brew install terminal-notifier
   ✓ smctemp            🌡 °C readings on Apple Silicon
-     └ brew install narugit/tap/smctemp
+     └ brew install smctemp
   ✓ imagesnap          📸 webcam photos
      └ brew install imagesnap
 
@@ -65,7 +65,7 @@ brew deps (auto-installed when macontrol is installed via Homebrew):
   ✗ terminal-notifier  🔔 rich notifications (fallback: osascript)
      └ brew install terminal-notifier
   ✗ smctemp            🌡 °C readings on Apple Silicon
-     └ brew install narugit/tap/smctemp
+     └ brew install smctemp
   ✗ imagesnap          📸 webcam photos
      └ brew install imagesnap
 
