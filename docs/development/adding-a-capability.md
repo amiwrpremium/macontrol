@@ -306,6 +306,68 @@ EOF
 
 CI runs lint + tests. Once green, you (or a maintainer) merges.
 
+## Step 9 — What happens after you merge
+
+The rest is automatic. Tracing the `/weather` example through the
+chain end-to-end:
+
+1. **CI runs on the PR.** Eight checks must be green: Lint, Test
+   (Ubuntu), Test (macOS), Build (darwin/arm64), Vulnerability
+   scan, CodeQL, Conventional Commits (validates the PR title),
+   GitGuardian. See [CI](ci.md) for what each does.
+
+2. **Squash-merge.** Produces a single commit on `master` whose
+   subject is the PR title:
+   ```text
+   feat(tools): add weather button via wttr.in (#42)
+   ```
+   That subject is what release-please reads, so the PR title
+   matters more than any individual commit subject on the branch.
+
+3. **release-please.yml fires** on the master push. It reads every
+   commit since the last tag, sees `feat:`, and computes the next
+   version (minor bump → `0.1.3` becomes `0.2.0`). If a release PR
+   already exists, it's *updated* with the new entry; otherwise a
+   fresh `chore(release): 0.2.0` PR opens. See
+   [Releasing → What triggers a release](releasing.md#what-triggers-a-release)
+   for the full type→bump table.
+
+4. **Merge the release PR.** This is the last manual step. The
+   release PR's body is the auto-generated CHANGELOG section:
+   ```text
+   ## 0.2.0 (2026-05-15)
+
+   ### Features
+   * **tools:** add weather button via wttr.in (#42)
+   ```
+   Squash-merge it.
+
+5. **release-please.yml fires again.** Creates the `v0.2.0` tag
+   using `RELEASE_PLEASE_PAT` (a fine-grained user PAT — not the
+   workflow's default `GITHUB_TOKEN`, because tags pushed by
+   `GITHUB_TOKEN` don't cascade to other workflows). See
+   [Releasing → Required configuration](releasing.md#required-configuration)
+   for the secret + rotation runbook.
+
+6. **release.yml fires automatically** on the tag push. GoReleaser:
+   - Builds `macontrol_0.2.0_darwin_arm64.tar.gz`
+   - Generates `checksums.txt`
+   - Creates the GitHub Release with your changelog as the body
+   - Pushes a new commit to `amiwrpremium/homebrew-tap` updating
+     `Formula/macontrol.rb` with the new version + sha256
+
+7. **Users `brew upgrade`.** Within a minute or two of the tap
+   commit, `brew update && brew upgrade macontrol` picks up the
+   new version on any Mac.
+
+End to end: ~5 minutes of human time (open PR, wait for CI, merge,
+merge release PR), ~10 minutes wall-clock to "available via brew
+upgrade".
+
+If anything in the chain breaks, see
+[Releasing → What if the cascade DOESN'T work](releasing.md#what-if-the-cascade-doesnt-work)
+for the failure-mode runbook.
+
 ## Common mistakes
 
 - **Forgetting to register the namespace** — if it's a new category,
