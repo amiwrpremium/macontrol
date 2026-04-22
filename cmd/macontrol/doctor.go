@@ -21,7 +21,7 @@ var brewDeps = []struct {
 	{"brightness", "💡 brightness control", "brew install brightness"},
 	{"blueutil", "🔵 Bluetooth toggle/list/connect", "brew install blueutil"},
 	{"terminal-notifier", "🔔 rich notifications (fallback: osascript)", "brew install terminal-notifier"},
-	{"smctemp", "🌡 °C readings on Apple Silicon", "brew install narugit/tap/smctemp"},
+	{"smctemp", "🌡 °C readings on Apple Silicon", "brew install smctemp"},
 	{"imagesnap", "📸 webcam photos", "brew install imagesnap"},
 }
 

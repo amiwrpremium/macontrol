@@ -6,7 +6,7 @@ action.
 
 °C readings in the Temperature panel use `smctemp` (auto-installed when
 macontrol is installed via Homebrew; manual installs need
-`brew install narugit/tap/smctemp`). Everything else in this category uses built-in
+`brew install smctemp`). Everything else in this category uses built-in
 macOS commands.
 
 ## Dashboard
@@ -74,8 +74,8 @@ Two signals:
   `Sleeping`. Reported by `sudo powermetrics --samplers thermal`.
   Requires the sudoers entry. If sudo fails, pressure shows `unknown`.
 - **°C** — from `smctemp -c` (CPU) and `smctemp -g` (GPU). Requires
-  `brew install narugit/tap/smctemp`. Without it, the lines show "°C readings
-  unavailable (install `brew install narugit/tap/smctemp`)".
+  `brew install smctemp`. Without it, the lines show "°C readings
+  unavailable (install `brew install smctemp`)".
 
 Apple Silicon doesn't expose detailed per-sensor thermal readings via
 public APIs, so macontrol's temperature view is less rich than

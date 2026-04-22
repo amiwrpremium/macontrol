@@ -199,9 +199,11 @@ Either:
 - `sudo powermetrics` failed because the narrow sudoers entry isn't
   installed. Install it via `macontrol setup --reconfigure`.
 - `smctemp` isn't installed (only affects the °C readings, not the
-  pressure level). Install with `brew install narugit/tap/smctemp`
-  (it lives outside homebrew-core, in the `narugit/tap` third-party
-  tap).
+  pressure level). Install with `brew install smctemp` from the
+  `amiwrpremium/tap` (which is auto-tapped when you installed
+  macontrol). Upstream lives at <https://github.com/narugit/smctemp>;
+  we mirror the formula in our own tap so it installs without
+  requiring `brew tap narugit/tap` first.
 
 ### Do I have to install the sudoers entry?
 
