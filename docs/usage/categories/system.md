@@ -147,11 +147,38 @@ Panel:
 ```text
 ⚙ CPU
 
-• CPU usage: 5.10% user, 3.20% sys, 91.70% idle
-• 10:22 up 6 days, 3:14, 4 users, load averages: 0.92 0.87 0.85
+• Busy: 37% (User 21% · Kernel 16%) · Idle: 63%
+• Load avg (1/5/15m): 5.41 / 4.92 / 4.39 (~45% / 41% / 37% of 12 cores)
+
+Top by CPU:
+  12.4%  Google Chrome
+   8.7%  some-process
+   5.1%  WindowServer
 ```
 
-Sources: `uptime` for load average, `top -l 1 -s 0` CPU usage line.
+Field meanings:
+
+- **Busy** — `User + Kernel`. The fraction of CPU time spent doing
+  work in the last sampling second. Idle is the rest.
+- **User** — time spent running unprivileged code (apps, scripts).
+- **Kernel** — time spent in macOS kernel routines (I/O, drivers,
+  syscalls). High kernel %% with low user %% often means heavy I/O or
+  context-switching.
+- **Load avg** — same scheduler run-queue averages as System info,
+  refreshed each tap. The percentage is `load ÷ cores × 100`.
+- **Top by CPU** — the three highest-CPU processes from `ps -r`.
+
+The CPU usage row is a one-second sample from `top -l 1 -s 0`; tap
+**🔄 Refresh** to take a fresh sample.
+
+Sources:
+
+| Line | Command |
+|---|---|
+| Busy / User / Kernel / Idle | `top -l 1 -s 0` (CPU usage line, parsed) |
+| Load avg | `uptime` (load averages, parsed) |
+| Cores (denominator) | `system_profiler SPHardwareDataType` (from `Info`) |
+| Top by CPU | `ps -Ao pid,pcpu,pmem,comm -r` |
 
 ### Top 10 processes
 

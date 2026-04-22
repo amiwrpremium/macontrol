@@ -71,8 +71,9 @@ func handleSystem(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, dat
 		if err != nil {
 			return errEdit(ctx, r, q, "⚙ *CPU* — unavailable", err)
 		}
-		body := fmt.Sprintf("⚙ *CPU*\n\n• `%s`\n• `%s`", c.TopHeader, c.LoadAverage)
-		return r.Edit(ctx, q, body, keyboards.SystemPanel("cpu"))
+		info, _ := svc.Info(ctx)
+		return r.Edit(ctx, q, buildCPUPanel(c, info.CPUCores),
+			keyboards.SystemPanel("cpu"))
 
 	case "top":
 		r.Ack(ctx, q)
@@ -104,6 +105,47 @@ func fmtBytes(n uint64) string {
 		return "?"
 	}
 	return fmt.Sprintf("%.0f GiB", float64(n)/float64(GiB))
+}
+
+// buildCPUPanel renders the ⚙ CPU panel: parsed busy/idle %, load
+// averages with per-core utilisation, and a top-3 CPU hogs list when
+// available. Falls back to the raw `top` "CPU usage:" line if
+// parsing failed.
+func buildCPUPanel(c system.CPU, cpuCores string) string {
+	var b strings.Builder
+	b.WriteString("⚙ *CPU*\n")
+
+	if c.UserPct > 0 || c.SysPct > 0 || c.IdlePct > 0 {
+		busy := c.UserPct + c.SysPct
+		fmt.Fprintf(&b, "\n• Busy: `%.0f%%` (User `%.0f%%` · Kernel `%.0f%%`) · Idle: `%.0f%%`",
+			busy, c.UserPct, c.SysPct, c.IdlePct)
+	} else if c.Raw != "" {
+		fmt.Fprintf(&b, "\n• %s", c.Raw)
+	}
+	if c.Load1 > 0 || c.Load5 > 0 || c.Load15 > 0 {
+		cores, ok := system.FirstInt(cpuCores)
+		if ok && cores > 0 {
+			fmt.Fprintf(&b,
+				"\n• Load avg (1/5/15m): `%.2f / %.2f / %.2f` (~%.0f%% / %.0f%% / %.0f%% of %d cores)",
+				c.Load1, c.Load5, c.Load15,
+				c.Load1/float64(cores)*100,
+				c.Load5/float64(cores)*100,
+				c.Load15/float64(cores)*100,
+				cores)
+		} else {
+			fmt.Fprintf(&b, "\n• Load avg (1/5/15m): `%.2f / %.2f / %.2f`",
+				c.Load1, c.Load5, c.Load15)
+		}
+	}
+	if len(c.TopByCPU) > 0 {
+		b.WriteString("\n\nTop by CPU:\n")
+		var t strings.Builder
+		for _, p := range c.TopByCPU {
+			fmt.Fprintf(&t, "%5.1f%%  %s\n", p.CPU, p.Command)
+		}
+		b.WriteString(Code(strings.TrimRight(t.String(), "\n")))
+	}
+	return b.String()
 }
 
 // buildMemoryPanel renders the 🧠 Memory panel: parsed values
