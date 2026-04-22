@@ -490,12 +490,35 @@ func TestSys_Mem(t *testing.T) {
 	t.Parallel()
 	h := newHarness(t)
 	h.Fake.
-		On("memory_pressure", "The system has 100 pages free\n", nil).
-		On("vm_stat", "Pages free: 100\n", nil).
-		On("top -l 1 -s 0", "PhysMem: 18G used\n", nil)
+		On("top -l 1 -s 0",
+			"Processes: 500\nPhysMem: 23G used (3401M wired, 8367M compressor), 550M unused.\n", nil).
+		On("memory_pressure",
+			"The system has 25769803776 (1572864 pages with a page size of 16384).\n"+
+				"System-wide memory free percentage: 18%\n", nil).
+		On("sysctl vm.swapusage",
+			"vm.swapusage: total = 2048.00M  used = 1234.56M  free = 813.44M  (encrypted)\n", nil).
+		On("ps -Ao pid,pcpu,pmem,comm -m",
+			"  PID  %CPU %MEM COMM\n"+
+				"  100  10.5 12.4 /Applications/Chrome\n"+
+				"  101   3.1  8.7 /Applications/Slack\n"+
+				"  102   1.0  5.1 WindowServer\n", nil).
+		// info.Info() runs alongside Memory() to grab TotalRAMBytes.
+		On("sw_vers", "ProductName: macOS\nProductVersion: 26.0\n", nil).
+		On("hostname", "tower\n", nil).
+		On("sysctl -n hw.model", "Mac16,8\n", nil).
+		On("sysctl -n machdep.cpu.brand_string", "Apple M4 Pro\n", nil).
+		On("sysctl -n hw.memsize", "25769803776\n", nil).
+		On("uptime", "21:44  up 3 days,  6:27, 1 user, load averages: 4.97 4.57 4.19\n", nil).
+		On("system_profiler SPHardwareDataType", "Total Number of Cores: 12\n", nil)
 	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
 		newCallbackUpdate("id", "sys:mem")); err != nil {
 		t.Fatal(err)
+	}
+	text := h.Recorder.Last().Fields["text"]
+	for _, want := range []string{"Used:", "24.0 GiB", "(95%)", "Wired:", "Compressed:", "Swap used:", "Pressure:", "Warning", "Top by RAM:", "Chrome", "12.4%"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("text missing %q; got %q", want, text)
+		}
 	}
 }
 
