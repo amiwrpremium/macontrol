@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/amiwrpremium/macontrol/compare/v0.6.0...v0.7.0) (2026-04-23)
+
+
+### Features
+
+* **bot:** collapse wi-fi dns presets into a drill-down submenu ([#65](https://github.com/amiwrpremium/macontrol/issues/65)) ([e96abc3](https://github.com/amiwrpremium/macontrol/commit/e96abc339de69ac9b92fc542e27978635440c362))
+
 ## [0.6.0](https://github.com/amiwrpremium/macontrol/compare/v0.5.0...v0.6.0) (2026-04-23)
 
 
