@@ -7,12 +7,18 @@
 > Control your Mac from Telegram — system, media, network, power.
 > Self-hosted · no cloud middleman · named commands only · Apple Silicon · Go.
 
-[![macOS](https://img.shields.io/badge/macOS-11%20%7C%2012%20%7C%2013%20%7C%2014%20%7C%2015%20%7C%2026-black?logo=apple&logoColor=white)](docs/reference/version-gates.md)
 [![Apple Silicon](https://img.shields.io/badge/arch-Apple%20Silicon-black?logo=apple&logoColor=white)](docs/architecture/design-decisions.md)
 [![Go](https://img.shields.io/github/go-mod/go-version/amiwrpremium/macontrol?logo=go&logoColor=white)](go.mod)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/amiwrpremium/macontrol?sort=semver)](https://github.com/amiwrpremium/macontrol/releases)
 [![Homebrew](https://img.shields.io/badge/install-brew%20amiwrpremium%2Ftap%2Fmacontrol-orange?logo=homebrew&logoColor=white)](https://github.com/amiwrpremium/homebrew-tap)
+
+[![macOS 11 Big Sur](https://img.shields.io/badge/macOS_11-Big_Sur-1E3A5F?style=flat&logo=apple&logoColor=white)](docs/reference/version-gates.md)
+[![macOS 12 Monterey](https://img.shields.io/badge/macOS_12-Monterey-8B5A9E?style=flat&logo=apple&logoColor=white)](docs/reference/version-gates.md)
+[![macOS 13 Ventura](https://img.shields.io/badge/macOS_13-Ventura-D4A574?style=flat&logo=apple&logoColor=white)](docs/reference/version-gates.md)
+[![macOS 14 Sonoma](https://img.shields.io/badge/macOS_14-Sonoma-8B3A3A?style=flat&logo=apple&logoColor=white)](docs/reference/version-gates.md)
+[![macOS 15 Sequoia](https://img.shields.io/badge/macOS_15-Sequoia-2D5A3D?style=flat&logo=apple&logoColor=white)](docs/reference/version-gates.md)
+[![macOS 26 Tahoe](https://img.shields.io/badge/macOS_26-Tahoe-1B8FB8?style=flat&logo=apple&logoColor=white)](docs/reference/version-gates.md)
 
 [![CI](https://github.com/amiwrpremium/macontrol/actions/workflows/ci.yml/badge.svg)](https://github.com/amiwrpremium/macontrol/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/amiwrpremium/macontrol/graph/badge.svg)](https://codecov.io/gh/amiwrpremium/macontrol)
