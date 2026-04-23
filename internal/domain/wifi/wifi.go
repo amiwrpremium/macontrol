@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/amiwrpremium/macontrol/internal/runner"
 )
@@ -164,8 +165,13 @@ func (s *Service) Diag(ctx context.Context) (string, error) {
 	return string(out), err
 }
 
-// Speedtest runs the built-in `networkQuality` tool.
+// Speedtest runs the built-in `networkQuality` tool. The Apple
+// measurement runs upload + download + RPM end-to-end and reliably
+// takes 15–25 seconds (longer on slow connections), so we extend
+// the runner's default 15s timeout to a generous 60s.
 func (s *Service) Speedtest(ctx context.Context) (SpeedResult, error) {
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
 	out, err := s.r.Exec(ctx, "networkQuality", "-v")
 	if err != nil {
 		return SpeedResult{}, err
