@@ -205,12 +205,15 @@ Two ways to handle this:
 with a 15-minute TTL. The button carries `bt:conn:<short-id>`; the
 handler resolves the short-id back to the full MAC.
 
-Three categories use ShortMap today:
+Four categories use ShortMap today:
 
 - **Bluetooth** — paired-device MAC addresses (28+ bytes raw).
 - **Wi-Fi** — SSID names for the join flow.
 - **Tools → Disks** — mount paths (`/Volumes/Foo Bar/` can easily
   exceed 64 bytes).
+- **Tools → Run Shortcut** — Shortcut names + the search filter
+  substring (Shortcut titles are arbitrary user strings; the search
+  filter rides through Prev/Next callbacks via its own ShortMap id).
 
 15-minute TTL because dashboards aren't meant to be left open for an
 hour. If you tap a stale button, you get "session expired; refresh

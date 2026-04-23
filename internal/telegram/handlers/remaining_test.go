@@ -3,6 +3,7 @@ package handlers_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -972,15 +973,108 @@ func TestTls_Disk_ExpiredShortMap_FailsCleanly(t *testing.T) {
 	}
 }
 
-func TestTls_Shortcut_InstallsFlow(t *testing.T) {
+func TestTls_Shortcut_RendersFirstPage(t *testing.T) {
 	t.Parallel()
 	h := newHarness(t)
+	// 20 shortcuts → 2 pages (15 per page).
+	var lines []string
+	for i := 1; i <= 20; i++ {
+		lines = append(lines, fmt.Sprintf("Shortcut %02d", i))
+	}
+	h.Fake.On("shortcuts list", strings.Join(lines, "\n")+"\n", nil)
 	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
 		newCallbackUpdate("id", "tls:shortcut")); err != nil {
 		t.Fatal(err)
 	}
+	last := h.Recorder.Last()
+	text := last.Fields["text"]
+	for _, want := range []string{"Run Shortcut", "Page 1/2", "20 shortcuts"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("text missing %q; got %q", want, text)
+		}
+	}
+	kb := telegramtest.MustDecodeInlineKeyboard(t, last)
+	scRunCount := 0
+	for _, row := range kb.InlineKeyboard {
+		for _, btn := range row {
+			if strings.HasPrefix(btn.CallbackData, "tls:sc-run:") {
+				scRunCount++
+			}
+		}
+	}
+	if scRunCount != 15 {
+		t.Errorf("expected 15 sc-run buttons on page 1, got %d", scRunCount)
+	}
+}
+
+func TestTls_ShortcutPage_PreservesFilter(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.Fake.On("shortcuts list", "Wifi A\nWifi B\nWifi C\nUnrelated\n", nil)
+	// Stash a filter substring in the shortmap; tap sc-page with that id.
+	filterID := h.Deps.ShortMap.Put("wifi")
+	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "tls:sc-page:0:"+filterID)); err != nil {
+		t.Fatal(err)
+	}
+	text := h.Recorder.Last().Fields["text"]
+	for _, want := range []string{"Filtered:", "wifi", "3 match"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("filtered render missing %q; got %q", want, text)
+		}
+	}
+}
+
+func TestTls_ShortcutRun_InvokesAndRerenders(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.Fake.
+		On("shortcuts list", "Turn on DND\nOther\n", nil).
+		On("shortcuts run Turn on DND", "", nil)
+	scID := h.Deps.ShortMap.Put("Turn on DND")
+	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "tls:sc-run:"+scID+":0:-")); err != nil {
+		t.Fatal(err)
+	}
+	text := h.Recorder.Last().Fields["text"]
+	if !strings.Contains(text, "Ran") || !strings.Contains(text, "Turn on DND") {
+		t.Errorf("expected success status containing 'Ran' + name; got %q", text)
+	}
+}
+
+func TestTls_ShortcutRun_ExpiredShortMap(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "tls:sc-run:nope:0:-")); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "session expired") {
+		t.Errorf("expected session-expired message; got %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
+func TestTls_ShortcutSearch_InstallsFlow(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "tls:sc-search")); err != nil {
+		t.Fatal(err)
+	}
 	if _, ok := h.Deps.FlowReg.Active(42); !ok {
-		t.Fatal("expected flow")
+		t.Fatal("expected search flow installed")
+	}
+}
+
+func TestTls_ShortcutType_InstallsFlow(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "tls:sc-type")); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := h.Deps.FlowReg.Active(42); !ok {
+		t.Fatal("expected typed-name flow installed")
 	}
 }
 
