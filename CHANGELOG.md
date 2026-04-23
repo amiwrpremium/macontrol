@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.0](https://github.com/amiwrpremium/macontrol/compare/v0.5.0...v0.6.0) (2026-04-23)
+
+
+### Features
+
+* **bot:** collapse wi-fi dns presets into a drill-down submenu ([#70](https://github.com/amiwrpremium/macontrol/issues/70)) ([98646fb](https://github.com/amiwrpremium/macontrol/commit/98646fbb9718d2908866eb36929b5fd5d6ff4172))
+* **bot:** tappable Timezone picker (region → city, paginated, with flags) ([#67](https://github.com/amiwrpremium/macontrol/issues/67)) ([01b2ae5](https://github.com/amiwrpremium/macontrol/commit/01b2ae549db0c0fb35ad76eaa6b8ac4064201e1f))
+
 ## [0.5.0](https://github.com/amiwrpremium/macontrol/compare/v0.4.0...v0.5.0) (2026-04-23)
 
 
