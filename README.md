@@ -7,21 +7,21 @@
 > Control your Mac from Telegram — system, media, network, power.
 > Self-hosted · no cloud middleman · named commands only · Apple Silicon · Go.
 
-[![CI](https://github.com/amiwrpremium/macontrol/actions/workflows/ci.yml/badge.svg)](https://github.com/amiwrpremium/macontrol/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/amiwrpremium/macontrol/graph/badge.svg)](https://codecov.io/gh/amiwrpremium/macontrol)
-[![Go Report Card](https://goreportcard.com/badge/github.com/amiwrpremium/macontrol)](https://goreportcard.com/report/github.com/amiwrpremium/macontrol)
-[![Codacy Grade](https://app.codacy.com/project/badge/Grade/3fbc46f6ab184fd7b4dad775ca6b30fa)](https://app.codacy.com/gh/amiwrpremium/macontrol/dashboard)
-[![Codacy Coverage](https://app.codacy.com/project/badge/Coverage/3fbc46f6ab184fd7b4dad775ca6b30fa)](https://app.codacy.com/gh/amiwrpremium/macontrol/dashboard)
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/amiwrpremium/macontrol/badge)](https://scorecard.dev/viewer/?uri=github.com/amiwrpremium/macontrol)
-[![Known Vulnerabilities](https://snyk.io/test/github/amiwrpremium/macontrol/badge.svg)](https://snyk.io/test/github/amiwrpremium/macontrol)
-[![Dependabot enabled](https://img.shields.io/badge/Dependabot-enabled-brightgreen?logo=dependabot)](.github/dependabot.yml)
-
-[![Release](https://img.shields.io/github/v/release/amiwrpremium/macontrol?sort=semver)](https://github.com/amiwrpremium/macontrol/releases)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Go](https://img.shields.io/github/go-mod/go-version/amiwrpremium/macontrol?logo=go&logoColor=white)](go.mod)
 [![macOS](https://img.shields.io/badge/macOS-11%20%7C%2012%20%7C%2013%20%7C%2014%20%7C%2015%20%7C%2026-black?logo=apple&logoColor=white)](docs/reference/version-gates.md)
 [![Apple Silicon](https://img.shields.io/badge/arch-Apple%20Silicon-black?logo=apple&logoColor=white)](docs/architecture/design-decisions.md)
+[![Go](https://img.shields.io/github/go-mod/go-version/amiwrpremium/macontrol?logo=go&logoColor=white)](go.mod)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/amiwrpremium/macontrol?sort=semver)](https://github.com/amiwrpremium/macontrol/releases)
 [![Homebrew](https://img.shields.io/badge/install-brew%20amiwrpremium%2Ftap%2Fmacontrol-orange?logo=homebrew&logoColor=white)](https://github.com/amiwrpremium/homebrew-tap)
+
+[![CI](https://github.com/amiwrpremium/macontrol/actions/workflows/ci.yml/badge.svg)](https://github.com/amiwrpremium/macontrol/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/amiwrpremium/macontrol/graph/badge.svg)](https://codecov.io/gh/amiwrpremium/macontrol)
+[![Codacy Coverage](https://app.codacy.com/project/badge/Coverage/3fbc46f6ab184fd7b4dad775ca6b30fa)](https://app.codacy.com/gh/amiwrpremium/macontrol/dashboard)
+
+[![Go Report Card](https://goreportcard.com/badge/github.com/amiwrpremium/macontrol)](https://goreportcard.com/report/github.com/amiwrpremium/macontrol)
+[![Codacy Grade](https://app.codacy.com/project/badge/Grade/3fbc46f6ab184fd7b4dad775ca6b30fa)](https://app.codacy.com/gh/amiwrpremium/macontrol/dashboard)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/amiwrpremium/macontrol/badge)](https://scorecard.dev/viewer/?uri=github.com/amiwrpremium/macontrol)
+[![Dependabot enabled](https://img.shields.io/badge/Dependabot-enabled-brightgreen?logo=dependabot)](.github/dependabot.yml)
 [![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg)](https://www.conventionalcommits.org)
 
 **[Why](#why) · [Features](#features) · [Install](#install) · [Documentation](#documentation) · [Quick reference](#quick-reference) · [Development](#development) · [Security](#security) · [Disclaimer](#disclaimer) · [Related projects](#related-projects) · [Acknowledgments](#acknowledgments) · [License](#license)**
