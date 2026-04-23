@@ -87,7 +87,7 @@ per city (resolved from `/usr/share/zoneinfo/zone1970.tab`):
 ```
 
 - **Tap a city** → applies the timezone immediately. The region
-  picker re-renders with `✅ Timezone set — <tz>` above. No confirm.
+  picker re-renders with ``✅ Timezone set — `<tz>` `` above. No confirm.
 - **🔍 Search** opens a one-step flow asking for a substring
   (case-insensitive, scoped to the current region). After you send
   it, the city list re-renders filtered. Prev/Next preserve the
