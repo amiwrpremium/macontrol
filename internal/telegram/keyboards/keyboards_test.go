@@ -513,6 +513,50 @@ func TestNotify_Keyboard(t *testing.T) {
 
 // ---------------- Tools ----------------
 
+func TestToolsDisksList_PerDiskButtons(t *testing.T) {
+	rows := []keyboards.ToolsDiskRow{
+		{Mount: "/", Size: "460Gi", Capacity: "54%", ShortID: "abc"},
+		{Mount: "/Volumes/Backup", Size: "2Ti", Capacity: "38%", ShortID: "def"},
+	}
+	kb := keyboards.ToolsDisksList(rows)
+	// First two rows are per-disk buttons routing to tls:disk:<shortID>.
+	if len(kb.InlineKeyboard) < 4 {
+		t.Fatalf("expected ≥4 rows (2 disks + Refresh/Back + Home), got %d", len(kb.InlineKeyboard))
+	}
+	if kb.InlineKeyboard[0][0].CallbackData != "tls:disk:abc" {
+		t.Errorf("first disk callback = %q", kb.InlineKeyboard[0][0].CallbackData)
+	}
+	if !strings.Contains(kb.InlineKeyboard[0][0].Text, "/") || !strings.Contains(kb.InlineKeyboard[0][0].Text, "460Gi") {
+		t.Errorf("first disk label missing mount or size: %q", kb.InlineKeyboard[0][0].Text)
+	}
+	assertContainsButton(t, kb, "Refresh")
+	assertContainsButton(t, kb, "Back")
+	assertNavPresent(t, kb)
+	assertAllRoundtrip(t, kb)
+}
+
+func TestToolsDiskPanel_RemovableShowsEject(t *testing.T) {
+	kb := keyboards.ToolsDiskPanel("xyz", true)
+	assertContainsButton(t, kb, "Open in Finder")
+	assertContainsButton(t, kb, "Eject")
+	assertContainsButton(t, kb, "Refresh")
+	assertContainsButton(t, kb, "Back to Disks")
+	assertNavPresent(t, kb)
+	assertAllRoundtrip(t, kb)
+}
+
+func TestToolsDiskPanel_FixedHidesEject(t *testing.T) {
+	kb := keyboards.ToolsDiskPanel("xyz", false)
+	assertContainsButton(t, kb, "Open in Finder")
+	for _, row := range kb.InlineKeyboard {
+		for _, btn := range row {
+			if strings.Contains(btn.Text, "Eject") {
+				t.Error("fixed disk must NOT show Eject button")
+			}
+		}
+	}
+}
+
 func TestTools_WithShortcuts(t *testing.T) {
 	_, kb := keyboards.Tools(capability.Features{Shortcuts: true})
 	assertContainsButton(t, kb, "Clipboard")

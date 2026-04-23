@@ -166,7 +166,10 @@ if not installed.
 | List timezones | `sudo systemsetup -listtimezones` |
 | Set timezone | `sudo systemsetup -settimezone <tz>` |
 | Force NTP sync | `sudo sntp -sS time.apple.com` |
-| List disks | `df -h` (filters out devfs, /System/Volumes/VM, /private*) |
+| List disks | `df -h` (filtered to `/` and `/Volumes/*` only — system mounts and CoreSimulator volumes hidden) |
+| Disk details | `diskutil info <mount>` (parsed for volume name, FS, sizes, removable/internal/SSD flags) |
+| Eject disk | `diskutil eject <mount>` (UI only exposes this on `Removable Media: Removable` volumes) |
+| Open in Finder | `open <mount>` |
 | List shortcuts | `shortcuts list` |
 | Run shortcut | `shortcuts run "<name>"` |
 
