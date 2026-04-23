@@ -54,8 +54,10 @@ Every nested menu carries a `[← Back] [🏠 Home]` row at the bottom:
   category dashboard (one level deep), the parent IS the home grid,
   so Back goes there too — slightly redundant but kept for
   consistency. On a drill-down (e.g. Battery Health, Wi-Fi Info,
-  System → Memory), Back goes to the category dashboard you came
-  from.
+  System → Memory / CPU / Top 10, per-process pages from any of
+  those, Tools → Disks → per-disk page), Back goes to the
+  immediate parent — process pages return to their list, disk pages
+  return to the disks list, etc.
 
 Drill-down panels also surface a `🔄 Refresh` button alongside Back so
 you can re-sample the same view without leaving it.

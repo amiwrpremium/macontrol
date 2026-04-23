@@ -161,7 +161,10 @@ Grab-bag:
 - **🧭 Timezone…** — flow asks for an IANA timezone name (e.g.
   `Europe/Istanbul`), sets it via `sudo systemsetup`.
 - **🔄 Sync time** — forces an NTP sync.
-- **💿 Disks** — `df -h` filtered to user-facing mounts.
+- **💿 Disks** — filtered to `/` and `/Volumes/*` (system / simulator
+  mounts hidden). Each disk is a tappable button drilling into a
+  per-disk page with **📂 Open in Finder** and **⏏ Eject** (Eject
+  only on removable volumes).
 - **⚡ Run Shortcut…** (macOS 13+) — flow asks for a Shortcut name
   (case-sensitive), runs it via `shortcuts run`.
 
