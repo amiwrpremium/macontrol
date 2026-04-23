@@ -23,6 +23,13 @@ type Runner interface {
 	// Sudo prepends "sudo -n" so the call fails fast (rather than prompting)
 	// if the narrow /etc/sudoers.d/macontrol entry is not installed.
 	Sudo(ctx context.Context, name string, args ...string) ([]byte, error)
+
+	// ExecCombined runs name with args and returns stdout+stderr merged
+	// into one byte slice. Use it for tools that emit informational or
+	// error text on stderr even when exiting 0 (notably the `brightness`
+	// CLI under CoreDisplay denial). Same timeout and error semantics
+	// as Exec.
+	ExecCombined(ctx context.Context, name string, args ...string) ([]byte, error)
 }
 
 // Error carries both streams plus the underlying error so callers can
@@ -78,6 +85,33 @@ func (e *Exec) Sudo(ctx context.Context, name string, args ...string) ([]byte, e
 	full = append(full, "-n", name)
 	full = append(full, args...)
 	return e.run(ctx, "sudo", full)
+}
+
+// ExecCombined implements Runner — same flow as Exec but writes both
+// stdout and stderr into a single buffer.
+func (e *Exec) ExecCombined(ctx context.Context, name string, args ...string) ([]byte, error) {
+	ctx, cancel := e.withTimeout(ctx)
+	defer cancel()
+
+	var combined bytes.Buffer
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Stdout = &combined
+	cmd.Stderr = &combined
+
+	if err := cmd.Run(); err != nil {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return combined.Bytes(), &Error{
+				Cmd: name, Args: args,
+				Stdout: combined.Bytes(),
+				Err:    fmt.Errorf("timed out after %s", e.timeout()),
+			}
+		}
+		return combined.Bytes(), &Error{
+			Cmd: name, Args: args,
+			Stdout: combined.Bytes(), Err: err,
+		}
+	}
+	return combined.Bytes(), nil
 }
 
 func (e *Exec) run(ctx context.Context, name string, args []string) ([]byte, error) {

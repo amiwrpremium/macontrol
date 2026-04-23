@@ -61,6 +61,13 @@ func (f *Fake) Sudo(_ context.Context, name string, args ...string) ([]byte, err
 	return f.dispatch(true, name, args)
 }
 
+// ExecCombined implements Runner. Tests register the combined output
+// via On("name args", "<merged>", err); the same dispatch table
+// services Exec, Sudo, and ExecCombined.
+func (f *Fake) ExecCombined(_ context.Context, name string, args ...string) ([]byte, error) {
+	return f.dispatch(false, name, args)
+}
+
 func (f *Fake) dispatch(sudo bool, name string, args []string) ([]byte, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

@@ -3,6 +3,7 @@ package runner_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,6 +19,23 @@ func TestExec_Success(t *testing.T) {
 	}
 	if string(out) != "hello\n" {
 		t.Fatalf("unexpected stdout: %q", out)
+	}
+}
+
+func TestExecCombined_MergesStreams(t *testing.T) {
+	t.Parallel()
+	r := runner.New()
+	// Write to stdout AND stderr; assert both end up in the result.
+	out, err := r.ExecCombined(context.Background(), "sh", "-c",
+		"echo to-stdout; echo to-stderr >&2; exit 0")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	got := string(out)
+	for _, want := range []string{"to-stdout", "to-stderr"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("merged output missing %q; got %q", want, got)
+		}
 	}
 }
 

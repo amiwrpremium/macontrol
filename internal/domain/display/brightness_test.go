@@ -95,6 +95,35 @@ func TestGet_UnparseableLine(t *testing.T) {
 	}
 }
 
+func TestGet_FallbackEchoesFirstLine(t *testing.T) {
+	t.Parallel()
+	// macOS 15+ shape on some Macs: tool emits only the header line
+	// (no "brightness: failed …"). Old fallback was the unhelpful
+	// "no display N: brightness <value> line in output". The
+	// improved fallback echoes back what we got, prefixed with "got:".
+	out := "display 0: main, active, awake, online, built-in, ID 0x1\n"
+	f := runner.NewFake().On("brightness -l", out, nil)
+	_, err := display.New(f).Get(context.Background())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "got: display 0: main, active") {
+		t.Errorf("fallback should echo first non-empty line; got: %v", err)
+	}
+}
+
+func TestGet_FallbackEmptyOutput(t *testing.T) {
+	t.Parallel()
+	f := runner.NewFake().On("brightness -l", "\n\n", nil)
+	_, err := display.New(f).Get(context.Background())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "empty output") {
+		t.Errorf("expected empty-output fallback, got: %v", err)
+	}
+}
+
 func TestGet_ShortLine(t *testing.T) {
 	t.Parallel()
 	// display 0 line exists but is truncated before the value field.
