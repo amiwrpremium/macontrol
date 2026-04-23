@@ -69,6 +69,7 @@ jobs:
         with:
           project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
           coverage-reports: coverage.out
+          force-coverage-parser: go
 
   build:
     name: Build (darwin/arm64)

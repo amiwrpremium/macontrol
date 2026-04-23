@@ -7,7 +7,6 @@
 > Control your Mac from Telegram — system, media, network, power.
 > Self-hosted · no cloud middleman · named commands only · Apple Silicon · Go.
 
-<!-- Build & quality -->
 [![CI](https://github.com/amiwrpremium/macontrol/actions/workflows/ci.yml/badge.svg)](https://github.com/amiwrpremium/macontrol/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/amiwrpremium/macontrol/graph/badge.svg)](https://codecov.io/gh/amiwrpremium/macontrol)
 [![Go Report Card](https://goreportcard.com/badge/github.com/amiwrpremium/macontrol)](https://goreportcard.com/report/github.com/amiwrpremium/macontrol)
@@ -17,7 +16,6 @@
 [![Known Vulnerabilities](https://snyk.io/test/github/amiwrpremium/macontrol/badge.svg)](https://snyk.io/test/github/amiwrpremium/macontrol)
 [![Dependabot enabled](https://img.shields.io/badge/Dependabot-enabled-brightgreen?logo=dependabot)](.github/dependabot.yml)
 
-<!-- Project info -->
 [![Release](https://img.shields.io/github/v/release/amiwrpremium/macontrol?sort=semver)](https://github.com/amiwrpremium/macontrol/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Go](https://img.shields.io/github/go-mod/go-version/amiwrpremium/macontrol?logo=go&logoColor=white)](go.mod)
