@@ -69,7 +69,9 @@ Tap it. You see current power state and SSID:
 📶 Wi-Fi — on · SSID home · iface en0
 ```
 
-Try **🌐 DNS → Cloudflare** to switch DNS to 1.1.1.1 / 1.0.0.1.
+Tap **🌐 DNS…**, then **☁ Cloudflare**, to switch DNS to 1.1.1.1 /
+1.0.0.1. You'll land back on the Wi-Fi dashboard with a small
+`DNS updated → cf` suffix under the header.
 
 Try **⚡ Speed test** (requires macOS 12+) — takes about 15 seconds, then
 posts:

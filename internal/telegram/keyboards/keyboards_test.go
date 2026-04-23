@@ -347,9 +347,22 @@ func TestWiFi_OnAssociated(t *testing.T) {
 	}
 	assertContainsButton(t, kb, "Turn off")
 	assertContainsButton(t, kb, "Speed test")
+	assertContainsButton(t, kb, "DNS…")
 	assertAllRoundtrip(t, kb)
 	assertBackPresent(t, kb)
 	assertNavPresent(t, kb)
+	// The old triple-button DNS row is now collapsed into a single
+	// submenu entry — make sure no preset buttons leak back onto the
+	// dashboard.
+	for _, row := range kb.InlineKeyboard {
+		for _, btn := range row {
+			if strings.Contains(btn.Text, "Cloudflare") ||
+				strings.Contains(btn.Text, "Google") ||
+				strings.Contains(btn.Text, "DHCP") {
+				t.Errorf("dashboard leaked DNS preset button %q", btn.Text)
+			}
+		}
+	}
 }
 
 func TestWiFi_Off(t *testing.T) {
@@ -374,6 +387,20 @@ func TestWiFi_OnNotAssociated(t *testing.T) {
 	if !strings.Contains(text, "not associated") {
 		t.Errorf("text = %q", text)
 	}
+}
+
+func TestWiFiDNS_RendersPresetsAndBack(t *testing.T) {
+	text, kb := keyboards.WiFiDNS()
+	if !strings.Contains(text, "DNS servers") {
+		t.Errorf("header = %q", text)
+	}
+	assertContainsButton(t, kb, "Cloudflare")
+	assertContainsButton(t, kb, "Google")
+	assertContainsButton(t, kb, "DHCP")
+	assertContainsButton(t, kb, "Back to Wi-Fi")
+	assertContainsButton(t, kb, "Refresh")
+	assertNavPresent(t, kb)
+	assertAllRoundtrip(t, kb)
 }
 
 func TestWiFiDiagPanel_RefreshAndBack(t *testing.T) {
