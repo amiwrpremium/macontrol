@@ -48,6 +48,28 @@ func SystemPanel(action string) *models.InlineKeyboardMarkup {
 	}
 }
 
+// SystemPanelWithProcs renders the CPU/Memory panel keyboard with a
+// tappable button per process above the standard Refresh + Back +
+// Home rows. labelFn formats each row's text from the process —
+// callers pick whether to show CPU% or RAM%. Tapping a row drills
+// into SystemProcPanel via sys:proc:<pid>. When procs is empty
+// (e.g. ps failed) the keyboard collapses to the standard panel.
+func SystemPanelWithProcs(action string, procs []system.Process, labelFn func(system.Process) string) *models.InlineKeyboardMarkup {
+	rows := make([][]models.InlineKeyboardButton, 0, len(procs)+2)
+	for _, p := range procs {
+		rows = append(rows, []models.InlineKeyboardButton{{
+			Text:         labelFn(p),
+			CallbackData: callbacks.Encode(callbacks.NSSystem, "proc", strconv.Itoa(p.PID)),
+		}})
+	}
+	rows = append(rows, []models.InlineKeyboardButton{
+		{Text: "🔄 Refresh", CallbackData: callbacks.Encode(callbacks.NSSystem, action)},
+		{Text: "← Back", CallbackData: callbacks.Encode(callbacks.NSSystem, "open")},
+	})
+	rows = append(rows, Nav())
+	return &models.InlineKeyboardMarkup{InlineKeyboard: rows}
+}
+
 // SystemTopList renders the Top 10 list page: one button per process
 // (PID · CPU% · leaf-of-cmd), then refresh + back + home. Tapping a
 // process drills into SystemProcPanel.

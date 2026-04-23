@@ -107,11 +107,17 @@ Panel:
 • Swap used: 1.2 GiB of 2.0 GiB
 • Pressure: Warning (18% free)
 
-Top by RAM:
-  12.4%  Google Chrome
-   8.7%  Slack
-   5.1%  WindowServer
+Top by RAM — tap a process to drill in:
+
+[ 100 · 12.4% · Chrome ]
+[ 101 ·  8.7% · Slack ]
+[ 102 ·  5.1% · WindowServer ]
+[ 🔄 Refresh ] [ ← Back ]
+[          🏠 Home          ]
 ```
+
+Each top-3 row is a tappable button — drills into the same per-process
+page as the 📋 Top 10 panel, with **🔪 Kill** and **💀 Force Kill**.
 
 Field meanings:
 
@@ -150,11 +156,17 @@ Panel:
 • Busy: 37% (User 21% · Kernel 16%) · Idle: 63%
 • Load avg (1/5/15m): 5.41 / 4.92 / 4.39 (~45% / 41% / 37% of 12 cores)
 
-Top by CPU:
-  12.4%  Google Chrome
-   8.7%  some-process
-   5.1%  WindowServer
+Top by CPU — tap a process to drill in:
+
+[ 100 · 12.4% · Chrome ]
+[ 101 ·  8.7% · some-process ]
+[ 102 ·  5.1% · WindowServer ]
+[ 🔄 Refresh ] [ ← Back ]
+[          🏠 Home          ]
 ```
+
+Each top-3 row is a tappable button — drills into the same per-process
+page as the 📋 Top 10 panel, with **🔪 Kill** and **💀 Force Kill**.
 
 Field meanings:
 
