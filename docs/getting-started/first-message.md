@@ -158,8 +158,10 @@ Grab-bag:
 
 - **📋 Clipboard (read)** — shows current clipboard contents.
 - **📋 Clipboard (set)…** — flow asks for text, writes to clipboard.
-- **🧭 Timezone…** — flow asks for an IANA timezone name (e.g.
-  `Europe/Istanbul`), sets it via `sudo systemsetup`.
+- **🧭 Timezone…** — two-step picker. Tap a region (Africa,
+  America, Asia, Europe, …) → tap a city (with country flag emoji
+  per IANA city). Search and Type-exact-name fallbacks available.
+  Applies via `sudo systemsetup -settimezone`.
 - **🔄 Sync time** — forces an NTP sync.
 - **💿 Disks** — filtered to `/` and `/Volumes/*` (system / simulator
   mounts hidden). Each disk is a tappable button drilling into a
