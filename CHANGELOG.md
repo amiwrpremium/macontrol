@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/amiwrpremium/macontrol/compare/v0.3.0...v0.4.0) (2026-04-23)
+
+
+### Features
+
+* **bot:** redesign Disks panel — tighter filter + per-disk drill-down ([#56](https://github.com/amiwrpremium/macontrol/issues/56)) ([#57](https://github.com/amiwrpremium/macontrol/issues/57)) ([ef77b3c](https://github.com/amiwrpremium/macontrol/commit/ef77b3c96bbbce95f50c5570390c45c97306b4bb))
+
 ## [0.3.0](https://github.com/amiwrpremium/macontrol/compare/v0.2.4...v0.3.0) (2026-04-23)
 
 
