@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -52,6 +53,55 @@ func handleTools(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data
 		}
 
 	case "tz":
+		r.Ack(ctx, q)
+		return renderTzRegions(ctx, r, q, d, svc)
+
+	case "tz-region":
+		r.Ack(ctx, q)
+		if len(data.Args) == 0 {
+			return errEdit(ctx, r, q, "🧭 *Timezone*", fmt.Errorf("missing region"))
+		}
+		return renderTzCities(ctx, r, q, d, svc, data.Args[0], 0, "")
+
+	case "tz-page":
+		r.Ack(ctx, q)
+		if len(data.Args) == 0 {
+			return errEdit(ctx, r, q, "🧭 *Timezone*", fmt.Errorf("missing region"))
+		}
+		region := data.Args[0]
+		page, filterID := parseShortcutPageArgsAt(data, 1)
+		filterTerm, _ := d.ShortMap.Get(filterID)
+		return renderTzCities(ctx, r, q, d, svc, region, page, filterTerm)
+
+	case "tz-set":
+		if len(data.Args) == 0 {
+			return errEdit(ctx, r, q, "🧭 *Timezone*", fmt.Errorf("missing timezone id"))
+		}
+		tz, ok := d.ShortMap.Get(data.Args[0])
+		if !ok {
+			return errEdit(ctx, r, q, "🧭 *Timezone*", fmt.Errorf("session expired — refresh the timezone list"))
+		}
+		r.Toast(ctx, q, fmt.Sprintf("Setting timezone → %s…", tz))
+		var status string
+		if err := svc.TimezoneSet(ctx, tz); err != nil {
+			status = fmt.Sprintf("⚠ set failed: `%v`", err)
+		} else {
+			status = fmt.Sprintf("✅ Timezone set — `%s`", tz)
+		}
+		// Re-render the region picker with the status banner above.
+		return rerenderTzRegionsWithStatus(ctx, r, q, d, svc, status)
+
+	case "tz-search":
+		if len(data.Args) == 0 {
+			return errEdit(ctx, r, q, "🧭 *Timezone*", fmt.Errorf("missing region"))
+		}
+		r.Ack(ctx, q)
+		chatID := q.Message.Message.Chat.ID
+		f := flows.NewTimezoneSearch(svc, d.ShortMap, data.Args[0])
+		d.FlowReg.Install(chatID, f)
+		return sendFlowPrompt(ctx, r, chatID, f.Start(ctx))
+
+	case "tz-type":
 		r.Ack(ctx, q)
 		chatID := q.Message.Message.Chat.ID
 		f := flows.NewTimezone(svc)
@@ -195,6 +245,105 @@ func handleTools(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data
 	}
 	r.Toast(ctx, q, "Unknown tools action.")
 	return nil
+}
+
+// renderTzRegions edits the current message to the timezone region
+// picker (step 1).
+func renderTzRegions(ctx context.Context, r Reply, q *models.CallbackQuery,
+	d *bot.Deps, svc *tools.Service,
+) error {
+	return renderTzRegionsWith(ctx, r, q, d, svc, "")
+}
+
+// rerenderTzRegionsWithStatus prepends a one-line status banner
+// (success or failure of a tz-set) above the region picker.
+func rerenderTzRegionsWithStatus(ctx context.Context, r Reply, q *models.CallbackQuery,
+	d *bot.Deps, svc *tools.Service, status string,
+) error {
+	return renderTzRegionsWith(ctx, r, q, d, svc, status)
+}
+
+func renderTzRegionsWith(ctx context.Context, r Reply, q *models.CallbackQuery,
+	d *bot.Deps, svc *tools.Service, status string,
+) error {
+	all, err := svc.TimezoneList(ctx)
+	if err != nil {
+		return errEdit(ctx, r, q, "🧭 *Timezone* — unavailable", err)
+	}
+	current, _ := svc.TimezoneCurrent(ctx)
+	regions, topLevels := groupTimezones(all)
+	regionRows := make([]keyboards.TimezoneRegion, 0, len(regions))
+	for _, gr := range regions {
+		regionRows = append(regionRows, keyboards.TimezoneRegion{
+			Slug: gr.Slug, Count: len(gr.Tzs),
+		})
+	}
+	topLevelRows := make([]keyboards.TimezoneTopLevel, 0, len(topLevels))
+	for _, tz := range topLevels {
+		topLevelRows = append(topLevelRows, keyboards.TimezoneTopLevel{
+			Label:   tz,
+			ShortID: d.ShortMap.Put(tz),
+		})
+	}
+	text, kb := keyboards.ToolsTimezoneRegions(current, regionRows, topLevelRows)
+	if status != "" {
+		text = status + "\n\n" + text
+	}
+	return r.Edit(ctx, q, text, kb)
+}
+
+// renderTzCities edits the message to the city picker (step 2) for
+// the given region, page, and optional filter substring.
+func renderTzCities(ctx context.Context, r Reply, q *models.CallbackQuery,
+	d *bot.Deps, svc *tools.Service, region string, page int, filterTerm string,
+) error {
+	all, err := svc.TimezoneList(ctx)
+	if err != nil {
+		return errEdit(ctx, r, q, "🧭 *Timezone* — unavailable", err)
+	}
+	current, _ := svc.TimezoneCurrent(ctx)
+	cities := flows.FilterTimezonesInRegion(all, region, filterTerm)
+	items, totalPages := flows.PageTimezones(cities, region, page, d.ShortMap)
+	filterID := ""
+	if filterTerm != "" {
+		filterID = d.ShortMap.Put(filterTerm)
+	}
+	text, kb := keyboards.ToolsTimezoneCities(region, current, items, page, totalPages, len(cities), filterID, filterTerm)
+	return r.Edit(ctx, q, text, kb)
+}
+
+// groupedRegion is a single region slug + its child timezones.
+type groupedRegion struct {
+	Slug string
+	Tzs  []string
+}
+
+// groupTimezones splits the flat IANA timezone list into per-region
+// buckets plus top-level (no '/') timezones. Region buckets are
+// sorted alphabetically; cities within each region keep their
+// original order from systemsetup.
+func groupTimezones(all []string) (regions []groupedRegion, topLevels []string) {
+	byRegion := map[string][]string{}
+	regionOrder := []string{}
+	for _, tz := range all {
+		idx := strings.Index(tz, "/")
+		if idx < 0 {
+			topLevels = append(topLevels, tz)
+			continue
+		}
+		region := tz[:idx]
+		if _, seen := byRegion[region]; !seen {
+			regionOrder = append(regionOrder, region)
+		}
+		byRegion[region] = append(byRegion[region], tz)
+	}
+	// Sort regions alphabetically for stable display.
+	sortedRegions := append([]string(nil), regionOrder...)
+	sort.Strings(sortedRegions)
+	for _, slug := range sortedRegions {
+		regions = append(regions, groupedRegion{Slug: slug, Tzs: byRegion[slug]})
+	}
+	return regions, topLevels
 }
 
 // renderShortcutsPage edits the current message to the Run-Shortcut
