@@ -124,9 +124,10 @@ Hidden on macOS 11. On macOS 12+:
 • Up:   87.2 Mbps
 ```
 
-Runs `networkQuality -v` (which ships with macOS 12+). Takes about 15
-seconds. The bot shows "Running — takes ~15s…" as a toast while the
-measurement is in flight.
+Runs `networkQuality -v` (which ships with macOS 12+). Takes 15–25
+seconds end-to-end (the runner allows up to 60s); the bot shows
+"Running — takes ~15s…" as a toast while the measurement is in
+flight.
 
 Note: `networkQuality` measures end-to-end TCP/UDP throughput against
 Apple's test servers — not Wi-Fi link speed. Numbers reflect your
