@@ -196,22 +196,26 @@ Then file a bug with the output.
 
 ### "context deadline exceeded" on subprocess calls
 
-A macOS CLI took longer than the default 15-second runner timeout.
-Common with:
+A macOS CLI took longer than its allotted runner timeout. Most calls
+get a 15-second budget; **Speed test** is bumped to 60 s as of v0.2.3
+because `networkQuality` routinely needs 20-30 s. Common offenders at
+the 15-s budget:
 
-- **Speed test** on a slow connection.
 - **system_profiler** on a Mac with many devices.
 - **shortcuts run** for slow Shortcuts.
 
-The runner kills the subprocess after 15 s. The handler reports the
-timeout to the user.
+The runner kills the subprocess at the deadline and the handler reports
+the timeout to the user.
 
 **Fix options**:
 
-- For the speed test: nothing — `networkQuality` is usually under 15 s.
-  If your network is too slow, the test legitimately doesn't fit.
+- For Speed test: if 60 s isn't enough your link is genuinely too slow
+  for `networkQuality` to characterize — the result wouldn't be
+  meaningful anyway.
 - For Shortcuts: design the Shortcut to fork-and-forget so it returns
   quickly.
+- For other commands: file an issue with the timeout error and the
+  command — we'll consider a per-command override.
 - For longer-running needs: patch `internal/runner/runner.go` —
   `DefaultTimeout` — and rebuild. Or wrap the action with a
   per-handler longer context.
