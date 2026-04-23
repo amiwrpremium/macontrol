@@ -165,8 +165,10 @@ Grab-bag:
   mounts hidden). Each disk is a tappable button drilling into a
   per-disk page with **📂 Open in Finder** and **⏏ Eject** (Eject
   only on removable volumes).
-- **⚡ Run Shortcut…** (macOS 13+) — flow asks for a Shortcut name
-  (case-sensitive), runs it via `shortcuts run`.
+- **⚡ Run Shortcut…** (macOS 13+) — paginated list of every
+  Shortcut from your Shortcuts.app. Tap one to run it. Use
+  **🔍 Search** to filter by substring, or **⌨ Type exact name**
+  to skip the list and type the name directly.
 
 ## Navigating between dashboards
 

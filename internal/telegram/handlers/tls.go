@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/go-telegram/bot/models"
@@ -137,6 +138,56 @@ func handleTools(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data
 			return nil
 		}
 		r.Ack(ctx, q)
+		return renderShortcutsPage(ctx, r, q, d, svc, 0, "")
+
+	case "sc-page":
+		r.Ack(ctx, q)
+		page, filterID := parseShortcutPageArgs(data)
+		filterTerm, _ := d.ShortMap.Get(filterID)
+		return renderShortcutsPage(ctx, r, q, d, svc, page, filterTerm)
+
+	case "sc-run":
+		// args: <shortcutShortID> <page> <filterID>
+		if len(data.Args) < 1 {
+			return errEdit(ctx, r, q, "⚡ *Shortcut*", fmt.Errorf("missing shortcut id"))
+		}
+		name, ok := d.ShortMap.Get(data.Args[0])
+		if !ok {
+			return errEdit(ctx, r, q, "⚡ *Shortcut*", fmt.Errorf("session expired — refresh the list"))
+		}
+		r.Toast(ctx, q, fmt.Sprintf("▶ Running '%s'…", name))
+		var status string
+		if err := svc.ShortcutRun(ctx, name); err != nil {
+			status = fmt.Sprintf("⚠ `%s` failed: `%v`", name, err)
+		} else {
+			status = fmt.Sprintf("✅ Ran `%s`.", name)
+		}
+		// Re-render at the same page+filter the user came from.
+		page, filterID := parseShortcutPageArgsAt(data, 1)
+		filterTerm, _ := d.ShortMap.Get(filterID)
+		all, _ := svc.ShortcutsList(ctx)
+		matches := flows.FilterShortcuts(all, filterTerm)
+		items, totalPages := flows.PageShortcuts(matches, page, d.ShortMap)
+		text, kb := keyboards.ToolsShortcutsList(items, page, totalPages, len(matches), filterID, filterTerm)
+		return r.Edit(ctx, q, status+"\n\n"+text, kb)
+
+	case "sc-search":
+		if !d.Capability.Features.Shortcuts {
+			r.Toast(ctx, q, "Shortcuts CLI needs macOS 13+")
+			return nil
+		}
+		r.Ack(ctx, q)
+		chatID := q.Message.Message.Chat.ID
+		f := flows.NewShortcutSearch(svc, d.ShortMap)
+		d.FlowReg.Install(chatID, f)
+		return sendFlowPrompt(ctx, r, chatID, f.Start(ctx))
+
+	case "sc-type":
+		if !d.Capability.Features.Shortcuts {
+			r.Toast(ctx, q, "Shortcuts CLI needs macOS 13+")
+			return nil
+		}
+		r.Ack(ctx, q)
 		chatID := q.Message.Message.Chat.ID
 		f := flows.NewShortcut(svc)
 		d.FlowReg.Install(chatID, f)
@@ -144,6 +195,51 @@ func handleTools(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data
 	}
 	r.Toast(ctx, q, "Unknown tools action.")
 	return nil
+}
+
+// renderShortcutsPage edits the current message to the Run-Shortcut
+// list at the requested page + filter (filterTerm empty = unfiltered).
+func renderShortcutsPage(ctx context.Context, r Reply, q *models.CallbackQuery,
+	d *bot.Deps, svc *tools.Service, page int, filterTerm string,
+) error {
+	all, err := svc.ShortcutsList(ctx)
+	if err != nil {
+		return errEdit(ctx, r, q, "⚡ *Run Shortcut* — unavailable", err)
+	}
+	matches := flows.FilterShortcuts(all, filterTerm)
+	items, totalPages := flows.PageShortcuts(matches, page, d.ShortMap)
+	filterID := ""
+	if filterTerm != "" {
+		filterID = d.ShortMap.Put(filterTerm)
+	}
+	text, kb := keyboards.ToolsShortcutsList(items, page, totalPages, len(matches), filterID, filterTerm)
+	return r.Edit(ctx, q, text, kb)
+}
+
+// parseShortcutPageArgs extracts (page, filterID) from a sc-page
+// callback's args. filterID is "" when the callback used the "-"
+// sentinel for unfiltered.
+func parseShortcutPageArgs(data callbacks.Data) (page int, filterID string) {
+	return parseShortcutPageArgsAt(data, 0)
+}
+
+// parseShortcutPageArgsAt extracts (page, filterID) from data.Args
+// starting at offset. Used by sc-run, which carries its own arg
+// before the page+filter pair.
+func parseShortcutPageArgsAt(data callbacks.Data, offset int) (page int, filterID string) {
+	if len(data.Args) > offset {
+		page, _ = strconv.Atoi(data.Args[offset])
+		if page < 0 {
+			page = 0
+		}
+	}
+	if len(data.Args) > offset+1 {
+		filterID = data.Args[offset+1]
+		if filterID == "-" {
+			filterID = ""
+		}
+	}
+	return page, filterID
 }
 
 // resolveDiskMount looks up data.Args[0] (a ShortMap id) and returns

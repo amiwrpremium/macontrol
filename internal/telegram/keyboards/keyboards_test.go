@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/go-telegram/bot/models"
 
@@ -554,6 +555,95 @@ func TestToolsDiskPanel_FixedHidesEject(t *testing.T) {
 				t.Error("fixed disk must NOT show Eject button")
 			}
 		}
+	}
+}
+
+func TestToolsShortcutsList_Pagination(t *testing.T) {
+	items := []keyboards.ShortcutListItem{
+		{Label: "A", ShortID: "a"},
+		{Label: "B", ShortID: "b"},
+	}
+	// First page of 5 → Prev hidden, Next shown.
+	_, kb := keyboards.ToolsShortcutsList(items, 0, 5, 75, "", "")
+	hasPrev, hasNext := false, false
+	for _, row := range kb.InlineKeyboard {
+		for _, b := range row {
+			if strings.Contains(b.Text, "Prev") {
+				hasPrev = true
+			}
+			if strings.Contains(b.Text, "Next") {
+				hasNext = true
+			}
+		}
+	}
+	if hasPrev {
+		t.Error("Prev should be hidden on page 0")
+	}
+	if !hasNext {
+		t.Error("Next should be shown when more pages follow")
+	}
+	// Last page → Next hidden, Prev shown.
+	_, kb = keyboards.ToolsShortcutsList(items, 4, 5, 75, "", "")
+	hasPrev, hasNext = false, false
+	for _, row := range kb.InlineKeyboard {
+		for _, b := range row {
+			if strings.Contains(b.Text, "Prev") {
+				hasPrev = true
+			}
+			if strings.Contains(b.Text, "Next") {
+				hasNext = true
+			}
+		}
+	}
+	if !hasPrev {
+		t.Error("Prev should be shown on last page")
+	}
+	if hasNext {
+		t.Error("Next should be hidden on last page")
+	}
+	// Single page → both hidden.
+	_, kb = keyboards.ToolsShortcutsList(items, 0, 1, 2, "", "")
+	for _, row := range kb.InlineKeyboard {
+		for _, b := range row {
+			if strings.Contains(b.Text, "Prev") || strings.Contains(b.Text, "Next") {
+				t.Error("single-page list must not show Prev/Next")
+			}
+		}
+	}
+}
+
+func TestToolsShortcutsList_LabelTruncation(t *testing.T) {
+	long := strings.Repeat("x", 100)
+	got := keyboards.TruncateShortcutLabel(long)
+	if !strings.HasSuffix(got, "…") {
+		t.Errorf("expected truncated label to end with …; got %q", got)
+	}
+	if utf8.RuneCountInString(got) > 40 {
+		t.Errorf("expected ≤40 runes, got %d", utf8.RuneCountInString(got))
+	}
+	short := "Toggle Wi-Fi"
+	if got := keyboards.TruncateShortcutLabel(short); got != short {
+		t.Errorf("short name shouldn't be truncated; got %q", got)
+	}
+}
+
+func TestToolsShortcutsList_FilterCarriedInCallbacks(t *testing.T) {
+	items := []keyboards.ShortcutListItem{{Label: "A", ShortID: "a"}}
+	_, kb := keyboards.ToolsShortcutsList(items, 0, 3, 7, "filt-id", "wifi")
+	// Find the Next callback and assert it carries the filterID.
+	found := false
+	for _, row := range kb.InlineKeyboard {
+		for _, b := range row {
+			if strings.Contains(b.Text, "Next") {
+				if !strings.HasSuffix(b.CallbackData, ":filt-id") {
+					t.Errorf("Next callback must carry filterID; got %q", b.CallbackData)
+				}
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Error("expected a Next button with filterID baked in")
 	}
 }
 

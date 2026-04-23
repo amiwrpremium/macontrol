@@ -143,19 +143,49 @@ tap a button, you'll get "session expired — refresh the disks list".
 
 ### ⚡ Run Shortcut… (macOS 13+, flow)
 
-Hidden on macOS 11/12. On 13+:
+Hidden on macOS 11/12. On 13+, tap **⚡ Run Shortcut…** to get a
+paginated list of every Shortcut from your Shortcuts.app:
 
 ```text
-Bot: Send the Shortcut name (case-sensitive). /cancel to abort.
-You: Turn on DND
-Bot: ✅ Ran Turn on DND.
+⚡ Run Shortcut  ·  Page 1/10  ·  142 shortcuts
+
+[ Turn on DND                        ]
+[ Toggle Wi-Fi                       ]
+[ Send "Be right back" to last chat  ]
+…  (15 entries per page)
+[ ← Prev ] [ Next → ]
+[ 🔍 Search ] [ ⌨ Type exact name ]
+[ 🔄 Refresh ] [ ← Back ]
+[          🏠 Home          ]
 ```
 
-Names are exactly as they appear in the macOS Shortcuts app. Case and
-spaces matter.
+- **Tap a row** to run that Shortcut. The bot toasts
+  `▶ Running '<name>'…` immediately and then re-renders the list
+  with `✅ Ran <name>.` (or the error) above it.
+- **🔍 Search** opens a flow that asks for a substring
+  (case-insensitive). After you send it, the list re-renders with
+  only matching shortcuts. Prev/Next preserve the filter.
+- **⌨ Type exact name** opens the original flow — useful if you
+  already know the exact Shortcut name and don't want to scroll:
 
-Backing: `shortcuts run "<name>"`. Whatever the Shortcut does, it does.
-macontrol passes no input and doesn't read output.
+  ```text
+  Bot: Send the Shortcut name (case-sensitive). /cancel to abort.
+  You: Turn on DND
+  Bot: ✅ Ran Turn on DND.
+  ```
+
+Names match exactly what you see above each tile in the Shortcuts.app
+sidebar. Long names are truncated on the button to ~40 characters
+with `…`; the full name is what the `shortcuts run` CLI receives.
+
+Mount paths and shortcut names go through a 15-min server-side
+shortmap so they fit Telegram's 64-byte callback_data limit. Leave
+the dashboard open longer than that and you'll get
+"session expired — refresh the list".
+
+Backing: `shortcuts list` for the list, `shortcuts run "<name>"`
+for the action. Whatever the Shortcut does, it does — macontrol
+passes no input and doesn't read output.
 
 Use cases:
 
