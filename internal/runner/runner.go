@@ -35,13 +35,25 @@ type Runner interface {
 // Error carries both streams plus the underlying error so callers can
 // produce actionable messages in the Telegram UI.
 type Error struct {
-	Cmd    string
-	Args   []string
+	// Cmd is the bare command name that was executed.
+	Cmd string
+	// Args is the argument slice passed to Cmd (excluding any
+	// `sudo -n` prefix added by [Runner.Sudo]).
+	Args []string
+	// Stdout is the captured standard output up to the failure.
 	Stdout []byte
+	// Stderr is the captured standard error up to the failure.
+	// Empty for [Runner.ExecCombined] since both streams merge
+	// into Stdout.
 	Stderr []byte
-	Err    error
+	// Err is the underlying error from exec.Cmd.Run or a synthetic
+	// "timed out after X" error when the context deadline fires.
+	Err error
 }
 
+// Error renders "cmd args: underlying: <stderr-or-stdout snippet>" so the
+// Telegram surface can relay the useful diagnostic text without dumping
+// the full streams.
 func (e *Error) Error() string {
 	cmd := e.Cmd
 	if len(e.Args) > 0 {
@@ -57,16 +69,18 @@ func (e *Error) Error() string {
 	return fmt.Sprintf("%s: %v: %s", cmd, e.Err, trimmed)
 }
 
+// Unwrap returns the wrapped exec error so callers can use errors.Is /
+// errors.As to detect exec.ExitError or context.DeadlineExceeded.
 func (e *Error) Unwrap() error { return e.Err }
 
 // DefaultTimeout is applied when the caller's context has no deadline.
 // Keeps the bot responsive even if a macOS CLI hangs.
 const DefaultTimeout = 15 * time.Second
 
-// Exec is the production runner.
+// Exec is the production [Runner] that shells out through [os/exec].
 type Exec struct {
-	// DefaultTimeout overrides the package default. Zero means the package
-	// default (15s).
+	// DefaultTimeout overrides the package default. Zero means the
+	// package default (15s).
 	DefaultTimeout time.Duration
 }
 

@@ -26,18 +26,32 @@ const (
 
 // Status is a snapshot of the battery.
 type Status struct {
-	Percent       int // 0..100, -1 if unknown (e.g. desktop Mac)
-	State         ChargeState
-	TimeRemaining string // e.g. "3:42", "(no estimate)"; empty if N/A
-	Present       bool   // false on Macs without a battery
+	// Percent is the current charge level in the 0..100 range; -1
+	// on hardware without a battery (Mac mini, Mac Studio).
+	Percent int
+	// State is the active charging state as parsed from pmset.
+	State ChargeState
+	// TimeRemaining is the human-readable remaining time, e.g.
+	// "3:42" or "(no estimate)"; empty when pmset did not report
+	// one.
+	TimeRemaining string
+	// Present is false on Macs without a battery.
+	Present bool
 }
 
 // Health captures long-term condition.
 type Health struct {
-	CycleCount     int
-	Condition      string // "Normal", "Service", …
-	MaxCapacity    string // e.g. "91%" — Apple reports as percent of design
-	ChargerWattage string // e.g. "70W", empty if unknown / not plugged in
+	// CycleCount is the lifetime charge-cycle count.
+	CycleCount int
+	// Condition is the macOS-reported health label, e.g. "Normal"
+	// or "Service".
+	Condition string
+	// MaxCapacity is the current capacity as a percentage of the
+	// factory design capacity, e.g. "91%".
+	MaxCapacity string
+	// ChargerWattage is the attached charger's rated output, e.g.
+	// "70W"; empty when unknown or not plugged in.
+	ChargerWattage string
 }
 
 // Service reads battery data.

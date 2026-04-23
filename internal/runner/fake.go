@@ -16,10 +16,13 @@ type Fake struct {
 	calls []FakeCall
 }
 
-// FakeCall records one invocation.
+// FakeCall records one invocation of the [Fake] runner.
 type FakeCall struct {
+	// Sudo is true when the caller went through [Fake.Sudo].
 	Sudo bool
+	// Name is the bare command name that was invoked.
 	Name string
+	// Args is a copy of the argument slice passed to the runner.
 	Args []string
 }
 

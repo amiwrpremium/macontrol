@@ -7,6 +7,8 @@ import (
 	"github.com/amiwrpremium/macontrol/internal/version"
 )
 
+// TestString_ContainsAllFields verifies that version.String reports every
+// injected ldflag value (version, commit, date) in its output.
 func TestString_ContainsAllFields(t *testing.T) {
 	// These are package-level vars; reset after the test to avoid polluting
 	// other packages that might read them.
@@ -28,6 +30,8 @@ func TestString_ContainsAllFields(t *testing.T) {
 	}
 }
 
+// TestString_Defaults verifies that the pre-release "dev"/"none"/"unknown"
+// sentinel defaults survive unchanged through version.String.
 func TestString_Defaults(t *testing.T) {
 	// With the package defaults, String should still produce a parseable
 	// one-liner with the sentinel strings.

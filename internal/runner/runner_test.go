@@ -10,6 +10,8 @@ import (
 	"github.com/amiwrpremium/macontrol/internal/runner"
 )
 
+// TestExec_Success verifies that [runner.Exec.Exec] returns the child
+// process stdout verbatim when the command exits 0.
 func TestExec_Success(t *testing.T) {
 	t.Parallel()
 	r := runner.New()

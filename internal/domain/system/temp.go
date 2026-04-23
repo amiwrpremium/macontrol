@@ -16,10 +16,20 @@ type ThermalPressure string
 // for the narrow sudoers entry), and (2) an approximate °C reading from the
 // optional `smctemp` brew formula.
 type Thermal struct {
-	Pressure     ThermalPressure // always populated; "unknown" on failure
-	CPUTempC     float64         // 0 if smctemp not installed
-	GPUTempC     float64         // 0 if smctemp not installed
-	SmctempAvail bool            // true if smctemp readings succeeded
+	// Pressure is the macOS-reported thermal pressure level. Always
+	// populated; "unknown" when `sudo powermetrics` failed or its
+	// output could not be parsed.
+	Pressure ThermalPressure
+	// CPUTempC is an approximate CPU package temperature in °C.
+	// Zero when `smctemp` is not installed.
+	CPUTempC float64
+	// GPUTempC is an approximate GPU temperature in °C. Zero when
+	// `smctemp` is not installed.
+	GPUTempC float64
+	// SmctempAvail is true when at least one `smctemp` reading
+	// succeeded; callers use it to decide whether to render the °C
+	// section at all.
+	SmctempAvail bool
 }
 
 // Thermal reads a single-sample thermal snapshot.

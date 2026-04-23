@@ -26,8 +26,13 @@ import (
 
 // Config is the typed runtime configuration resolved from the Keychain.
 type Config struct {
+	// TelegramBotToken is the secret token issued by @BotFather.
+	// Populated from the [keychain.ServiceToken] entry.
 	TelegramBotToken string
-	AllowedUserIDs   []int64
+	// AllowedUserIDs is the parsed whitelist of Telegram user IDs
+	// permitted to send commands to the bot. Populated from the
+	// [keychain.ServiceWhitelist] entry.
+	AllowedUserIDs []int64
 }
 
 // DefaultLogPath returns the macOS-idiomatic log path under
@@ -46,9 +51,11 @@ func DefaultLogPath() (string, error) {
 	return filepath.Join(dir, "macontrol.log"), nil
 }
 
-// Loader bundles the inputs Load needs. Use NewDefaultLoader() in
+// Loader bundles the inputs Load needs. Use [NewDefaultLoader] in
 // production; hand-roll for tests.
 type Loader struct {
+	// Keychain is the client used to read the token and whitelist
+	// entries. Tests can inject a [runner.Fake]-backed client.
 	Keychain *keychain.Client
 	// Account is the Keychain account name (typically the Unix user).
 	Account string

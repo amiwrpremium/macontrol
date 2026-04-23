@@ -1,5 +1,3 @@
-// Package keyboards builds Telegram reply and inline keyboards. Pure UI —
-// no side effects, no domain imports. Keeps layout unit-testable.
 package keyboards
 
 import (

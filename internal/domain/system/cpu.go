@@ -11,14 +11,24 @@ import (
 // when populated; Load1/5/15 come from `uptime`. Raw preserves the
 // `top` "CPU usage:" line for fallback rendering when parsing fails.
 type CPU struct {
-	UserPct  float64 // % user-mode
-	SysPct   float64 // % kernel
-	IdlePct  float64 // %
-	Load1    float64 // 1-min load average
-	Load5    float64
-	Load15   float64
-	TopByCPU []Process // top 3 processes by CPU; nil if `ps` failed
-	Raw      string    // raw `top` "CPU usage: …" line, fallback display
+	// UserPct is the percentage of CPU time spent in user mode.
+	UserPct float64
+	// SysPct is the percentage of CPU time spent in kernel mode.
+	SysPct float64
+	// IdlePct is the percentage of CPU time idle.
+	IdlePct float64
+	// Load1 is the 1-minute load average.
+	Load1 float64
+	// Load5 is the 5-minute load average.
+	Load5 float64
+	// Load15 is the 15-minute load average.
+	Load15 float64
+	// TopByCPU is the top 3 processes by CPU usage; nil when `ps`
+	// failed.
+	TopByCPU []Process
+	// Raw is the original `top` "CPU usage: …" line, kept for
+	// fallback display when parsing fails.
+	Raw string
 }
 
 // CPU reads a parsed CPU snapshot. Best-effort: any source that

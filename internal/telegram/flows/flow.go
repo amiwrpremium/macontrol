@@ -1,6 +1,3 @@
-// Package flows implements multi-step conversations. A Flow is a stateful
-// callback associated with a chat: each user message for that chat is fed
-// to the flow, which returns a response + a Done flag.
 package flows
 
 import (

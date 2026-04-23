@@ -14,7 +14,9 @@ import (
 
 // State is a snapshot of the output device.
 type State struct {
-	Level int // 0..100
+	// Level is the output volume on a 0..100 scale.
+	Level int
+	// Muted reports whether the output is currently muted.
 	Muted bool
 }
 

@@ -1,6 +1,3 @@
-// Package handlers implements the bot's command and callback routers. Each
-// handler is a thin layer on top of the domain services — compute state,
-// build a keyboard, send or edit a message.
 package handlers
 
 import (
