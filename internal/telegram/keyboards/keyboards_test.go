@@ -389,6 +389,141 @@ func TestWiFi_OnNotAssociated(t *testing.T) {
 	}
 }
 
+// ---------------- Wi-Fi rich-details branches ----------------
+
+// hasDetailsLine returns true when the dashboard text emitted a
+// second "rich details" line (Security / RSSI / TxRate / Channel).
+// The first line always carries `iface en0`; the details line lives
+// below it.
+func hasDetailsLine(text string) bool {
+	return strings.Count(text, "\n") >= 1
+}
+
+func TestWiFi_RichDetails_SecurityOnly(t *testing.T) {
+	t.Parallel()
+	info := wifi.Info{
+		Interface: "en0", PowerOn: true, SSID: "home",
+		Security: "WPA2 Personal",
+	}
+	text, _ := keyboards.WiFi(info, capability.Features{})
+	if !hasDetailsLine(text) {
+		t.Fatalf("expected rich-details line; got %q", text)
+	}
+	if !strings.Contains(text, "WPA2 Personal") {
+		t.Errorf("text missing security: %q", text)
+	}
+	for _, omit := range []string{"dBm", "Mbps", "ch "} {
+		if strings.Contains(text, omit) {
+			t.Errorf("text should not contain %q (other fields zero); got %q", omit, text)
+		}
+	}
+}
+
+func TestWiFi_RichDetails_RSSIOnly(t *testing.T) {
+	t.Parallel()
+	info := wifi.Info{
+		Interface: "en0", PowerOn: true, SSID: "home",
+		RSSI: -45,
+	}
+	text, _ := keyboards.WiFi(info, capability.Features{})
+	if !strings.Contains(text, "-45 dBm") {
+		t.Errorf("text missing RSSI: %q", text)
+	}
+	if strings.Contains(text, "Mbps") || strings.Contains(text, "ch ") {
+		t.Errorf("text should not contain Mbps/ch when only RSSI set: %q", text)
+	}
+}
+
+func TestWiFi_RichDetails_TxRateOnly(t *testing.T) {
+	t.Parallel()
+	info := wifi.Info{
+		Interface: "en0", PowerOn: true, SSID: "home",
+		TxRateMbps: 866.5,
+	}
+	text, _ := keyboards.WiFi(info, capability.Features{})
+	if !strings.Contains(text, "866.5 Mbps") {
+		t.Errorf("text missing tx rate: %q", text)
+	}
+	if strings.Contains(text, "dBm") || strings.Contains(text, "ch ") {
+		t.Errorf("text should not contain dBm/ch when only tx rate set: %q", text)
+	}
+}
+
+func TestWiFi_RichDetails_ChannelOnly(t *testing.T) {
+	t.Parallel()
+	info := wifi.Info{
+		Interface: "en0", PowerOn: true, SSID: "home",
+		Channel: "6 (2GHz, 20MHz)",
+	}
+	text, _ := keyboards.WiFi(info, capability.Features{})
+	if !strings.Contains(text, "ch ") || !strings.Contains(text, "6 (2GHz, 20MHz)") {
+		t.Errorf("text missing channel: %q", text)
+	}
+}
+
+func TestWiFi_RichDetails_AllFour(t *testing.T) {
+	t.Parallel()
+	info := wifi.Info{
+		Interface: "en0", PowerOn: true, SSID: "home",
+		Security: "WPA3", RSSI: -60, TxRateMbps: 540, Channel: "36",
+	}
+	text, _ := keyboards.WiFi(info, capability.Features{})
+	for _, want := range []string{"WPA3", "-60 dBm", "540 Mbps", "ch ", "36"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("text missing %q: %q", want, text)
+		}
+	}
+	// Joined with " · " — make sure separators are present.
+	if !strings.Contains(text, " · ") {
+		t.Errorf("expected dot separators; got %q", text)
+	}
+}
+
+func TestWiFi_RichDetails_PowerOffOmitsLine(t *testing.T) {
+	t.Parallel()
+	// PowerOn=false → no rich details even if the parsed fields are present.
+	info := wifi.Info{
+		Interface: "en0", PowerOn: false, SSID: "home",
+		Security: "WPA2 Personal", RSSI: -55, TxRateMbps: 600, Channel: "11",
+	}
+	text, _ := keyboards.WiFi(info, capability.Features{})
+	for _, omit := range []string{"WPA2 Personal", "dBm", "Mbps", "ch "} {
+		if strings.Contains(text, omit) {
+			t.Errorf("PowerOn=false should suppress rich details (%q): %q", omit, text)
+		}
+	}
+}
+
+func TestWiFi_RichDetails_PowerOnSSIDEmptyOmitsLine(t *testing.T) {
+	t.Parallel()
+	// PowerOn=true but SSID empty → not associated. No rich details.
+	info := wifi.Info{
+		Interface: "en0", PowerOn: true, SSID: "",
+		Security: "WPA2 Personal", RSSI: -55, TxRateMbps: 600, Channel: "11",
+	}
+	text, _ := keyboards.WiFi(info, capability.Features{})
+	for _, omit := range []string{"WPA2 Personal", "dBm", "Mbps", "ch "} {
+		if strings.Contains(text, omit) {
+			t.Errorf("not-associated should suppress rich details (%q): %q", omit, text)
+		}
+	}
+	if !strings.Contains(text, "not associated") {
+		t.Errorf("expected 'not associated' marker: %q", text)
+	}
+}
+
+func TestWiFi_RichDetails_NoFieldsNoLine(t *testing.T) {
+	t.Parallel()
+	// PowerOn=true, SSID set, but every detail field zero → no second line.
+	info := wifi.Info{Interface: "en0", PowerOn: true, SSID: "home"}
+	text, _ := keyboards.WiFi(info, capability.Features{})
+	for _, omit := range []string{"dBm", "Mbps", "ch "} {
+		if strings.Contains(text, omit) {
+			t.Errorf("no rich-details should be emitted (%q): %q", omit, text)
+		}
+	}
+}
+
 func TestWiFiDNS_RendersPresetsAndBack(t *testing.T) {
 	text, kb := keyboards.WiFiDNS()
 	if !strings.Contains(text, "DNS servers") {

@@ -167,3 +167,94 @@ func TestGetHealth_RunnerError(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+// parseChargeState is unexported — exercise its branches via Get with
+// crafted pmset output:
+//   - "finishing charge" → StateACFull
+//   - "AC" token         → StateACFull
+//   - "AC Power" fallback → StateACFull
+//   - unknown token (no AC Power hint) → StateUnknown
+
+func TestGet_StateFinishing(t *testing.T) {
+	t.Parallel()
+	// pmset has been observed to emit a bare "finishing" token in the
+	// state slot. The parser maps that to StateACFull (alongside
+	// "charged" and "ac").
+	out := ` -InternalBattery-0 (id=12345)	99%; finishing; 0:01 remaining present: true
+`
+	f := runner.NewFake().On("pmset -g batt", out, nil)
+	st, err := battery.New(f).Get(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.State != battery.StateACFull {
+		t.Errorf("state = %s; want StateACFull", st.State)
+	}
+}
+
+func TestGet_StateACToken(t *testing.T) {
+	t.Parallel()
+	// pmset can emit a literal "AC" token in some edge cases.
+	out := ` -InternalBattery-0 (id=12345)	100%; AC; 0:00 remaining present: true
+`
+	f := runner.NewFake().On("pmset -g batt", out, nil)
+	st, err := battery.New(f).Get(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.State != battery.StateACFull {
+		t.Errorf("state = %s; want StateACFull", st.State)
+	}
+}
+
+func TestGet_StateACPowerFallback(t *testing.T) {
+	t.Parallel()
+	// Token unknown ("not charging") but the full output mentions
+	// 'AC Power' → fallback to StateACFull.
+	out := `Now drawing from 'AC Power'
+ -InternalBattery-0 (id=12345)	100%; not charging; 0:00 remaining present: true
+`
+	f := runner.NewFake().On("pmset -g batt", out, nil)
+	st, err := battery.New(f).Get(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.State != battery.StateACFull {
+		t.Errorf("state = %s; want StateACFull (AC Power fallback)", st.State)
+	}
+}
+
+func TestGet_StateUnknownNoHint(t *testing.T) {
+	t.Parallel()
+	// Token unknown AND no 'AC Power' hint → StateUnknown.
+	out := ` -InternalBattery-0 (id=12345)	50%; mystery; 1:00 remaining present: true
+`
+	f := runner.NewFake().On("pmset -g batt", out, nil)
+	st, err := battery.New(f).Get(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.State != battery.StateUnknown {
+		t.Errorf("state = %s; want StateUnknown", st.State)
+	}
+}
+
+func TestGet_StateDischargingNotChargingMix(t *testing.T) {
+	t.Parallel()
+	// pmset has been seen to emit the somewhat-redundant "discharging; not
+	// charging" pair. Just exercise — the regex captures only the second
+	// segment so the state should track that token.
+	out := ` -InternalBattery-0 (id=12345)	30%; discharging; 2:00 remaining present: true
+`
+	f := runner.NewFake().On("pmset -g batt", out, nil)
+	st, err := battery.New(f).Get(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.State != battery.StateDischarging {
+		t.Errorf("state = %s; want StateDischarging", st.State)
+	}
+	if st.TimeRemaining != "2:00 remaining" {
+		t.Errorf("time = %q", st.TimeRemaining)
+	}
+}

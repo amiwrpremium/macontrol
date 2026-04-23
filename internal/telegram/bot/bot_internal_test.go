@@ -1,6 +1,8 @@
 package bot
 
 import (
+	"context"
+	"log/slog"
 	"testing"
 
 	"github.com/go-telegram/bot/models"
@@ -24,6 +26,20 @@ func TestIsCommand(t *testing.T) {
 		if got := isCommand(c.in); got != c.want {
 			t.Errorf("isCommand(%q) = %v, want %v", c.in, got, c.want)
 		}
+	}
+}
+
+func TestStart_InvalidTokenReturnsError(t *testing.T) {
+	t.Parallel()
+	// tgbot.New rejects empty/malformed tokens — Start should propagate
+	// that as a wrapped error without panicking.
+	d := &Deps{
+		Logger:    slog.New(slog.DiscardHandler),
+		Whitelist: NewWhitelist(nil),
+	}
+	err := Start(context.Background(), "", d)
+	if err == nil {
+		t.Fatal("expected error from Start with empty token")
 	}
 }
 

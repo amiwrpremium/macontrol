@@ -178,3 +178,48 @@ func TestLoad_NoKeychain_ReturnsError(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+func TestLoad_NoAccount_ReturnsError(t *testing.T) {
+	// Loader.fetch errors early when Account is empty.
+	l := &config.Loader{Keychain: keychain.New(runner.NewFake())}
+	if _, err := l.Load(); err == nil {
+		t.Fatal("expected error when account empty")
+	}
+}
+
+func TestNewDefaultLoader_NotNil(t *testing.T) {
+	// NewDefaultLoader wires a real runner + user; we just assert it
+	// returns a populated struct.
+	l := config.NewDefaultLoader()
+	if l == nil {
+		t.Fatal("nil loader")
+	}
+	if l.Keychain == nil {
+		t.Error("expected Keychain populated")
+	}
+	if l.Account == "" {
+		t.Error("expected Account populated (currentUser)")
+	}
+}
+
+func TestLoad_PackageWrapper_DelegatesToDefaultLoader(t *testing.T) {
+	// config.Load() is the zero-arg wrapper. Without a real Keychain
+	// entry, it must return a descriptive error rather than panic.
+	if _, err := config.Load(); err == nil {
+		// On rare setups a real macOS Keychain may actually have the
+		// token; skip in that case so the test is robust.
+		t.Skip("unexpected success: real Keychain entry present")
+	}
+}
+
+// ---------------- Unrecognized keychain error ----------------
+
+func TestLoad_UnrecognizedError(t *testing.T) {
+	// An error that is neither ErrNotFound nor ErrLocked must bubble up
+	// as-is rather than being remapped.
+	f := runner.NewFake().On(tokenCmd, "",
+		errors.New("something went very wrong")) // bare error, not a runner.Error
+	if _, err := loaderWith(f).Load(); err == nil {
+		t.Fatal("expected error")
+	}
+}

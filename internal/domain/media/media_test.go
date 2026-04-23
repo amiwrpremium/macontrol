@@ -172,3 +172,44 @@ func TestPhoto_FailureCleans(t *testing.T) {
 		t.Errorf("expected empty path, got %q", path)
 	}
 }
+
+// TempPath is keyed off os.CreateTemp("", pattern). Pointing TMPDIR
+// at a nonexistent path forces CreateTemp to fail, exercising the
+// uncovered tempPath / Screenshot / Record / Photo error branches.
+
+func TestScreenshot_TempPathFailure(t *testing.T) {
+	// Cannot use t.Parallel() — t.Setenv is incompatible with parallel.
+	t.Setenv("TMPDIR", "/nonexistent/dir/that/should/not/exist/macontrol-test")
+	f := runner.NewFake() // no need to register screencapture; tempPath fails first
+	path, err := media.New(f).Screenshot(context.Background(), media.ScreenshotOpts{})
+	if err == nil {
+		t.Fatal("expected error from tempPath")
+	}
+	if path != "" {
+		t.Errorf("expected empty path, got %q", path)
+	}
+}
+
+func TestRecord_TempPathFailure(t *testing.T) {
+	t.Setenv("TMPDIR", "/nonexistent/dir/that/should/not/exist/macontrol-test")
+	f := runner.NewFake()
+	path, err := media.New(f).Record(context.Background(), 5*time.Second)
+	if err == nil {
+		t.Fatal("expected error from tempPath")
+	}
+	if path != "" {
+		t.Errorf("expected empty path, got %q", path)
+	}
+}
+
+func TestPhoto_TempPathFailure(t *testing.T) {
+	t.Setenv("TMPDIR", "/nonexistent/dir/that/should/not/exist/macontrol-test")
+	f := runner.NewFake()
+	path, err := media.New(f).Photo(context.Background())
+	if err == nil {
+		t.Fatal("expected error from tempPath")
+	}
+	if path != "" {
+		t.Errorf("expected empty path, got %q", path)
+	}
+}
