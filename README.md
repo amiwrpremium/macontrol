@@ -45,10 +45,10 @@ code on your Mac.
 | 📶 Wi-Fi | Toggle, info (SSID + BSSID + RSSI + Security + channel), join network, DNS presets, speed test |
 | 🔵 Bluetooth | Toggle, list, connect/disconnect paired devices |
 | ⚡ Power | Lock, sleep, restart, shutdown, logout, keep-awake |
-| 🖥 System | macOS/HW info, thermal pressure, memory + RAM hogs, CPU + busy/idle, tappable Top 10 with per-process Kill / Force Kill |
+| 🖥 System | macOS/HW info, thermal pressure, memory + tappable top RAM hogs, CPU + tappable top CPU hogs, Top 10 — every process drills into Kill / Force Kill |
 | 📸 Media | Full/display/window screenshot, screen recording, webcam photo |
 | 🔔 Notify | Desktop notification (terminal-notifier → osascript fallback), text-to-speech |
-| 🛠 Tools | Clipboard get/set, timezone pick, time sync, disks list, run any Shortcut |
+| 🛠 Tools | Clipboard get/set, timezone pick, time sync, tappable disks (Open in Finder + Eject for removables), run any Shortcut |
 
 ## Install
 

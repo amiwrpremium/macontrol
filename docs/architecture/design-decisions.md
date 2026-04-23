@@ -205,6 +205,13 @@ Two ways to handle this:
 with a 15-minute TTL. The button carries `bt:conn:<short-id>`; the
 handler resolves the short-id back to the full MAC.
 
+Three categories use ShortMap today:
+
+- **Bluetooth** — paired-device MAC addresses (28+ bytes raw).
+- **Wi-Fi** — SSID names for the join flow.
+- **Tools → Disks** — mount paths (`/Volumes/Foo Bar/` can easily
+  exceed 64 bytes).
+
 15-minute TTL because dashboards aren't meant to be left open for an
 hour. If you tap a stale button, you get "session expired; refresh
 the device list."
@@ -318,6 +325,37 @@ run on Linux CI.
 
 The cost is one extra interface; the payoff is 90%+ unit-test coverage
 on the domain layer without any macOS calls.
+
+## Why `runner.ExecCombined` exists alongside `Exec`
+
+`Exec` returns stdout on success and discards stderr (stderr only
+surfaces on non-zero exit, inside `*runner.Error`). That's the
+conventional split and works for ~30 of the macOS CLIs we shell out
+to.
+
+It breaks for one notable case: the `brightness` brew CLI under
+macOS 15+ / Apple Silicon. CoreDisplay's private API is restricted
+for unsigned callers, so the tool exits 0 (clean shell exit) but
+writes its header line and `brightness: failed to get brightness …
+(error -536870201)` entirely to **stderr**. We saw an empty stdout,
+returned a useless "no readable level" fallback, and never surfaced
+the real error to the dashboard.
+
+`ExecCombined` is the same `cmd.Run()` flow but writes both streams
+into a single buffer. brightness.Get uses it; everything else still
+uses `Exec`. The trade-off:
+
+- **Lose**: ability to distinguish "this came from stdout" vs "this
+  came from stderr". For brightness this doesn't matter — the tool
+  prints exactly one of `display N: brightness <float>` (success on
+  stdout) or `brightness: failed …` (denial on stderr). Either way,
+  the parser keys on the line *prefix*, not the stream.
+- **Gain**: dashboards surface the tool's own error message instead
+  of a generic "no value found" placeholder.
+
+If another CLI starts exhibiting the same behaviour, swap its
+`Exec` call for `ExecCombined`. No interface churn for callers that
+don't need it.
 
 ## Why `telegramtest` instead of mocking the bot library
 
