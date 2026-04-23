@@ -11,7 +11,7 @@ WPA2 Personal · -45 dBm · 144 Mbps · ch 2g3/20
 
 [ ⏻ Turn off ] [ ℹ Info ]
 [        🔗 Join network…        ]
-[ 🌐 DNS → Cloudflare ] [ 🌐 DNS → Google ] [ 🌐 DNS → DHCP ]
+[           🌐 DNS…              ]
 [ ⚡ Speed test ]       (only on macOS 12+)
 [ 🔄 Refresh  ]
 [ ← Back     ] [ 🏠 Home ]
@@ -100,7 +100,21 @@ and re-prompt.
 If the join fails (wrong password, network not found, out of range),
 the bot replies with the error message from `networksetup`.
 
-### DNS presets
+### DNS… (submenu)
+
+Tapping **🌐 DNS…** opens a small submenu:
+
+```text
+🌐 DNS servers
+
+Pick a preset — it applies instantly to the active Wi-Fi interface.
+
+[ ☁ Cloudflare (1.1.1.1) ]
+[ 🅖 Google (8.8.8.8)     ]
+[ ↺ Reset to DHCP         ]
+[ 🔄 Refresh ] [ ← Back to Wi-Fi ]
+[          🏠 Home              ]
+```
 
 Three one-tap presets:
 
@@ -110,8 +124,10 @@ Three one-tap presets:
 
 Applies via `networksetup -setdnsservers Wi-Fi <servers or "Empty">`.
 
-After tapping, the dashboard header updates with a small `_DNS updated
-→ <preset>_` suffix. The suffix disappears on the next refresh.
+After tapping a preset, the Wi-Fi dashboard re-renders with a small
+`_DNS updated → <preset>_` suffix under the header. The suffix
+disappears on the next refresh. **← Back to Wi-Fi** returns to the
+dashboard without applying anything.
 
 ### Speed test (macOS 12+)
 
