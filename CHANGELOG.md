@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.4](https://github.com/amiwrpremium/macontrol/compare/v0.2.3...v0.2.4) (2026-04-23)
+
+
+### Bug Fixes
+
+* **display:** capture brightness CLI's stderr too ([#52](https://github.com/amiwrpremium/macontrol/issues/52)) ([24b0eec](https://github.com/amiwrpremium/macontrol/commit/24b0eecc76083fcdb7d3cafee65706c7808fd544))
+
 ## [0.2.3](https://github.com/amiwrpremium/macontrol/compare/v0.2.2...v0.2.3) (2026-04-23)
 
 
