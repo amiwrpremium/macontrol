@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/amiwrpremium/macontrol/compare/v0.5.0...v0.6.0) (2026-04-23)
+
+
+### Features
+
+* **bot:** tappable Timezone picker (region → city, paginated, with flags) ([#62](https://github.com/amiwrpremium/macontrol/issues/62)) ([01db06f](https://github.com/amiwrpremium/macontrol/commit/01db06f5954a9739c12943b81e5ef84876b2ab0d))
+
 ## [0.5.0](https://github.com/amiwrpremium/macontrol/compare/v0.4.0...v0.5.0) (2026-04-23)
 
 
