@@ -453,6 +453,158 @@ func TestBt_ConnectNoArgs(t *testing.T) {
 	}
 }
 
+// ---- Additional Bluetooth coverage ----
+
+func TestBt_OpenError(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.Fake.On("blueutil -p", "", errors.New("not installed"))
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "bt:open"))
+	last := h.Recorder.Last()
+	if !strings.Contains(last.Fields["text"], "blueutil") {
+		t.Errorf("expected unavailable message; got %q", last.Fields["text"])
+	}
+}
+
+func TestBt_ToggleError(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.Fake.
+		On("blueutil -p", "0\n", nil).
+		On("blueutil --power 1", "", errors.New("hardware busy"))
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "bt:toggle"))
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "toggle failed") {
+		t.Errorf("expected toggle-failed text; got %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
+func TestBt_PairedEmptyList(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.Fake.On("blueutil --paired --format json", "[]", nil)
+	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "bt:paired")); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "No paired devices") {
+		t.Errorf("expected empty-state text; got %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
+func TestBt_PairedError(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.Fake.On("blueutil --paired --format json", "", errors.New("CLI missing"))
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "bt:paired"))
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "unavailable") {
+		t.Errorf("expected unavailable; got %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
+func TestBt_ConnectSuccessRerendersList(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	addr := "AA-BB-CC-DD"
+	id := h.Deps.ShortMap.Put(addr)
+	h.Fake.
+		On("blueutil --connect "+addr, "", nil).
+		On("blueutil --paired --format json",
+			`[{"address":"AA-BB-CC-DD","name":"AirPods","connected":true,"paired":true}]`, nil)
+	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "bt:conn:"+id)); err != nil {
+		t.Fatal(err)
+	}
+	// After successful connect the handler re-renders the device list. The
+	// device names live on the inline keyboard buttons (the message body
+	// is a generic header).
+	last := h.Recorder.Last()
+	kb := telegramtest.MustDecodeInlineKeyboard(t, last)
+	found := false
+	for _, row := range kb.InlineKeyboard {
+		for _, btn := range row {
+			if strings.Contains(btn.Text, "AirPods") {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Errorf("expected re-rendered device list to surface AirPods button; got %+v", kb)
+	}
+}
+
+func TestBt_ConnectErrorSurfaces(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	addr := "11-22-33"
+	id := h.Deps.ShortMap.Put(addr)
+	h.Fake.On("blueutil --connect "+addr, "", errors.New("device unreachable"))
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "bt:conn:"+id))
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "device op failed") {
+		t.Errorf("expected device-op-failed text; got %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
+func TestBt_DisconnectSuccess(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	addr := "AA-BB-CC"
+	id := h.Deps.ShortMap.Put(addr)
+	h.Fake.
+		On("blueutil --disconnect "+addr, "", nil).
+		On("blueutil --paired --format json", "[]", nil)
+	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "bt:disc:"+id)); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "No paired devices") {
+		t.Errorf("expected refreshed empty list after disc; got %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
+func TestBt_UnknownAction(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "bt:nope"))
+	if len(h.Recorder.ByMethod("answerCallbackQuery")) == 0 {
+		t.Fatal("expected unknown-action toast")
+	}
+}
+
+// ---- BootPing greeting ----
+
+func TestBootPing_IncludesStatusAndCapability(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	// Wire up just enough for status.Snapshot to succeed.
+	h.Fake.
+		On("pmset -g batt", " -InternalBattery-0 (id=1)	80%; charging; 1:00 remaining present: true\n", nil).
+		On("networksetup -listallhardwareports", "Hardware Port: Wi-Fi\nDevice: en0\n", nil).
+		On("networksetup -getairportpower en0", "Wi-Fi Power (en0): On\n", nil).
+		On("networksetup -getairportnetwork en0", "Current Wi-Fi Network: home\n", nil).
+		On("sw_vers", "ProductName: macOS\nProductVersion: 15.3\n", nil).
+		On("hostname", "tower\n", nil).
+		On("sysctl -n hw.model", "MacBookPro\n", nil).
+		On("sysctl -n machdep.cpu.brand_string", "Apple M3\n", nil).
+		On("sysctl -n hw.memsize", "34359738368\n", nil).
+		On("uptime", "21:44  up 3 days,  6:27, 1 user, load averages: 4.97 4.57 4.19\n", nil).
+		On("system_profiler SPHardwareDataType", "Total Number of Cores: 12\n", nil)
+	got := handlers.BootPing(context.Background(), h.Deps)
+	if !strings.Contains(got, "macontrol is up") {
+		t.Errorf("expected 'macontrol is up'; got %q", got)
+	}
+	// renderStatus should be present (battery, wifi).
+	if !strings.Contains(got, "80%") {
+		t.Errorf("expected battery percent in boot ping; got %q", got)
+	}
+}
+
+// ---- handler.Code helper ----
+
 // ============================ sys ============================
 
 func TestSys_Menu(t *testing.T) {
@@ -704,6 +856,289 @@ func TestSys_Kill_InstallsFlow(t *testing.T) {
 		t.Fatal("expected flow")
 	}
 }
+
+// ---- Additional sys edge-cases ----
+
+func TestSys_Proc_PIDNotInTop10(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	// TopN returns empty — PID 999 shouldn't be found.
+	h.Fake.On("ps -Ao pid,pcpu,pmem,comm -r",
+		"  PID  %CPU %MEM COMM\n  100 5.0 1.0 /Apps/A\n", nil)
+	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "sys:proc:999")); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "not in current Top 10") {
+		t.Errorf("expected not-found message; got %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
+func TestSys_Proc_InvalidPID(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "sys:proc:notapid"))
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "invalid PID") {
+		t.Errorf("expected 'invalid PID'; got %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
+func TestSys_KillPID_InvalidPID(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "sys:kill-pid:-5"))
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "invalid PID") {
+		t.Errorf("expected 'invalid PID'; got %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
+func TestSys_KillPID_Failure(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.Fake.On("kill 100", "", errors.New("no such process"))
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "sys:kill-pid:100"))
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "failed") {
+		t.Errorf("expected 'failed'; got %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
+func TestSys_Kill9_Failure(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.Fake.
+		On("kill -9 100", "", errors.New("nope")).
+		On("ps -Ao pid,pcpu,pmem,comm -r", "  PID %CPU %MEM COMM\n", nil)
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "sys:kill9:100:ok"))
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "failed") {
+		t.Errorf("expected kill9-failed; got %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
+func TestSys_Top_Failure(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.Fake.On("ps -Ao pid,pcpu,pmem,comm -r", "", errors.New("denied"))
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "sys:top"))
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "unavailable") {
+		t.Errorf("expected unavailable; got %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
+// ---- Additional med coverage ----
+
+func TestMed_Shot_Silent(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.Fake.On("screencapture -x ", "", errors.New("TCC denied"))
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "med:shot:silent"))
+	// Failure → sendMessage with failure text.
+	if len(h.Recorder.ByMethod("sendMessage")) == 0 {
+		t.Fatal("expected sendMessage on failure")
+	}
+}
+
+func TestMed_Unknown(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "med:nope"))
+	if len(h.Recorder.ByMethod("answerCallbackQuery")) == 0 {
+		t.Fatal("expected unknown-action toast")
+	}
+}
+
+// ---- Additional ntf coverage ----
+
+func TestNtf_Unknown(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "ntf:nope"))
+	if len(h.Recorder.ByMethod("answerCallbackQuery")) == 0 {
+		t.Fatal("expected unknown-action toast")
+	}
+}
+
+// ---- Wi-Fi error branches ----
+
+func TestWif_OpenError(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.Fake.On("networksetup -listallhardwareports", "", errors.New("no networksetup"))
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "wif:open"))
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "unavailable") {
+		t.Errorf("expected unavailable; got %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
+func TestWif_ToggleError(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.Fake.
+		On("networksetup -listallhardwareports", "Hardware Port: Wi-Fi\nDevice: en0\n", nil).
+		On("networksetup -getairportpower en0", "Wi-Fi Power (en0): On\n", nil).
+		On("networksetup -setairportpower en0 off", "", errors.New("hardware"))
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "wif:toggle"))
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "toggle failed") {
+		t.Errorf("expected toggle failed; got %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
+func TestWif_InfoError(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.Fake.On("wdutil info", "", errors.New("wdutil missing"))
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "wif:info"))
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "unavailable") {
+		t.Errorf("expected unavailable; got %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
+func TestWif_DNSError(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.Fake.
+		On("networksetup -listallhardwareports", "Hardware Port: Wi-Fi\nDevice: en0\n", nil).
+		On("networksetup -setdnsservers Wi-Fi 1.1.1.1 1.0.0.1", "", errors.New("denied"))
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "wif:dns:cf"))
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "update failed") {
+		t.Errorf("expected update failed; got %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
+func TestWif_SpeedtestError(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	wifiRules(h)
+	h.Fake.On("networkQuality -v", "", errors.New("nope"))
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "wif:speedtest"))
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "failed") {
+		t.Errorf("expected speedtest failed; got %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
+func TestWif_Unknown(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "wif:nope"))
+	if len(h.Recorder.ByMethod("answerCallbackQuery")) == 0 {
+		t.Fatal("expected unknown-action toast")
+	}
+}
+
+// ---- Tools error branches ----
+
+func TestTls_ClipGet_Failure(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.Fake.On("pbpaste", "", errors.New("denied"))
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "tls:clip:get"))
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "unavailable") {
+		t.Errorf("expected unavailable; got %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
+func TestTls_ClipNoSubaction(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "tls:clip"))
+	if len(h.Recorder.ByMethod("answerCallbackQuery")) == 0 {
+		t.Fatal("expected toast")
+	}
+}
+
+func TestTls_SyncTime_Error(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.Fake.On("sntp -sS time.apple.com", "", errors.New("no net"))
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "tls:synctime"))
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "sntp failed") {
+		t.Errorf("expected sntp failed; got %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
+func TestTls_Disks_Error(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.Fake.On("df -h", "", errors.New("denied"))
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "tls:disks"))
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "unavailable") {
+		t.Errorf("expected unavailable; got %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
+func TestTls_DiskOpen_Error(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	id := h.Deps.ShortMap.Put("/Volumes/X")
+	h.Fake.On("open /Volumes/X", "", errors.New("bad mount"))
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "tls:disk-open:"+id))
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "failed") {
+		t.Errorf("expected failed; got %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
+func TestTls_DiskEject_Error(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	id := h.Deps.ShortMap.Put("/Volumes/X")
+	h.Fake.On("diskutil eject /Volumes/X", "", errors.New("busy"))
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "tls:disk-eject:"+id))
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "failed") {
+		t.Errorf("expected failed; got %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
+func TestTls_Tz_Error(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.Fake.On("systemsetup -listtimezones", "", errors.New("denied"))
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "tls:tz"))
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "unavailable") {
+		t.Errorf("expected unavailable; got %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
+func TestTls_TzRegion_Missing(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "tls:tz-region"))
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "missing region") {
+		t.Errorf("expected 'missing region'; got %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
+func TestTls_Unknown(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	_ = handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "tls:nope"))
+	if len(h.Recorder.ByMethod("answerCallbackQuery")) == 0 {
+		t.Fatal("expected toast")
+	}
+}
+
+// ---- handler.Code helper ----
 
 // ============================ med ============================
 

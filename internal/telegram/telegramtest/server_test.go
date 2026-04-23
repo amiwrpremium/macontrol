@@ -98,3 +98,27 @@ func TestMustDecodeInlineKeyboard(t *testing.T) {
 		t.Fatalf("unexpected decoded kb: %+v", decoded)
 	}
 }
+
+func TestMustDecodeReplyKeyboard(t *testing.T) {
+	t.Parallel()
+	b, rec := telegramtest.NewBot(t)
+	kb := &models.ReplyKeyboardMarkup{
+		Keyboard: [][]models.KeyboardButton{
+			{{Text: "Hello"}, {Text: "World"}},
+		},
+		ResizeKeyboard: true,
+	}
+	_, err := b.SendMessage(context.Background(), &tgbot.SendMessageParams{
+		ChatID: 1, Text: "x", ReplyMarkup: kb,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded := telegramtest.MustDecodeReplyKeyboard(t, rec.Last())
+	if len(decoded.Keyboard) != 1 || decoded.Keyboard[0][0].Text != "Hello" {
+		t.Fatalf("unexpected decoded kb: %+v", decoded)
+	}
+	if !decoded.ResizeKeyboard {
+		t.Error("expected ResizeKeyboard true")
+	}
+}
