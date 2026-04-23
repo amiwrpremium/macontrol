@@ -515,10 +515,26 @@ func TestSys_Mem(t *testing.T) {
 		newCallbackUpdate("id", "sys:mem")); err != nil {
 		t.Fatal(err)
 	}
-	text := h.Recorder.Last().Fields["text"]
-	for _, want := range []string{"Used:", "24.0 GiB", "(95%)", "Wired:", "Compressed:", "Swap used:", "Pressure:", "Warning", "Top by RAM:", "Chrome", "12.4%"} {
+	last := h.Recorder.Last()
+	text := last.Fields["text"]
+	for _, want := range []string{"Used:", "24.0 GiB", "(95%)", "Wired:", "Compressed:", "Swap used:", "Pressure:", "Warning", "Top by RAM"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("text missing %q; got %q", want, text)
+		}
+	}
+	// Top-3 RAM hogs are now per-process inline buttons routing to sys:proc:<pid>.
+	kb := telegramtest.MustDecodeInlineKeyboard(t, last)
+	for _, wantCB := range []string{"sys:proc:100", "sys:proc:101", "sys:proc:102"} {
+		found := false
+		for _, row := range kb.InlineKeyboard {
+			for _, btn := range row {
+				if btn.CallbackData == wantCB {
+					found = true
+				}
+			}
+		}
+		if !found {
+			t.Errorf("missing per-process button %q", wantCB)
 		}
 	}
 }
@@ -546,10 +562,26 @@ func TestSys_CPU(t *testing.T) {
 		newCallbackUpdate("id", "sys:cpu")); err != nil {
 		t.Fatal(err)
 	}
-	text := h.Recorder.Last().Fields["text"]
-	for _, want := range []string{"Busy:", "37%", "User", "Kernel", "Idle", "Load avg", "5.41", "12 cores", "Top by CPU:", "12.4%", "Chrome"} {
+	last := h.Recorder.Last()
+	text := last.Fields["text"]
+	for _, want := range []string{"Busy:", "37%", "User", "Kernel", "Idle", "Load avg", "5.41", "12 cores", "Top by CPU"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("text missing %q; got %q", want, text)
+		}
+	}
+	// Top-3 CPU hogs are now per-process inline buttons routing to sys:proc:<pid>.
+	kb := telegramtest.MustDecodeInlineKeyboard(t, last)
+	for _, wantCB := range []string{"sys:proc:100", "sys:proc:101", "sys:proc:102"} {
+		found := false
+		for _, row := range kb.InlineKeyboard {
+			for _, btn := range row {
+				if btn.CallbackData == wantCB {
+					found = true
+				}
+			}
+		}
+		if !found {
+			t.Errorf("missing per-process button %q", wantCB)
 		}
 	}
 }

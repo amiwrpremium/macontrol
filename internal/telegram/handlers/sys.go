@@ -64,7 +64,7 @@ func handleSystem(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, dat
 		}
 		info, _ := svc.Info(ctx)
 		return r.Edit(ctx, q, buildMemoryPanel(m, info.TotalRAMBytes),
-			keyboards.SystemPanel("mem"))
+			keyboards.SystemPanelWithProcs("mem", m.TopByMem, memProcLabel))
 
 	case "cpu":
 		r.Ack(ctx, q)
@@ -74,7 +74,7 @@ func handleSystem(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, dat
 		}
 		info, _ := svc.Info(ctx)
 		return r.Edit(ctx, q, buildCPUPanel(c, info.CPUCores),
-			keyboards.SystemPanel("cpu"))
+			keyboards.SystemPanelWithProcs("cpu", c.TopByCPU, cpuProcLabel))
 
 	case "top":
 		r.Ack(ctx, q)
@@ -236,14 +236,20 @@ func buildCPUPanel(c system.CPU, cpuCores string) string {
 		}
 	}
 	if len(c.TopByCPU) > 0 {
-		b.WriteString("\n\nTop by CPU:\n")
-		var t strings.Builder
-		for _, p := range c.TopByCPU {
-			fmt.Fprintf(&t, "%5.1f%%  %s\n", p.CPU, p.Command)
-		}
-		b.WriteString(Code(strings.TrimRight(t.String(), "\n")))
+		b.WriteString("\n\n_Top by CPU — tap a process to drill in:_")
 	}
 	return b.String()
+}
+
+// cpuProcLabel formats a process for the CPU panel's per-row button:
+// "<PID> · <CPU>% · <leaf-of-cmd>". Mirrors SystemTopList's shape.
+func cpuProcLabel(p system.Process) string {
+	return fmt.Sprintf("%d · %.1f%% · %s", p.PID, p.CPU, leafOfPath(p.Command))
+}
+
+// memProcLabel is the Memory panel equivalent — RAM% instead of CPU%.
+func memProcLabel(p system.Process) string {
+	return fmt.Sprintf("%d · %.1f%% · %s", p.PID, p.Mem, leafOfPath(p.Command))
 }
 
 // buildMemoryPanel renders the 🧠 Memory panel: parsed values
@@ -277,12 +283,7 @@ func buildMemoryPanel(m system.Memory, totalRAMBytes uint64) string {
 			pressureLabel(m.FreePercent), m.FreePercent)
 	}
 	if len(m.TopByMem) > 0 {
-		b.WriteString("\n\nTop by RAM:\n")
-		var t strings.Builder
-		for _, p := range m.TopByMem {
-			fmt.Fprintf(&t, "%5.1f%%  %s\n", p.Mem, p.Command)
-		}
-		b.WriteString(Code(strings.TrimRight(t.String(), "\n")))
+		b.WriteString("\n\n_Top by RAM — tap a process to drill in:_")
 	}
 	return b.String()
 }

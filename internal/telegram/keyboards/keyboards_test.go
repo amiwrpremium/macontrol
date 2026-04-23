@@ -2,6 +2,7 @@ package keyboards_test
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/amiwrpremium/macontrol/internal/domain/bluetooth"
 	"github.com/amiwrpremium/macontrol/internal/domain/display"
 	"github.com/amiwrpremium/macontrol/internal/domain/sound"
+	"github.com/amiwrpremium/macontrol/internal/domain/system"
 	"github.com/amiwrpremium/macontrol/internal/domain/wifi"
 	"github.com/amiwrpremium/macontrol/internal/telegram/callbacks"
 	"github.com/amiwrpremium/macontrol/internal/telegram/keyboards"
@@ -440,6 +442,43 @@ func TestSystem_Menu(t *testing.T) {
 	assertAllRoundtrip(t, kb)
 	assertNavPresent(t, kb)
 	assertBackPresent(t, kb)
+}
+
+func TestSystemPanelWithProcs_PerProcessButtons(t *testing.T) {
+	procs := []system.Process{
+		{PID: 100, CPU: 50.0, Mem: 10.0, Command: "/Apps/A"},
+		{PID: 200, CPU: 25.0, Mem: 5.0, Command: "/Apps/B"},
+	}
+	label := func(p system.Process) string {
+		return strconv.Itoa(p.PID) + " · X"
+	}
+	kb := keyboards.SystemPanelWithProcs("cpu", procs, label)
+	// First two rows are per-process buttons routing to sys:proc:<pid>.
+	if len(kb.InlineKeyboard) < 4 {
+		t.Fatalf("expected ≥4 rows (2 procs + Refresh/Back + Home), got %d", len(kb.InlineKeyboard))
+	}
+	if kb.InlineKeyboard[0][0].CallbackData != "sys:proc:100" {
+		t.Errorf("first proc callback = %q", kb.InlineKeyboard[0][0].CallbackData)
+	}
+	if kb.InlineKeyboard[1][0].CallbackData != "sys:proc:200" {
+		t.Errorf("second proc callback = %q", kb.InlineKeyboard[1][0].CallbackData)
+	}
+	// Refresh on the panel's own action.
+	assertContainsButton(t, kb, "Refresh")
+	assertContainsButton(t, kb, "Back")
+	assertNavPresent(t, kb)
+	assertAllRoundtrip(t, kb)
+}
+
+func TestSystemPanelWithProcs_EmptyDegradesToPlainPanel(t *testing.T) {
+	kb := keyboards.SystemPanelWithProcs("mem", nil, func(p system.Process) string { return "x" })
+	// No process rows → just Refresh/Back + Home.
+	if len(kb.InlineKeyboard) != 2 {
+		t.Fatalf("expected 2 rows when procs nil, got %d", len(kb.InlineKeyboard))
+	}
+	assertContainsButton(t, kb, "Refresh")
+	assertContainsButton(t, kb, "Back")
+	assertNavPresent(t, kb)
 }
 
 func TestSystemPanel(t *testing.T) {
