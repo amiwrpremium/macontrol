@@ -182,10 +182,14 @@ informational, not an error.
 
 Known issue with the upstream `brightness` CLI on macOS 15+ /
 modern Apple Silicon. CoreDisplay's private API is restricted for
-unsigned callers; the tool exits 0 but prints
+unsigned callers; the tool exits 0 but writes
 `brightness: failed to get brightness of display 0x1 (error -536870201)`
-to stdout instead of a value. macontrol surfaces that line verbatim
-in the dashboard so you know it's not a missing-tool problem.
+to **stderr** (along with a header line). macontrol reads both
+stdout and stderr from `brightness` (since v0.2.4) and surfaces the
+tool's own error line verbatim in the dashboard so you know it's
+not a missing-tool problem. If the tool emits something we can't
+recognise, the dashboard echoes back the first non-empty line as a
+fallback rather than a generic message.
 
 The ±5/±10 buttons may still work — the brightness CLI's *set* path
 sometimes succeeds where *get* doesn't. Tap one to verify; if it

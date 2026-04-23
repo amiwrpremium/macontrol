@@ -42,7 +42,10 @@ func New(r runner.Runner) *Service { return &Service{r: r} }
 // own error line in the returned error so the dashboard can render
 // something honest.
 func (s *Service) Get(ctx context.Context) (State, error) {
-	out, err := s.r.Exec(ctx, "brightness", "-l")
+	// brightness writes header + error lines to stderr even when it
+	// exits 0, so capture both streams or the dashboard surfaces
+	// nothing useful when CoreDisplay denies the read.
+	out, err := s.r.ExecCombined(ctx, "brightness", "-l")
 	if err != nil {
 		return State{Level: -1}, err
 	}
@@ -61,16 +64,31 @@ func (s *Service) Get(ctx context.Context) (State, error) {
 }
 
 // firstErrLine returns the first line that looks like the brightness
-// tool's own error output (`brightness: …`). Falls back to a generic
-// message if none is present.
+// tool's own error output (`brightness: …`). If no such line is
+// present, falls back to the first non-empty line so the dashboard
+// at least shows what we got. Empty output → a generic placeholder.
 func firstErrLine(out string) string {
+	var firstLine string
 	for _, line := range strings.Split(out, "\n") {
 		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
 		if strings.HasPrefix(line, "brightness:") {
 			return line
 		}
+		if firstLine == "" {
+			firstLine = line
+		}
 	}
-	return "no `display N: brightness <value>` line in output"
+	if firstLine != "" {
+		const maxLen = 200
+		if len(firstLine) > maxLen {
+			firstLine = firstLine[:maxLen] + "…"
+		}
+		return "got: " + firstLine
+	}
+	return "empty output"
 }
 
 // Set writes absolute brightness (0.0..1.0).
