@@ -53,7 +53,9 @@ func loadZoneTab() {
 }
 
 func parseZoneTab(path string) map[string]string {
-	data, err := os.ReadFile(path)
+	// Path comes from the hardcoded zoneTabPaths allowlist above, not
+	// user input. Safe to read.
+	data, err := os.ReadFile(path) //nolint:gosec // G304: path is from a constant allowlist
 	if err != nil {
 		return nil
 	}
