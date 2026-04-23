@@ -46,33 +46,73 @@ and backslashes in the input are escaped so arbitrary text works.
 
 Use cases: grabbing something from your phone to paste on the Mac.
 
-### 🧭 Timezone… (flow)
+### 🧭 Timezone…
+
+Two-step picker. Tapping **🧭 Timezone…** shows the region picker
+(IANA prefixes — Africa, America, Asia, Europe, Pacific, …):
 
 ```text
-Bot: Send the timezone string (e.g. Europe/Istanbul or UTC).
-     /cancel to abort.
-You: Europe/Istanbul
-Bot: ✅ Timezone set — Europe/Istanbul
+🧭 Set timezone  ·  Current: Europe/Istanbul
+
+[ Africa (52) ]
+[ America (149) ]
+[ Antarctica (12) ]
+[ Asia (78) ]
+[ Atlantic (10) ]
+[ Australia (12) ]
+[ Europe (60) ]
+[ Indian (10) ]
+[ Pacific (30) ]
+[ GMT ]
+[ ⌨ Type exact name ]
+[ 🔄 Refresh ] [ ← Back ]
+[          🏠 Home          ]
 ```
 
-Accepts any IANA timezone name. Common ones:
+Tap a region → paginated list of cities within it, with a flag emoji
+per city (resolved from `/usr/share/zoneinfo/zone1970.tab`):
 
 ```text
-UTC
-America/New_York
-America/Los_Angeles
-Europe/London
-Europe/Istanbul
-Asia/Tokyo
-Asia/Dubai
-Australia/Sydney
+🧭 America  ·  Page 1/10  ·  149 timezones  ·  Current: Europe/Istanbul
+
+[ 🇺🇸 Adak ]
+[ 🇺🇸 Anchorage ]
+[ 🇦🇷 Argentina/Buenos_Aires ]
+[ 🇦🇷 Argentina/Catamarca ]
+…
+[ ← Prev ] [ Next → ]
+[ 🔍 Search ] [ ⌨ Type exact name ]
+[ ← Back to regions ]
+[          🏠 Home          ]
 ```
 
-Full list: `sudo systemsetup -listtimezones` on a Mac, or the
-`zoneinfo` directory (`/usr/share/zoneinfo/`).
+- **Tap a city** → applies the timezone immediately. The region
+  picker re-renders with `✅ Timezone set — <tz>` above. No confirm.
+- **🔍 Search** opens a one-step flow asking for a substring
+  (case-insensitive, scoped to the current region). After you send
+  it, the city list re-renders filtered. Prev/Next preserve the
+  filter.
+- **⌨ Type exact name** opens the original typed flow — useful if
+  you know the exact IANA name and want to skip the picker:
 
-Backing: `sudo systemsetup -settimezone <tz>`. **Requires** the narrow
-sudoers entry.
+  ```text
+  Bot: Send the timezone string (e.g. Europe/Istanbul or UTC). /cancel.
+  You: Europe/Istanbul
+  Bot: ✅ Timezone set — Europe/Istanbul
+  ```
+
+Flag emojis come from the macOS-shipped `zone1970.tab` IANA →
+ISO 3166-1 mapping. Multi-country zones (rare; e.g. some Russian
+regions listed as `RU,UA`) take the first listed code. Antarctica,
+GMT, UTC, and any zone not in the table render without a flag.
+
+Backing: `sudo systemsetup -listtimezones` for the list,
+`sudo systemsetup -gettimezone` for the current header,
+`sudo systemsetup -settimezone <tz>` to apply. **Requires** the
+narrow sudoers entry. Full timezone names live in a 15-min
+server-side ShortMap so they fit Telegram's 64-byte callback_data
+limit; leaving the dashboard open longer than that triggers
+"session expired — refresh the timezone list".
 
 ### 🔄 Sync time
 

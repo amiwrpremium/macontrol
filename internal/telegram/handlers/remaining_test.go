@@ -808,12 +808,124 @@ func TestTls_ClipSet_InstallsFlow(t *testing.T) {
 	}
 }
 
-func TestTls_Tz_InstallsFlow(t *testing.T) {
+func TestTls_Tz_RendersRegionPicker(t *testing.T) {
 	t.Parallel()
 	h := newHarness(t)
+	h.Fake.
+		On("systemsetup -listtimezones",
+			"Time Zones:\n Africa/Cairo\n America/New_York\n America/Los_Angeles\n Asia/Tehran\n Europe/Istanbul\n GMT\n", nil).
+		On("systemsetup -gettimezone", "Time Zone: Europe/Istanbul\n", nil)
 	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
 		newCallbackUpdate("id", "tls:tz")); err != nil {
 		t.Fatal(err)
+	}
+	last := h.Recorder.Last()
+	text := last.Fields["text"]
+	if !strings.Contains(text, "Set timezone") || !strings.Contains(text, "Current") {
+		t.Errorf("text = %q", text)
+	}
+	kb := telegramtest.MustDecodeInlineKeyboard(t, last)
+	wantRegions := map[string]bool{
+		"tls:tz-region:Africa": false, "tls:tz-region:America": false,
+		"tls:tz-region:Asia": false, "tls:tz-region:Europe": false,
+	}
+	for _, row := range kb.InlineKeyboard {
+		for _, btn := range row {
+			if _, want := wantRegions[btn.CallbackData]; want {
+				wantRegions[btn.CallbackData] = true
+			}
+		}
+	}
+	for cb, found := range wantRegions {
+		if !found {
+			t.Errorf("missing region button %q", cb)
+		}
+	}
+}
+
+func TestTls_TzRegion_RendersFirstPage(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.Fake.
+		On("systemsetup -listtimezones",
+			"Time Zones:\n America/Anchorage\n America/Los_Angeles\n America/New_York\n Asia/Tehran\n", nil).
+		On("systemsetup -gettimezone", "Time Zone: Europe/Istanbul\n", nil)
+	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "tls:tz-region:America")); err != nil {
+		t.Fatal(err)
+	}
+	last := h.Recorder.Last()
+	text := last.Fields["text"]
+	for _, want := range []string{"America", "3 timezones"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("text missing %q; got %q", want, text)
+		}
+	}
+	kb := telegramtest.MustDecodeInlineKeyboard(t, last)
+	tzSetCount := 0
+	for _, row := range kb.InlineKeyboard {
+		for _, btn := range row {
+			if strings.HasPrefix(btn.CallbackData, "tls:tz-set:") {
+				tzSetCount++
+			}
+		}
+	}
+	if tzSetCount != 3 {
+		t.Errorf("expected 3 tz-set buttons (America has 3 entries), got %d", tzSetCount)
+	}
+}
+
+func TestTls_TzSet_AppliesAndRerenders(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.Fake.
+		On("systemsetup -settimezone Europe/Istanbul", "", nil).
+		On("systemsetup -listtimezones", "Time Zones:\n Europe/Istanbul\n GMT\n", nil).
+		On("systemsetup -gettimezone", "Time Zone: Europe/Istanbul\n", nil)
+	id := h.Deps.ShortMap.Put("Europe/Istanbul")
+	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "tls:tz-set:"+id)); err != nil {
+		t.Fatal(err)
+	}
+	text := h.Recorder.Last().Fields["text"]
+	if !strings.Contains(text, "Timezone set") || !strings.Contains(text, "Europe/Istanbul") {
+		t.Errorf("expected success status; got %q", text)
+	}
+}
+
+func TestTls_TzSet_ExpiredShortMap(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "tls:tz-set:nope")); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "session expired") {
+		t.Errorf("expected session-expired message; got %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
+func TestTls_TzSearch_InstallsFlow(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "tls:tz-search:America")); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := h.Deps.FlowReg.Active(42); !ok {
+		t.Fatal("expected search flow installed")
+	}
+}
+
+func TestTls_TzType_InstallsFlow(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "tls:tz-type")); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := h.Deps.FlowReg.Active(42); !ok {
+		t.Fatal("expected typed-name flow installed")
 	}
 }
 

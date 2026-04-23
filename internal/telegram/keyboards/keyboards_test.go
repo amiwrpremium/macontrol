@@ -647,6 +647,75 @@ func TestToolsShortcutsList_FilterCarriedInCallbacks(t *testing.T) {
 	}
 }
 
+func TestFlagFromISO2(t *testing.T) {
+	cases := map[string]string{
+		"IR":  "🇮🇷",
+		"US":  "🇺🇸",
+		"CA":  "🇨🇦",
+		"":    "",
+		"X":   "",
+		"abc": "",
+		"a1":  "",
+	}
+	for in, want := range cases {
+		if got := keyboards.FlagFromISO2(in); got != want {
+			t.Errorf("FlagFromISO2(%q) = %q; want %q", in, got, want)
+		}
+	}
+}
+
+func TestToolsTimezoneRegions_RendersAllRegions(t *testing.T) {
+	regions := []keyboards.TimezoneRegion{
+		{Slug: "Africa", Count: 52},
+		{Slug: "America", Count: 149},
+	}
+	topLevels := []keyboards.TimezoneTopLevel{{Label: "GMT", ShortID: "abc"}}
+	text, kb := keyboards.ToolsTimezoneRegions("Europe/Istanbul", regions, topLevels)
+	if !strings.Contains(text, "Set timezone") || !strings.Contains(text, "Europe/Istanbul") {
+		t.Errorf("text = %q", text)
+	}
+	// One row per region + one for top-level + Type-exact + Refresh/Back + Home.
+	regionCB, topLevelCB, hasType := false, false, false
+	for _, row := range kb.InlineKeyboard {
+		for _, b := range row {
+			if b.CallbackData == "tls:tz-region:Africa" || b.CallbackData == "tls:tz-region:America" {
+				regionCB = true
+			}
+			if b.CallbackData == "tls:tz-set:abc" {
+				topLevelCB = true
+			}
+			if b.CallbackData == "tls:tz-type" {
+				hasType = true
+			}
+		}
+	}
+	if !regionCB || !topLevelCB || !hasType {
+		t.Errorf("missing required buttons (region=%v topLevel=%v type=%v)", regionCB, topLevelCB, hasType)
+	}
+}
+
+func TestToolsTimezoneCities_PaginationAndFilterCarriedInCallbacks(t *testing.T) {
+	items := []keyboards.TimezoneListItem{{Label: "🇺🇸 Adak", ShortID: "x"}}
+	_, kb := keyboards.ToolsTimezoneCities("America", "Europe/Istanbul", items, 0, 3, 31, "filt-id", "wifi")
+	hasNext, nextCarriesRegionAndFilter := false, false
+	for _, row := range kb.InlineKeyboard {
+		for _, b := range row {
+			if strings.Contains(b.Text, "Next") {
+				hasNext = true
+				if strings.Contains(b.CallbackData, "tls:tz-page:America:1:filt-id") {
+					nextCarriesRegionAndFilter = true
+				}
+			}
+		}
+	}
+	if !hasNext {
+		t.Fatal("expected Next button on page 0 of 3")
+	}
+	if !nextCarriesRegionAndFilter {
+		t.Error("Next must carry both region and filterID through callback args")
+	}
+}
+
 func TestTools_WithShortcuts(t *testing.T) {
 	_, kb := keyboards.Tools(capability.Features{Shortcuts: true})
 	assertContainsButton(t, kb, "Clipboard")

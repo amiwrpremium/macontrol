@@ -384,3 +384,38 @@ func TestShortcutRun_Error(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+// ---------------- LookupCountry (zone1970.tab parser) ----------------
+
+func TestLookupCountry_KnownTimezones(t *testing.T) {
+	// These IANA names are stable across decades of tzdata releases.
+	// Test goes through the live /usr/share/zoneinfo/zone1970.tab on
+	// the host, which matches across macOS and Linux.
+	cases := map[string]string{
+		"Asia/Tehran":         "IR",
+		"America/Los_Angeles": "US",
+		"Europe/Istanbul":     "TR",
+		"Asia/Tokyo":          "JP",
+		"Europe/London":       "GB",
+	}
+	for tz, want := range cases {
+		got, ok := tools.LookupCountry(tz)
+		if !ok {
+			t.Errorf("LookupCountry(%q) returned ok=false", tz)
+			continue
+		}
+		if got != want {
+			t.Errorf("LookupCountry(%q) = %q; want %q", tz, got, want)
+		}
+	}
+}
+
+func TestLookupCountry_UnknownTimezones(t *testing.T) {
+	// GMT and UTC have no country in zone1970.tab.
+	for _, tz := range []string{"GMT", "UTC", "Etc/UCT", "Antarctica/Troll-Plumber"} {
+		_, ok := tools.LookupCountry(tz)
+		if ok && tz != "Antarctica/Troll" { // Troll is in tzdata; the typo isn't.
+			t.Errorf("LookupCountry(%q) unexpectedly returned ok=true", tz)
+		}
+	}
+}

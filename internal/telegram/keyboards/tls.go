@@ -16,6 +16,31 @@ import (
 // while staying well under Telegram's hard ~100-button limit.
 const ShortcutsPageSize = 15
 
+// TimezonesPageSize matches ShortcutsPageSize for the city picker.
+const TimezonesPageSize = 15
+
+// TimezoneRegion is one row on the timezone region-picker page.
+type TimezoneRegion struct {
+	Slug  string // bare region name "Africa", "America", etc.
+	Count int    // how many timezones live under this region
+}
+
+// TimezoneListItem mirrors ShortcutListItem: a pre-built display
+// label (city + flag emoji when known) plus the ShortMap id that
+// resolves to the full IANA timezone name.
+type TimezoneListItem struct {
+	Label   string
+	ShortID string
+}
+
+// TimezoneTopLevel is one entry on the region-picker page for
+// timezones with no '/' (GMT, UTC, etc.) — they get rendered
+// inline alongside the region buttons.
+type TimezoneTopLevel struct {
+	Label   string // typically just the timezone name itself
+	ShortID string
+}
+
 // ShortcutListItem is one entry on the Run Shortcut list page.
 // Label is what the button shows (already truncated for display);
 // ShortID is the ShortMap-issued opaque id resolving to the full
@@ -99,10 +124,10 @@ func ToolsDisksList(rows []ToolsDiskRow) *models.InlineKeyboardMarkup {
 // Home rows below the per-shortcut buttons.
 func ToolsShortcutsList(items []ShortcutListItem, page, totalPages, total int, filterID, filterTerm string) (text string, markup *models.InlineKeyboardMarkup) {
 	header := fmt.Sprintf("⚡ *Run Shortcut*  ·  Page %d/%d  ·  %d shortcuts",
-		page+1, maxInt(totalPages, 1), total)
+		page+1, atLeastOne(totalPages), total)
 	if filterTerm != "" {
 		header = fmt.Sprintf("⚡ *Run Shortcut*  ·  Page %d/%d  ·  Filtered: `%s` · %d match%s",
-			page+1, maxInt(totalPages, 1), filterTerm, total, plural(total, "es"))
+			page+1, atLeastOne(totalPages), filterTerm, total, plural(total, "es"))
 	}
 	if total == 0 {
 		header += "\n\n_No shortcuts found._"
@@ -150,6 +175,119 @@ func ToolsShortcutsList(items []ShortcutListItem, page, totalPages, total int, f
 	return
 }
 
+// ToolsTimezoneRegions renders step 1 of the timezone picker: one
+// button per region, plus any top-level timezones (GMT, UTC) inline
+// below. No pagination — there are only ~12 regions.
+//
+// `current` is the currently-set timezone (shown in the header so the
+// user can see what they're changing from).
+func ToolsTimezoneRegions(current string, regions []TimezoneRegion, topLevels []TimezoneTopLevel) (text string, markup *models.InlineKeyboardMarkup) {
+	header := "🧭 *Set timezone*"
+	if current != "" {
+		header = fmt.Sprintf("🧭 *Set timezone*  ·  Current: `%s`", current)
+	}
+	text = header
+
+	rows := make([][]models.InlineKeyboardButton, 0, len(regions)+len(topLevels)+3)
+	for _, r := range regions {
+		rows = append(rows, []models.InlineKeyboardButton{{
+			Text:         fmt.Sprintf("%s (%d)", r.Slug, r.Count),
+			CallbackData: callbacks.Encode(callbacks.NSTools, "tz-region", r.Slug),
+		}})
+	}
+	for _, tl := range topLevels {
+		rows = append(rows, []models.InlineKeyboardButton{{
+			Text:         tl.Label,
+			CallbackData: callbacks.Encode(callbacks.NSTools, "tz-set", tl.ShortID),
+		}})
+	}
+	rows = append(rows, []models.InlineKeyboardButton{
+		{Text: "⌨ Type exact name", CallbackData: callbacks.Encode(callbacks.NSTools, "tz-type")},
+	})
+	rows = append(rows, []models.InlineKeyboardButton{
+		{Text: "🔄 Refresh", CallbackData: callbacks.Encode(callbacks.NSTools, "tz")},
+		{Text: "← Back", CallbackData: callbacks.Encode(callbacks.NSTools, "open")},
+	})
+	rows = append(rows, Nav())
+	markup = &models.InlineKeyboardMarkup{InlineKeyboard: rows}
+	return
+}
+
+// ToolsTimezoneCities renders step 2 of the timezone picker: a
+// paginated list of cities within a region. Each row is a tappable
+// button that applies the timezone via tz-set. Search and Type-exact
+// fallbacks live below the page nav. Filter (when active) carries
+// through Prev/Next via filterID, same pattern as ToolsShortcutsList.
+func ToolsTimezoneCities(region, current string, items []TimezoneListItem, page, totalPages, total int, filterID, filterTerm string) (text string, markup *models.InlineKeyboardMarkup) {
+	header := fmt.Sprintf("🧭 *%s*  ·  Page %d/%d  ·  %d timezone%s",
+		region, page+1, atLeastOne(totalPages), total, plural(total, "s"))
+	if filterTerm != "" {
+		header = fmt.Sprintf("🧭 *%s*  ·  Page %d/%d  ·  Filtered: `%s` · %d match%s",
+			region, page+1, atLeastOne(totalPages), filterTerm, total, plural(total, "es"))
+	}
+	if current != "" {
+		header += fmt.Sprintf("  ·  Current: `%s`", current)
+	}
+	if total == 0 {
+		header += "\n\n_No timezones found._"
+	}
+	text = header
+
+	rows := make([][]models.InlineKeyboardButton, 0, len(items)+5)
+	for _, it := range items {
+		rows = append(rows, []models.InlineKeyboardButton{{
+			Text:         it.Label,
+			CallbackData: callbacks.Encode(callbacks.NSTools, "tz-set", it.ShortID),
+		}})
+	}
+	if totalPages > 1 {
+		nav := make([]models.InlineKeyboardButton, 0, 2)
+		if page > 0 {
+			nav = append(nav, models.InlineKeyboardButton{
+				Text:         "← Prev",
+				CallbackData: callbacks.Encode(callbacks.NSTools, "tz-page", region, strconv.Itoa(page-1), filterIDArg(filterID)),
+			})
+		}
+		if page < totalPages-1 {
+			nav = append(nav, models.InlineKeyboardButton{
+				Text:         "Next →",
+				CallbackData: callbacks.Encode(callbacks.NSTools, "tz-page", region, strconv.Itoa(page+1), filterIDArg(filterID)),
+			})
+		}
+		if len(nav) > 0 {
+			rows = append(rows, nav)
+		}
+	}
+	rows = append(rows, []models.InlineKeyboardButton{
+		{Text: "🔍 Search", CallbackData: callbacks.Encode(callbacks.NSTools, "tz-search", region)},
+		{Text: "⌨ Type exact name", CallbackData: callbacks.Encode(callbacks.NSTools, "tz-type")},
+	})
+	rows = append(rows, []models.InlineKeyboardButton{
+		{Text: "← Back to regions", CallbackData: callbacks.Encode(callbacks.NSTools, "tz")},
+	})
+	rows = append(rows, Nav())
+	markup = &models.InlineKeyboardMarkup{InlineKeyboard: rows}
+	return
+}
+
+// FlagFromISO2 converts a 2-letter ISO 3166-1 alpha-2 country code
+// to a flag emoji using regional indicator symbols (each letter
+// becomes its corresponding 1F1E6–1F1FF code point). Returns "" for
+// non-2-char input or codes outside A–Z.
+func FlagFromISO2(code string) string {
+	if len(code) != 2 {
+		return ""
+	}
+	var r [2]rune
+	for i, c := range code {
+		if c < 'A' || c > 'Z' {
+			return ""
+		}
+		r[i] = 0x1F1E6 + rune(c-'A')
+	}
+	return string(r[:])
+}
+
 // TruncateShortcutLabel shortens a shortcut name to fit on a button
 // row; the full name is preserved in ShortMap. Rune-aware so
 // multi-byte names don't get cut mid-character.
@@ -172,11 +310,13 @@ func filterIDArg(filterID string) string {
 	return filterID
 }
 
-func maxInt(a, b int) int {
-	if a > b {
-		return a
+// atLeastOne returns 1 when n is below 1; used for "Page X/Y"
+// headers so we never render "Page 1/0".
+func atLeastOne(n int) int {
+	if n < 1 {
+		return 1
 	}
-	return b
+	return n
 }
 
 func plural(n int, suffix string) string {
