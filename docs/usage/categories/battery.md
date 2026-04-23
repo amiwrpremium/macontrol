@@ -9,7 +9,7 @@ No brew deps, no sudo.
 ⚡ Battery — 78% · charging · 1:12 remaining
 
 [ 🔄 Refresh ] [ 📊 Health ]
-[        🏠 Home            ]
+[ ← Back     ] [ 🏠 Home   ]
 ```
 
 The emoji in the header shifts based on state:
@@ -27,7 +27,8 @@ plugged/unplugged and want the dashboard to catch up.
 
 ### Health
 
-Queries `system_profiler SPPowerDataType` and renders:
+Queries `system_profiler SPPowerDataType` and renders a dedicated
+drill-down panel:
 
 ```text
 🔋 Battery health
@@ -36,7 +37,13 @@ Queries `system_profiler SPPowerDataType` and renders:
 • Cycle count: 312
 • Maximum capacity: 91%
 • Adapter: 70W
+
+[ 🔄 Refresh ] [ ← Back ]
+[        🏠 Home         ]
 ```
+
+Refresh re-runs the read. Back returns to the main Battery dashboard
+(without the Health text); Home returns to the home grid.
 
 What each field means:
 
@@ -47,9 +54,11 @@ What each field means:
 | Maximum capacity | Current full-charge capacity as a percent of original design capacity. Drops below 80% warrants replacement. |
 | Adapter | Wattage of the currently-connected charger, or empty if on battery. |
 
-### 🏠 Home
+### ← Back / 🏠 Home
 
-Edits to the inline home grid.
+Back returns to the home grid (same destination as Home for category
+dashboards). On the Health drill-down, Back returns to the main
+Battery dashboard.
 
 ## What's backing this
 

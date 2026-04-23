@@ -46,9 +46,19 @@ Inline keyboards are attached to a specific message. Properties:
 - **Stateful**: the message text always reflects current state. Tap
   `+1` and the header instantly updates to `61% · unmuted`.
 
-The 🏠 Home button is on the last row of every leaf dashboard. Tapping
-it edits the message back to a home grid (a 3×N inline keyboard with
-all 10 categories) so you can navigate without sending `/menu` again.
+Every nested menu carries a `[← Back] [🏠 Home]` row at the bottom:
+
+- **🏠 Home** edits the message back to the home grid (a 3×N inline
+  keyboard with all 10 categories). Always present.
+- **← Back** edits the message to the immediate parent. On a
+  category dashboard (one level deep), the parent IS the home grid,
+  so Back goes there too — slightly redundant but kept for
+  consistency. On a drill-down (e.g. Battery Health, Wi-Fi Info,
+  System → Memory), Back goes to the category dashboard you came
+  from.
+
+Drill-down panels also surface a `🔄 Refresh` button alongside Back so
+you can re-sample the same view without leaving it.
 
 ### Refresh
 
@@ -106,7 +116,9 @@ This will affect your Mac immediately. Tap Confirm to proceed.
 ```
 
 - **Confirm** runs the action.
-- **Cancel** edits the message back to the home grid via `nav:home`.
+- **Cancel** edits the message back to the **parent dashboard**
+  (e.g. Cancel from a Power confirm returns to Power, not Home; Cancel
+  from a System → Force Kill confirm returns to the per-process page).
 
 There's no time-out on the confirm step — if you don't want to commit,
 just don't tap Confirm. The bot doesn't ask twice.

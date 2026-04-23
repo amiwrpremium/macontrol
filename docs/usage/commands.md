@@ -40,6 +40,15 @@ message.
 Use when: first time, or whenever you want a fresh home grid (e.g.
 after scrolling away from a previous one).
 
+### Legacy reply-keyboard cleanup
+
+Both `/start` and `/menu` (and the daemon's boot ping) also send a
+throwaway clear-keyboard message that is immediately deleted. This
+clears any persistent reply keyboard left over from pre-v0.1.4
+clients (when macontrol still rendered a bottom-of-input button bar).
+On modern installs you won't see anything — the throwaway flashes
+and disappears within milliseconds.
+
 ## /status
 
 ```text
@@ -55,8 +64,12 @@ and wifi services, plus an inline home grid for navigation:
 • macOS 15.3 on MacBookPro18,3 (tower.local)
 • 🔋 78% · charging
 • 📶 Wi-Fi on · SSID home
-• 10:22 up 6 days, 3:14, 4 users, load averages: 0.92 0.87 0.85
+• ⏱ up 6 days, 3h 14m
 ```
+
+The uptime line is parsed from `uptime` — Duration is rewritten as
+`Xh Ym`. Tap **🖥 System → ℹ Info** for the full per-core load
+breakdown.
 
 Use when: you want a quick snapshot without navigating menus. Handy
 for "is my Mac OK right now?" checks.

@@ -119,13 +119,19 @@ runs `caffeinate -d -t <seconds>`.
 
 Action menu with read-only info and one destructive action:
 
-- **ℹ Info** → OS + hardware summary
+- **ℹ Info** → OS + hardware summary; uptime, logged-in users, and
+  load average parsed into labelled bullets with per-core %.
 - **🌡 Temperature** → thermal pressure (Nominal / Moderate / Heavy)
-  and, if `smctemp` is installed, CPU and GPU °C
-- **🧠 Memory** → memory pressure summary
-- **⚙ CPU** → load average and top CPU header
-- **📋 Top 10 processes** → PID / %CPU / %MEM / command
-- **🔪 Kill process…** → starts a flow; you send a PID or a name
+  and, if `smctemp` is installed, CPU and GPU °C.
+- **🧠 Memory** → labelled bullets (Used / Wired / Compressed / Swap /
+  Pressure) plus a top-3 RAM hogs list.
+- **⚙ CPU** → labelled busy/user/kernel/idle %, load avg with
+  per-core %, plus a top-3 CPU hogs list.
+- **📋 Top 10 processes** → tappable buttons. Tap a process to drill
+  into a per-process page with **🔪 Kill (SIGTERM)** and
+  **💀 Force Kill (SIGKILL, confirmed)**.
+- **🔪 Kill process…** → typed-PID flow for processes that aren't in
+  the current Top 10.
 
 ## 📸 Media
 
@@ -161,9 +167,11 @@ Grab-bag:
 
 ## Navigating between dashboards
 
-Every inline keyboard has a **🏠 Home** button in the last row. Tapping
-it edits the message back to the inline home grid, from which you can
-enter any category again.
+Every nested screen has a **`[← Back] [🏠 Home]`** row at the bottom.
+**Back** edits the message to the immediate parent (e.g. the category
+dashboard you came from); **Home** edits to the inline home grid. On
+a one-level-deep menu the two destinations are the same — Back is
+present anyway for consistency.
 
 ## What to do next
 

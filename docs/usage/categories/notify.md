@@ -14,7 +14,7 @@ Push a desktop notification to your Mac, or speak text through TTS.
 
 [ ✉ Send notification… ]
 [ 🗣 Say…                ]
-[        🏠 Home          ]
+[ ← Back ] [ 🏠 Home ]
 ```
 
 ## Flows

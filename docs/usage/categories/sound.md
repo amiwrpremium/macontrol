@@ -12,7 +12,7 @@ All of this is driven by `osascript`, so no brew dependencies.
 [          Set exact value…           ]
 [            🔊 MAX (100)             ]
 [   🔄 Refresh   ]
-[          🏠 Home                    ]
+[ ← Back ] [ 🏠 Home ]
 ```
 
 Header reflects the most recent read from `osascript -e "output volume
