@@ -7,6 +7,15 @@ exclude_paths:
   - "**/*.pb.go"
   - "**/zz_generated_*.go"
 
+engines:
+  # Cyclomatic-complexity metrics on test files are noise: table-driven
+  # tests with one assertion per case trip the limit without meaning
+  # anything about the code under test. Keep Lizard running on
+  # production code.
+  lizard:
+    exclude_paths:
+      - "**/*_test.go"
+
 languages:
   go:
     enabled: true
