@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/amiwrpremium/macontrol/compare/v0.2.2...v0.2.3) (2026-04-23)
+
+
+### Bug Fixes
+
+* **wifi:** extend Speedtest timeout to 60s (networkQuality needs &gt; 15s) ([#50](https://github.com/amiwrpremium/macontrol/issues/50)) ([5a3dbd1](https://github.com/amiwrpremium/macontrol/commit/5a3dbd18f8d2a8b923e50225ad214aa3c0b5cc23))
+
 ## [0.2.2](https://github.com/amiwrpremium/macontrol/compare/v0.2.1...v0.2.2) (2026-04-22)
 
 
