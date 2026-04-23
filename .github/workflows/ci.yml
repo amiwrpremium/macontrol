@@ -56,6 +56,21 @@ jobs:
         run: |
           go install github.com/vladopajic/go-test-coverage/v2@latest
           go-test-coverage --config=./.testcoverage.yml
+      - name: Upload coverage to Codecov
+        if: matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.out
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+      - name: Upload coverage to Codacy
+        if: matrix.os == 'ubuntu-latest' && env.CODACY_PROJECT_TOKEN != ''
+        env:
+          CODACY_PROJECT_TOKEN: ${{ secrets.CODACY_PROJECT_TOKEN }}
+        uses: codacy/codacy-coverage-reporter-action@v1
+        with:
+          project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
+          coverage-reports: coverage.out
 
   build:
     name: Build (darwin/arm64)
