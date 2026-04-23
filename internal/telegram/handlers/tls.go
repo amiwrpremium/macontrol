@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-telegram/bot/models"
 
+	"github.com/amiwrpremium/macontrol/internal/domain/tools"
 	"github.com/amiwrpremium/macontrol/internal/telegram/bot"
 	"github.com/amiwrpremium/macontrol/internal/telegram/callbacks"
 	"github.com/amiwrpremium/macontrol/internal/telegram/flows"
@@ -70,13 +71,65 @@ func handleTools(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data
 		if err != nil {
 			return errEdit(ctx, r, q, "💿 *Disks* — unavailable", err)
 		}
-		var b strings.Builder
-		fmt.Fprintf(&b, "%-12s %-8s %-8s %-4s %s\n", "FS", "Size", "Used", "Cap", "Mount")
+		rows := make([]keyboards.ToolsDiskRow, 0, len(vols))
 		for _, v := range vols {
-			fmt.Fprintf(&b, "%-12s %-8s %-8s %-4s %s\n", v.Filesystem, v.Size, v.Used, v.Capacity, v.MountedOn)
+			rows = append(rows, keyboards.ToolsDiskRow{
+				Mount:    v.MountedOn,
+				Size:     v.Size,
+				Capacity: v.Capacity,
+				ShortID:  d.ShortMap.Put(v.MountedOn),
+			})
 		}
-		_, kb := keyboards.Tools(d.Capability.Features)
-		return r.Edit(ctx, q, "💿 *Disks*\n"+Code(b.String()), kb)
+		body := "💿 *Disks*\n\nTap a disk for actions."
+		if len(rows) == 0 {
+			body = "💿 *Disks*\n\n_No user-facing volumes mounted._"
+		}
+		return r.Edit(ctx, q, body, keyboards.ToolsDisksList(rows))
+
+	case "disk":
+		r.Ack(ctx, q)
+		mount, ok := resolveDiskMount(d, data)
+		if !ok {
+			return errEdit(ctx, r, q, "💿 *Disk*", fmt.Errorf("session expired — refresh the disks list"))
+		}
+		info, err := svc.DiskInfo(ctx, mount)
+		if err != nil {
+			return errEdit(ctx, r, q, fmt.Sprintf("💿 *%s* — diskutil failed", mount), err)
+		}
+		body := buildDiskPanel(mount, info)
+		return r.Edit(ctx, q, body, keyboards.ToolsDiskPanel(data.Args[0], info.Removable))
+
+	case "disk-open":
+		mount, ok := resolveDiskMount(d, data)
+		if !ok {
+			return errEdit(ctx, r, q, "📂 *Open*", fmt.Errorf("session expired — refresh the disks list"))
+		}
+		if err := svc.OpenInFinder(ctx, mount); err != nil {
+			return errEdit(ctx, r, q, fmt.Sprintf("📂 *Open %s* — failed", mount), err)
+		}
+		r.Toast(ctx, q, "Opened in Finder.")
+		return nil
+
+	case "disk-eject":
+		mount, ok := resolveDiskMount(d, data)
+		if !ok {
+			return errEdit(ctx, r, q, "⏏ *Eject*", fmt.Errorf("session expired — refresh the disks list"))
+		}
+		if err := svc.EjectDisk(ctx, mount); err != nil {
+			return errEdit(ctx, r, q, fmt.Sprintf("⏏ *Eject %s* — failed", mount), err)
+		}
+		r.Toast(ctx, q, "Ejected — re-rendering disks list.")
+		// Re-fetch the list (the ejected disk should be gone).
+		vols, _ := svc.DisksList(ctx)
+		rows := make([]keyboards.ToolsDiskRow, 0, len(vols))
+		for _, v := range vols {
+			rows = append(rows, keyboards.ToolsDiskRow{
+				Mount: v.MountedOn, Size: v.Size, Capacity: v.Capacity,
+				ShortID: d.ShortMap.Put(v.MountedOn),
+			})
+		}
+		return r.Edit(ctx, q, fmt.Sprintf("💿 *Disks*\n\n_Ejected `%s`._", mount),
+			keyboards.ToolsDisksList(rows))
 
 	case "shortcut":
 		if !d.Capability.Features.Shortcuts {
@@ -91,4 +144,65 @@ func handleTools(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data
 	}
 	r.Toast(ctx, q, "Unknown tools action.")
 	return nil
+}
+
+// resolveDiskMount looks up data.Args[0] (a ShortMap id) and returns
+// the original mount path. Returns ok=false if the id is missing or
+// expired (15-min TTL — user kept a stale dashboard open).
+func resolveDiskMount(d *bot.Deps, data callbacks.Data) (string, bool) {
+	if len(data.Args) == 0 {
+		return "", false
+	}
+	return d.ShortMap.Get(data.Args[0])
+}
+
+// buildDiskPanel renders the per-disk drill-down body. Falls back to
+// a minimal text + raw diskutil block if parsing didn't capture the
+// labelled fields.
+func buildDiskPanel(mount string, info tools.DiskDetails) string {
+	var b strings.Builder
+	name := info.VolumeName
+	if name == "" {
+		name = mount
+	}
+	fmt.Fprintf(&b, "💿 *%s*", name)
+	if info.DiskSize != "" {
+		fmt.Fprintf(&b, " — `%s` total", info.DiskSize)
+	}
+	b.WriteString("\n")
+
+	if info.UsedSpace != "" || info.FreeSpace != "" {
+		fmt.Fprintf(&b, "Used: `%s` · Free: `%s`\n", nonEmpty(info.UsedSpace), nonEmpty(info.FreeSpace))
+	}
+	if info.FSType != "" || info.Device != "" {
+		fmt.Fprintf(&b, "FS: `%s` · Device: `%s`\n", nonEmpty(info.FSType), nonEmpty(info.Device))
+	}
+	location := "Internal"
+	if !info.Internal {
+		location = "External"
+	}
+	media := "Fixed"
+	if info.Removable {
+		media = "Removable"
+	}
+	storage := ""
+	if info.SolidState {
+		storage = " · SSD"
+	}
+	fmt.Fprintf(&b, "_%s · %s%s_", location, media, storage)
+	if info.ReadOnly {
+		b.WriteString(" · _read-only_")
+	}
+	if info.VolumeName == "" && info.DiskSize == "" {
+		// Parser saw nothing useful — surface the raw diskutil text.
+		b.WriteString("\n\n" + Code(truncate(info.Raw, 1500)))
+	}
+	return b.String()
+}
+
+func nonEmpty(s string) string {
+	if s == "" {
+		return "?"
+	}
+	return s
 }

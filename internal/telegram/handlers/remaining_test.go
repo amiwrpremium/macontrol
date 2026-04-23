@@ -826,13 +826,149 @@ func TestTls_SyncTime(t *testing.T) {
 	}
 }
 
-func TestTls_Disks(t *testing.T) {
+func TestTls_Disks_RendersPerDiskButtons(t *testing.T) {
 	t.Parallel()
 	h := newHarness(t)
-	h.Fake.On("df -h", "Filesystem Size Used Avail Cap iused ifree %iused Mounted on\n/dev/disk1s1 200G 100G 100G 50% 0 0 0% /\n", nil)
+	// Mix of system noise and a real /Volumes/* mount; only / and
+	// /Volumes/Backup should land as buttons.
+	h.Fake.On("df -h",
+		"Filesystem        Size    Used   Avail Capacity iused ifree %iused  Mounted on\n"+
+			"/dev/disk3s1s1   460Gi    17Gi    13Gi    57%    447k  135M    0%   /\n"+
+			"devfs            221Ki   221Ki     0Bi   100%     766     0  100%   /dev\n"+
+			"/dev/disk3s5     460Gi   409Gi    13Gi    97%    3.2M  135M    2%   /System/Volumes/Data\n"+
+			"/dev/disk2s1     500Gi   300Gi   200Gi    60%    5.0k   10k   33%   /Volumes/Backup\n", nil)
 	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
 		newCallbackUpdate("id", "tls:disks")); err != nil {
 		t.Fatal(err)
+	}
+	last := h.Recorder.Last()
+	if !strings.Contains(last.Fields["text"], "Tap a disk for actions") {
+		t.Errorf("text = %q", last.Fields["text"])
+	}
+	kb := telegramtest.MustDecodeInlineKeyboard(t, last)
+	// Expect exactly two disk-button rows (one each for / and /Volumes/Backup),
+	// each routing to tls:disk:<shortID>.
+	diskRows := 0
+	for _, row := range kb.InlineKeyboard {
+		for _, btn := range row {
+			if strings.HasPrefix(btn.CallbackData, "tls:disk:") &&
+				!strings.HasPrefix(btn.CallbackData, "tls:disk-") {
+				diskRows++
+			}
+		}
+	}
+	if diskRows != 2 {
+		t.Errorf("expected 2 disk buttons (one for / and one for /Volumes/Backup), got %d", diskRows)
+	}
+}
+
+func TestTls_DiskDrillDown_ParsesAndRenders(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	// Stash the mount in the shortmap so the drill-down can resolve it.
+	id := h.Deps.ShortMap.Put("/Volumes/USB")
+	h.Fake.On("diskutil info /Volumes/USB",
+		"   Volume Name:               BACKUP\n"+
+			"   Mount Point:               /Volumes/USB\n"+
+			"   Device Node:               /dev/disk5s1\n"+
+			"   File System Personality:   ExFAT\n"+
+			"   Disk Size:                 64.0 GB (64000000000 Bytes)\n"+
+			"   Volume Used Space:         10.0 GB (10000000000 Bytes)\n"+
+			"   Container Free Space:      54.0 GB (54000000000 Bytes)\n"+
+			"   Removable Media:           Removable\n"+
+			"   Device Location:           External\n"+
+			"   Solid State:               No\n", nil)
+	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "tls:disk:"+id)); err != nil {
+		t.Fatal(err)
+	}
+	last := h.Recorder.Last()
+	text := last.Fields["text"]
+	for _, want := range []string{"BACKUP", "64.0 GB", "ExFAT", "/dev/disk5s1", "External", "Removable"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("drill-down missing %q; got %q", want, text)
+		}
+	}
+	// Removable disk → Eject button must be present.
+	kb := telegramtest.MustDecodeInlineKeyboard(t, last)
+	hasEject := false
+	for _, row := range kb.InlineKeyboard {
+		for _, btn := range row {
+			if strings.Contains(btn.Text, "Eject") {
+				hasEject = true
+			}
+		}
+	}
+	if !hasEject {
+		t.Error("removable disk drill-down should expose ⏏ Eject")
+	}
+}
+
+func TestTls_DiskDrillDown_FixedDiskHidesEject(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	id := h.Deps.ShortMap.Put("/")
+	h.Fake.On("diskutil info /",
+		"   Volume Name:               Macintosh HD\n"+
+			"   Mount Point:               /\n"+
+			"   Removable Media:           Fixed\n"+
+			"   Device Location:           Internal\n", nil)
+	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "tls:disk:"+id)); err != nil {
+		t.Fatal(err)
+	}
+	kb := telegramtest.MustDecodeInlineKeyboard(t, h.Recorder.Last())
+	for _, row := range kb.InlineKeyboard {
+		for _, btn := range row {
+			if strings.Contains(btn.Text, "Eject") {
+				t.Error("fixed (non-removable) disk must NOT expose ⏏ Eject")
+			}
+		}
+	}
+}
+
+func TestTls_DiskOpen_InvokesOpenCmd(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	id := h.Deps.ShortMap.Put("/Volumes/USB")
+	h.Fake.On("open /Volumes/USB", "", nil)
+	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "tls:disk-open:"+id)); err != nil {
+		t.Fatal(err)
+	}
+	// Toast (answerCallbackQuery) is the only side-effect for this action.
+	if len(h.Recorder.ByMethod("answerCallbackQuery")) == 0 {
+		t.Fatal("expected a toast acknowledging the open")
+	}
+}
+
+func TestTls_DiskEject_InvokesEjectAndRerendersList(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	id := h.Deps.ShortMap.Put("/Volumes/USB")
+	h.Fake.
+		On("diskutil eject /Volumes/USB", "", nil).
+		On("df -h",
+			"Filesystem      Size  Used Avail Cap iused ifree %iused  Mounted on\n"+
+				"/dev/disk1s1   200G  100G  100G 50% 0 0 0% /\n", nil)
+	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "tls:disk-eject:"+id)); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "Ejected") {
+		t.Errorf("expected 'Ejected …' in re-rendered text; got %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
+func TestTls_Disk_ExpiredShortMap_FailsCleanly(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "tls:disk:nonexistent-id")); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "session expired") {
+		t.Errorf("expected 'session expired' message; got %q", h.Recorder.Last().Fields["text"])
 	}
 }
 

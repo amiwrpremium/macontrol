@@ -93,21 +93,53 @@ the network off).
 
 ### 💿 Disks
 
+Filtered to user-facing mounts only — `/` (root) and `/Volumes/*`
+(external drives, mounted DMGs). Everything else (devfs,
+`/System/Volumes/*`, `/Library/Developer/CoreSimulator/*`, etc.) is
+hidden — it's noise for a remote-control bot.
+
 Panel:
 
 ```text
 💿 Disks
+
+Tap a disk for actions.
+
+[       /        · 460Gi · 54% used ]
+[ /Volumes/Backup · 2Ti  · 38% used ]
+[ 🔄 Refresh ] [ ← Back ]
+[          🏠 Home          ]
 ```
+
+Each row is a tappable button — drills into a per-disk page:
+
 ```text
-FS            Size     Used     Cap  Mount
-/dev/disk1s1  228Gi    140Gi    64%  /
-/dev/disk2s1  500Gi    300Gi    60%  /Volumes/External
+💿 Macintosh HD — 494.4 GB total
+Used: 17.9 GB · Free: 13.8 GB
+FS: APFS · Device: /dev/disk3s1s1
+Internal · Fixed · SSD · read-only
+
+[ 📂 Open in Finder ] [ ⏏ Eject ]
+[ 🔄 Refresh ] [ ← Back to Disks ]
+[          🏠 Home              ]
 ```
 
-Filters out devfs, VM mounts, and system-only paths. Shows user-facing
-volumes (root, external drives, mounted DMGs).
+- **📂 Open in Finder** runs `open <mount>` — reveals the volume in
+  Finder on the Mac.
+- **⏏ Eject** runs `diskutil eject <mount>`. **Only shown for
+  removable volumes** (`Removable Media: Removable` per
+  `diskutil info`). Root and other fixed disks don't get the
+  button — accidentally ejecting `/` would be a bad day.
+- After a successful eject, the disks list re-renders without the
+  ejected volume.
 
-Backing: `df -h`.
+Backing: `df -h` for the list, `diskutil info` for the per-disk
+details, `diskutil eject` and `open` for the actions.
+
+Mount paths are stored server-side in a 15-min TTL shortmap so long
+`/Volumes/Foo Bar/` paths fit Telegram's 64-byte callback_data
+limit. If you leave a disk dashboard open longer than 15 minutes and
+tap a button, you'll get "session expired — refresh the disks list".
 
 ### ⚡ Run Shortcut… (macOS 13+, flow)
 
