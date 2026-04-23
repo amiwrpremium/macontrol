@@ -18,9 +18,14 @@ func New(r runner.Runner) *Service { return &Service{r: r} }
 
 // ScreenshotOpts tunes `screencapture`.
 type ScreenshotOpts struct {
-	Display int  // 0 = all, 1/2/… = specific display
-	Silent  bool // suppress shutter sound
-	Delay   int  // seconds before capture (0 = immediate)
+	// Display selects which display to capture: 0 for every attached
+	// display, 1/2/… for a specific one.
+	Display int
+	// Silent suppresses the shutter sound by passing `-x`.
+	Silent bool
+	// Delay is the countdown in seconds before the capture fires;
+	// 0 means capture immediately.
+	Delay int
 }
 
 // Screenshot captures the screen to a fresh temp file. The returned path is

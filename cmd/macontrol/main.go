@@ -1,7 +1,3 @@
-// Command macontrol is the single binary that ships to macOS: it runs the
-// Telegram bot daemon (`macontrol run`) and also provides the
-// `setup`/`service`/`doctor` helpers used by the Homebrew formula and the
-// manual-install script.
 package main
 
 import (

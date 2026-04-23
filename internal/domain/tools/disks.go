@@ -8,30 +8,54 @@ import (
 
 // DiskVolume is a mounted filesystem (one row of `df -h`, parsed).
 type DiskVolume struct {
+	// Filesystem is the device path from `df`, e.g. "/dev/disk3s1s1".
 	Filesystem string
-	Size       string
-	Used       string
-	Available  string
-	Capacity   string
-	MountedOn  string
+	// Size is the human-readable total size column.
+	Size string
+	// Used is the human-readable used-bytes column.
+	Used string
+	// Available is the human-readable free-bytes column.
+	Available string
+	// Capacity is the percent-used column, e.g. "42%".
+	Capacity string
+	// MountedOn is the mount point, e.g. "/" or "/Volumes/Backup".
+	MountedOn string
 }
 
 // DiskDetails is the per-disk drill-down view, parsed from
 // `diskutil info <mount>`. Empty fields mean diskutil didn't expose
 // that line on this Mac / for this volume.
 type DiskDetails struct {
-	VolumeName string // e.g. "Macintosh HD"
-	MountPoint string // e.g. "/"
-	Device     string // e.g. "/dev/disk3s1s1"
-	FSType     string // e.g. "APFS"
-	DiskSize   string // e.g. "494.4 GB"
-	UsedSpace  string
-	FreeSpace  string
-	Removable  bool   // Removable Media: Removable
-	Internal   bool   // Device Location: Internal
-	ReadOnly   bool   // Volume Read-Only: Yes…
-	SolidState bool   // Solid State: Yes
-	Raw        string // full diskutil output for fallback
+	// VolumeName is the user-visible volume name, e.g. "Macintosh HD".
+	VolumeName string
+	// MountPoint is the mount path, e.g. "/".
+	MountPoint string
+	// Device is the device node, e.g. "/dev/disk3s1s1".
+	Device string
+	// FSType is the filesystem personality reported by diskutil,
+	// e.g. "APFS".
+	FSType string
+	// DiskSize is the total capacity string with trailing byte
+	// counts stripped, e.g. "494.4 GB".
+	DiskSize string
+	// UsedSpace is the used portion of the APFS container, stripped
+	// of the trailing byte count.
+	UsedSpace string
+	// FreeSpace is the container-wide free space, stripped of the
+	// trailing byte count.
+	FreeSpace string
+	// Removable is true when diskutil reports "Removable Media:
+	// Removable".
+	Removable bool
+	// Internal is true when diskutil reports "Device Location:
+	// Internal".
+	Internal bool
+	// ReadOnly is true when diskutil reports "Volume Read-Only: Yes…".
+	ReadOnly bool
+	// SolidState is true when diskutil reports "Solid State: Yes".
+	SolidState bool
+	// Raw is the full `diskutil info` output for fallback display.
+	Raw string
 }
 
 // DisksList returns user-facing mounts only: the root volume "/" and

@@ -7,11 +7,15 @@ import (
 	"strings"
 )
 
-// Process is a single row from `ps`.
+// Process is a single row from `ps -Ao pid,pcpu,pmem,comm`.
 type Process struct {
-	PID     int
-	CPU     float64 // %
-	Mem     float64 // %
+	// PID is the kernel process identifier.
+	PID int
+	// CPU is the current %CPU reported by `ps`.
+	CPU float64
+	// Mem is the current %MEM reported by `ps`.
+	Mem float64
+	// Command is the process short name (pcomm) joined on spaces.
 	Command string
 }
 

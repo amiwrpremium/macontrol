@@ -24,7 +24,11 @@ import (
 // Service identifiers used by macontrol. Exposed so callers don't need
 // to hardcode the strings. They're bundle-style names, not credentials.
 const (
-	ServiceToken     = "com.amiwrpremium.macontrol"           // #nosec G101 -- not a credential
+	// ServiceToken is the Keychain service identifier for the
+	// Telegram bot token.
+	ServiceToken = "com.amiwrpremium.macontrol" // #nosec G101 -- not a credential
+	// ServiceWhitelist is the Keychain service identifier for the
+	// comma-separated list of whitelisted Telegram user IDs.
 	ServiceWhitelist = "com.amiwrpremium.macontrol.whitelist" // #nosec G101 -- not a credential
 )
 

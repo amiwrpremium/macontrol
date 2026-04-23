@@ -18,21 +18,44 @@ import (
 // (fallback, no sudo). They may be empty / zero if neither source
 // could be queried.
 type Info struct {
-	Interface  string  // e.g. "en0"
-	PowerOn    bool    //
-	SSID       string  // empty if not joined or Wi-Fi off
-	BSSID      string  // AP MAC, e.g. "aa:bb:cc:dd:ee:ff"
-	RSSI       int     // signal strength in dBm (negative; 0 = unknown)
-	Security   string  // e.g. "WPA2 Personal", "WPA/WPA2 Personal", "Open"
-	TxRateMbps float64 // current PHY link rate in Mbps; 0 = unknown
-	Channel    string  // e.g. "2g3/20" (wdutil) or "3 (2GHz, 20MHz)" (system_profiler)
+	// Interface is the kernel-visible Wi-Fi device name, typically
+	// "en0" on Apple Silicon and Intel laptops alike.
+	Interface string
+	// PowerOn is true when the radio is on. Reported by
+	// `networksetup -getairportpower`.
+	PowerOn bool
+	// SSID is the joined network name; empty when not associated
+	// or when Wi-Fi is off.
+	SSID string
+	// BSSID is the access-point MAC address, e.g. "aa:bb:cc:dd:ee:ff".
+	// Zero-valued when the active source (wdutil/system_profiler)
+	// could not report it.
+	BSSID string
+	// RSSI is the signal strength in dBm; values are negative in normal
+	// operation (a healthy link is in the -40 to -70 range). Zero means
+	// unknown, not 0 dBm.
+	RSSI int
+	// Security is the authentication mode string reported by macOS,
+	// e.g. "WPA2 Personal", "WPA/WPA2 Personal", or "Open".
+	Security string
+	// TxRateMbps is the current physical link rate in megabits per
+	// second; zero means unknown.
+	TxRateMbps float64
+	// Channel is the operating channel in the format produced by the
+	// source, e.g. "2g3/20" (wdutil) or "3 (2GHz, 20MHz)"
+	// (system_profiler).
+	Channel string
 }
 
 // SpeedResult carries a round of `networkQuality`.
 type SpeedResult struct {
+	// DownloadMbps is the downlink capacity reported by `networkQuality`.
 	DownloadMbps float64
-	UploadMbps   float64
-	Raw          string // full raw output (we display it verbatim for now)
+	// UploadMbps is the uplink capacity reported by `networkQuality`.
+	UploadMbps float64
+	// Raw is the full verbatim output of `networkQuality -v` for
+	// fallback display when parsing misses a field.
+	Raw string
 }
 
 // Service controls Wi-Fi.

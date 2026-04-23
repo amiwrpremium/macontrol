@@ -13,9 +13,14 @@ const MaxCallbackDataBytes = 64
 
 // Data is the parsed form of a callback_data string.
 type Data struct {
-	Namespace string   // e.g. "snd"
-	Action    string   // e.g. "up"
-	Args      []string // zero or more positional args
+	// Namespace is the namespace prefix, e.g. "snd" for the sound
+	// handler.
+	Namespace string
+	// Action is the verb inside the namespace, e.g. "up".
+	Action string
+	// Args carries zero or more colon-separated positional args
+	// pulled from the remainder of the callback data.
+	Args []string
 }
 
 // Encode renders the Data back to a string, panicking if the result would
@@ -54,17 +59,34 @@ func Decode(raw string) (Data, error) {
 
 // Namespace constants are used both for encoding and routing.
 const (
-	NSSound   = "snd"
+	// NSSound is the namespace for volume/mute/say callbacks.
+	NSSound = "snd"
+	// NSDisplay is the namespace for brightness callbacks.
 	NSDisplay = "dsp"
-	NSPower   = "pwr"
-	NSWifi    = "wif"
-	NSBT      = "bt"
+	// NSPower is the namespace for sleep/lock/restart/shutdown/
+	// caffeinate callbacks.
+	NSPower = "pwr"
+	// NSWifi is the namespace for Wi-Fi state, join, and DNS
+	// callbacks.
+	NSWifi = "wif"
+	// NSBT is the namespace for Bluetooth callbacks.
+	NSBT = "bt"
+	// NSBattery is the namespace for battery status callbacks.
 	NSBattery = "bat"
-	NSSystem  = "sys"
-	NSMedia   = "med"
-	NSNotify  = "ntf"
-	NSTools   = "tls"
-	NSNav     = "nav"
+	// NSSystem is the namespace for system info, memory, CPU, and
+	// process callbacks.
+	NSSystem = "sys"
+	// NSMedia is the namespace for screenshot/record/photo callbacks.
+	NSMedia = "med"
+	// NSNotify is the namespace for desktop-notification and say
+	// callbacks.
+	NSNotify = "ntf"
+	// NSTools is the namespace for clipboard, timezone, disks, and
+	// Shortcuts callbacks.
+	NSTools = "tls"
+	// NSNav is the namespace for cross-cutting navigation (back
+	// to home, refresh).
+	NSNav = "nav"
 )
 
 // AllNamespaces is used by tests to ensure every NS has a registered handler.

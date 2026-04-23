@@ -13,15 +13,28 @@ import (
 // when unknown. Raw preserves the `top` PhysMem line for fallback
 // rendering.
 type Memory struct {
-	UsedBytes       uint64
-	WiredBytes      uint64
-	CompressedBytes uint64 // 0 on macOS without a compressor breakdown
-	UnusedBytes     uint64
-	FreePercent     int // -1 if unknown; 0..100 otherwise
-	SwapUsedBytes   uint64
-	SwapTotalBytes  uint64
-	TopByMem        []Process // up to N entries by RAM; nil if `ps` failed
-	Raw             string    // raw PhysMem line, fallback display
+	// UsedBytes is the "used" byte count from `top`'s PhysMem line.
+	UsedBytes uint64
+	// WiredBytes is the kernel-wired byte count; 0 when not reported.
+	WiredBytes uint64
+	// CompressedBytes is the compressor byte count; 0 on macOS
+	// versions or loads that don't emit a compressor breakdown.
+	CompressedBytes uint64
+	// UnusedBytes is the "unused" byte count from the PhysMem line.
+	UnusedBytes uint64
+	// FreePercent is the system-wide free-memory percentage from
+	// `memory_pressure`; -1 when unknown, 0..100 otherwise.
+	FreePercent int
+	// SwapUsedBytes is the active swap size from `sysctl vm.swapusage`.
+	SwapUsedBytes uint64
+	// SwapTotalBytes is the total swap size from `sysctl vm.swapusage`.
+	SwapTotalBytes uint64
+	// TopByMem is up to N processes sorted by RAM%; nil when `ps`
+	// failed.
+	TopByMem []Process
+	// Raw is the raw `top` PhysMem line, kept for fallback display
+	// when parsing fails.
+	Raw string
 }
 
 // Memory reads a parsed memory snapshot. Best-effort: any source

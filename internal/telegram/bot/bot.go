@@ -28,33 +28,65 @@ import (
 
 // Services bundles every domain Service the bot may call into.
 type Services struct {
-	Sound     *sound.Service
-	Display   *display.Service
-	Power     *power.Service
-	Battery   *battery.Service
-	WiFi      *wifi.Service
+	// Sound drives volume, mute, and say.
+	Sound *sound.Service
+	// Display drives brightness.
+	Display *display.Service
+	// Power drives sleep, lock, restart, shutdown, caffeinate.
+	Power *power.Service
+	// Battery reads charge state and long-term health.
+	Battery *battery.Service
+	// WiFi controls the Wi-Fi radio, join, and speedtest.
+	WiFi *wifi.Service
+	// Bluetooth controls the Bluetooth radio and device pairing
+	// via `blueutil`.
 	Bluetooth *bluetooth.Service
-	System    *system.Service
-	Media     *media.Service
-	Notify    *notify.Service
-	Tools     *tools.Service
-	Status    *status.Service
+	// System reads OS/hardware info, memory, CPU, processes.
+	System *system.Service
+	// Media captures screenshots, screen recordings, and webcam
+	// photos.
+	Media *media.Service
+	// Notify sends desktop notifications and uses `say` for
+	// text-to-speech.
+	Notify *notify.Service
+	// Tools groups clipboard, timezone, disks, and Shortcuts.
+	Tools *tools.Service
+	// Status composes the dashboard snapshot.
+	Status *status.Service
 }
 
 // Deps bundles everything a handler may need: the underlying bot client
 // (for replies, edits, answerCallbackQuery), the logger, and the capability
 // report gathered at startup.
 type Deps struct {
-	Bot        *tgbot.Bot
-	Logger     *slog.Logger
-	Whitelist  Whitelist
-	Commands   Router
-	Calls      Router
-	Flows      FlowManager
-	Services   Services
+	// Bot is the go-telegram client; populated by [Start] on
+	// connect. Handlers may assume non-nil.
+	Bot *tgbot.Bot
+	// Logger is the structured logger; never nil.
+	Logger *slog.Logger
+	// Whitelist enforces the "is this user allowed" gate on every
+	// incoming update.
+	Whitelist Whitelist
+	// Commands dispatches `/…` slash-command messages.
+	Commands Router
+	// Calls dispatches inline-keyboard callback queries.
+	Calls Router
+	// Flows is the narrow [FlowManager] interface used by the
+	// dispatcher; FlowReg holds the full registry for callers that
+	// need Install/Cancel outside the dispatch path.
+	Flows FlowManager
+	// Services holds the per-domain Service instances used by
+	// handlers and flows.
+	Services Services
+	// Capability is the boot-time detection result; handlers use
+	// it to hide features that require a newer macOS.
 	Capability capability.Report
-	ShortMap   *callbacks.ShortMap
-	FlowReg    *flows.Registry
+	// ShortMap stores callback-data overflow values keyed by short
+	// opaque ids.
+	ShortMap *callbacks.ShortMap
+	// FlowReg is the concrete flow registry; exposed so command
+	// handlers can Install / Cancel flows directly.
+	FlowReg *flows.Registry
 }
 
 // Router dispatches one kind of Update to the right handler.

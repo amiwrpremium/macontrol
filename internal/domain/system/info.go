@@ -1,5 +1,3 @@
-// Package system exposes read-only macOS inspection — OS version, hardware
-// model, memory, CPU, running processes.
 package system
 
 import (
@@ -16,25 +14,47 @@ import (
 // populated; the rest are zero-valued when parsing failed so the
 // renderer can fall back gracefully.
 type Uptime struct {
-	Duration string  // e.g. "3 days, 6h 27m" — HH:MM segments rewritten as Xh Ym
-	Users    int     // 0 if unparseable
-	Load1    float64 // 1-min load average; 0 if unparseable
-	Load5    float64
-	Load15   float64
-	Raw      string // original `uptime` line
+	// Duration is a human-readable uptime string, e.g. "3 days,
+	// 6h 27m"; bare "HH:MM" segments from macOS are rewritten as
+	// "Xh Ym" for readability.
+	Duration string
+	// Users is the logged-in user count from `uptime`; 0 if the
+	// line could not be parsed.
+	Users int
+	// Load1 is the 1-minute load average; 0 if unparseable.
+	Load1 float64
+	// Load5 is the 5-minute load average.
+	Load5 float64
+	// Load15 is the 15-minute load average.
+	Load15 float64
+	// Raw is the original `uptime` line. Always populated so the
+	// renderer can fall back when parsing misses a field.
+	Raw string
 }
 
 // Info is a coarse hardware + OS summary.
 type Info struct {
-	ProductName    string // e.g. "macOS"
-	ProductVersion string // e.g. "15.3.1"
-	BuildVersion   string // e.g. "24D70"
-	Hostname       string
-	Model          string // e.g. "MacBookPro18,3"
-	ChipName       string // e.g. "Apple M3 Pro"
-	CPUCores       string // e.g. "11 (6 performance and 5 efficiency)"
-	TotalRAMBytes  uint64
-	Uptime         Uptime
+	// ProductName is the marketing OS name from `sw_vers`, e.g. "macOS".
+	ProductName string
+	// ProductVersion is the semver-style OS version, e.g. "15.3.1".
+	ProductVersion string
+	// BuildVersion is the macOS build identifier, e.g. "24D70".
+	BuildVersion string
+	// Hostname is the kernel hostname from the `hostname` command.
+	Hostname string
+	// Model is the hardware identifier from `sysctl hw.model`, e.g.
+	// "MacBookPro18,3".
+	Model string
+	// ChipName is `sysctl machdep.cpu.brand_string`, e.g. "Apple M3 Pro".
+	ChipName string
+	// CPUCores is the human-readable core breakdown from
+	// `system_profiler SPHardwareDataType`, e.g.
+	// "11 (6 performance and 5 efficiency)".
+	CPUCores string
+	// TotalRAMBytes is `sysctl hw.memsize`; 0 when the read failed.
+	TotalRAMBytes uint64
+	// Uptime is the parsed uptime snapshot.
+	Uptime Uptime
 }
 
 // Service bundles all read-only system helpers.

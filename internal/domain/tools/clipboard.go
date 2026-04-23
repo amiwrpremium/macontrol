@@ -1,5 +1,3 @@
-// Package tools groups small utility capabilities: clipboard, timezone,
-// disks, and the Shortcuts CLI runner.
 package tools
 
 import (

@@ -14,12 +14,19 @@ import (
 
 // Version is a parsed `sw_vers -productVersion`.
 type Version struct {
+	// Major is the major component, e.g. 15 for "15.3.1".
 	Major int
+	// Minor is the minor component, e.g. 3 for "15.3.1".
 	Minor int
+	// Patch is the patch component, e.g. 1 for "15.3.1".
 	Patch int
-	Raw   string
+	// Raw is the original `sw_vers -productVersion` string, used
+	// verbatim when rendering so unusual formats round-trip.
+	Raw string
 }
 
+// String returns the original macOS version string when available, and
+// falls back to "MAJOR.MINOR.PATCH" otherwise.
 func (v Version) String() string {
 	if v.Raw != "" {
 		return v.Raw
@@ -38,14 +45,23 @@ func (v Version) AtLeast(major, minor int) bool {
 // Features enumerates every capability whose availability depends on the
 // macOS version. Handlers consult this set instead of hard-coding checks.
 type Features struct {
-	NetworkQuality bool // built-in speedtest (macOS 12+)
-	Shortcuts      bool // `shortcuts` CLI (macOS 13+)
-	WdutilInfo     bool // `wdutil info` (always, but shape differs)
+	// NetworkQuality reports availability of the built-in
+	// `networkQuality` speedtest, shipped since macOS 12.
+	NetworkQuality bool
+	// Shortcuts reports availability of the `shortcuts` CLI,
+	// shipped since macOS 13.
+	Shortcuts bool
+	// WdutilInfo reports availability of `wdutil info`, shipped
+	// since macOS 11 (the exact output shape still varies).
+	WdutilInfo bool
 }
 
 // Report is the value the bot emits on boot and that /doctor prints.
 type Report struct {
-	Version  Version
+	// Version is the parsed macOS version the current host is running.
+	Version Version
+	// Features is the set of version-gated capabilities derived from
+	// Version.
 	Features Features
 }
 

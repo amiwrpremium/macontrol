@@ -21,15 +21,21 @@ const TimezonesPageSize = 15
 
 // TimezoneRegion is one row on the timezone region-picker page.
 type TimezoneRegion struct {
-	Slug  string // bare region name "Africa", "America", etc.
-	Count int    // how many timezones live under this region
+	// Slug is the bare region name, e.g. "Africa" or "America".
+	Slug string
+	// Count is how many timezones live under this region; shown
+	// in the button label.
+	Count int
 }
 
-// TimezoneListItem mirrors ShortcutListItem: a pre-built display
+// TimezoneListItem mirrors [ShortcutListItem]: a pre-built display
 // label (city + flag emoji when known) plus the ShortMap id that
 // resolves to the full IANA timezone name.
 type TimezoneListItem struct {
-	Label   string
+	// Label is the button text shown to the user.
+	Label string
+	// ShortID is the ShortMap-issued opaque id that resolves to
+	// the full IANA timezone name on tap.
 	ShortID string
 }
 
@@ -37,7 +43,11 @@ type TimezoneListItem struct {
 // timezones with no '/' (GMT, UTC, etc.) — they get rendered
 // inline alongside the region buttons.
 type TimezoneTopLevel struct {
-	Label   string // typically just the timezone name itself
+	// Label is the button text, typically just the timezone name
+	// itself (e.g. "GMT").
+	Label string
+	// ShortID is the ShortMap-issued opaque id resolving to the
+	// timezone name on tap.
 	ShortID string
 }
 
@@ -46,18 +56,27 @@ type TimezoneTopLevel struct {
 // ShortID is the ShortMap-issued opaque id resolving to the full
 // name on tap.
 type ShortcutListItem struct {
-	Label   string
+	// Label is the already-truncated display name shown on the button.
+	Label string
+	// ShortID is the ShortMap-issued opaque id that resolves to
+	// the full shortcut name on tap.
 	ShortID string
 }
 
 // ToolsDiskRow is one entry on the Disks list page. ShortID is a
-// callbacks.ShortMap-issued opaque id for the mount path so we don't
-// blow the 64-byte callback_data limit on long /Volumes/ paths.
+// [internal/telegram/callbacks.ShortMap]-issued opaque id for the mount
+// path so we don't blow the 64-byte callback_data limit on long
+// /Volumes/ paths.
 type ToolsDiskRow struct {
-	Mount    string // for the button label
-	Size     string // human form, e.g. "460Gi"
-	Capacity string // e.g. "54%"
-	ShortID  string // map id resolved by handler
+	// Mount is the mount point shown in the button label.
+	Mount string
+	// Size is the human-readable total size, e.g. "460Gi".
+	Size string
+	// Capacity is the percent-used string, e.g. "54%".
+	Capacity string
+	// ShortID is the opaque id resolved by the handler back to the
+	// mount path.
+	ShortID string
 }
 
 // Tools renders the 🛠 Tools menu. features gates the Shortcuts runner
