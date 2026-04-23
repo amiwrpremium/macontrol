@@ -17,7 +17,7 @@ macOS commands.
 [ ℹ Info    ] [ 🌡 Temperature ]
 [ 🧠 Memory ] [ ⚙ CPU         ]
 [ 📋 Top 10 processes ] [ 🔪 Kill process… ]
-[          🏠 Home               ]
+[ ← Back ] [ 🏠 Home ]
 ```
 
 Each action opens its own panel (edits the message to that panel) with

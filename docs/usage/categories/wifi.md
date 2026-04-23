@@ -14,7 +14,7 @@ WPA2 Personal · -45 dBm · 144 Mbps · ch 2g3/20
 [ 🌐 DNS → Cloudflare ] [ 🌐 DNS → Google ] [ 🌐 DNS → DHCP ]
 [ ⚡ Speed test ]       (only on macOS 12+)
 [ 🔄 Refresh  ]
-[          🏠 Home                 ]
+[ ← Back     ] [ 🏠 Home ]
 ```
 
 Header (line 1):
@@ -61,8 +61,21 @@ After toggling, the header updates to show the new state.
 
 ### Info
 
-Runs `sudo wdutil info` and returns the full output in a code block.
+Runs `sudo wdutil info` and returns the full output in a code block —
+a dedicated diagnostics drill-down panel:
+
+```text
+📶 Wi-Fi diagnostics
+```
+…raw wdutil text…
+```
+
+[ 🔄 Refresh ] [ ← Back ]
+[        🏠 Home         ]
+```
+
 Includes BSSID, channel, signal strength, noise, security type, etc.
+Refresh re-runs wdutil; Back returns to the main Wi-Fi dashboard.
 
 **Requires** the narrow sudoers entry — see
 [Permissions → Sudoers](../../permissions/sudoers.md). Without it,
@@ -133,10 +146,10 @@ Edits to the inline home grid.
 |---|---|
 | Interface discovery | `networksetup -listallhardwareports` (parse "Wi-Fi" or "AirPort" port) |
 | Power state | `networksetup -getairportpower en0` |
-| Current SSID | `networksetup -getairportnetwork en0` |
+| Current SSID + rich link details | `sudo wdutil info` (preferred); `system_profiler SPAirPortDataType` (fallback). `networksetup -getairportnetwork` is **not used** — see "How SSID is read" above |
 | Toggle | `networksetup -setairportpower en0 on/off` |
 | Join | `networksetup -setairportnetwork en0 <ssid> [<password>]` |
-| Info | `sudo wdutil info` |
+| Info diagnostics dump | `sudo wdutil info` (raw text) |
 | DNS set | `networksetup -setdnsservers Wi-Fi <servers or Empty>` |
 | Speed test | `networkQuality -v` |
 

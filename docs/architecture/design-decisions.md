@@ -58,6 +58,87 @@ The Shortcuts runner (`tls:shortcut`) is the deliberate compromise:
 **you** author the shortcut, naming it explicitly, and it's runnable
 by name — no arbitrary shell, but full power if you set it up.
 
+## Why parse panel output into structured fields
+
+The System category's Info / Memory / CPU panels used to render the
+raw output of `uptime`, `top -l 1`, and `memory_pressure` verbatim:
+
+```
+PhysMem: 23G used (3401M wired, 8367M compressor), 550M unused.
+21:46 up 3 days, 6:27, 1 user, load averages: 5.41 4.92 4.39
+```
+
+User feedback: "the numbers are not very informative". `wired`,
+`compressor`, the bare `6:27`, the float triplet — none mean anything
+without macOS-internals familiarity. So in v0.1.10 → v0.1.12 we
+parsed each panel into structured numeric fields and rendered
+labelled bullets:
+
+```
+• Uptime: 3 days, 6h 27m
+• Load avg (1/5/15m): 5.41 / 4.92 / 4.39 (~45% / 41% / 37% of 12 cores)
+• Used: 23 GiB / 24 GiB (96%) · Free: 550 MiB
+• Wired: 3.3 GiB (kernel-pinned)
+• Compressed: 8.2 GiB (in-RAM compression)
+```
+
+The parsers are best-effort — when the regex doesn't match, the
+renderer falls back to the raw line. The structured fields also
+unlocked derived numbers (`load ÷ cores × 100` for per-core %,
+`used ÷ total × 100` for memory %) and let the System info panel
+share the same `Uptime` struct that the boot ping uses.
+
+This pattern repeats across the System category — every panel that
+used to dump shell output now parses + labels + adds context.
+
+## Why per-process drill-down for Top 10 (not numbered kill buttons)
+
+The Top 10 by CPU panel originally rendered a static monospace
+table; killing a process meant tapping a separate Kill flow and
+re-typing the PID. v0.2.0 made each process a tappable inline
+button: tap a process → drill into a per-process page with the full
+command path, **🔪 Kill (SIGTERM)**, and **💀 Force Kill (SIGKILL,
+confirmed)**.
+
+Why drill-down instead of one row of numbered buttons (`[🔪 1] … [🔪 10]`):
+
+- Tap targets carry context (PID + CPU% + cmd-leaf) so users can
+  spot mistakes before the destructive action.
+- The drill-down page can show the full command path — important
+  when two processes share an executable name (Chrome helpers, etc.).
+- Mirrors the existing Bluetooth Paired-devices and System panel
+  drill-down patterns. Numbered buttons would force users to map
+  button → row, error-prone.
+
+Force Kill specifically routes through a confirm page (same
+PowerConfirm pattern used for restart/shutdown/logout) before
+invoking `kill -9`. SIGTERM doesn't confirm — it's recoverable for
+most apps and the user has already drilled into the process.
+
+## Why send-and-delete for legacy reply-keyboard cleanup
+
+When v0.1.4 dropped the reply-keyboard surface in favour of inline
+keyboards, we never sent the corresponding `ReplyKeyboardRemove` —
+so users who interacted before v0.1.4 still saw the ghost button bar
+under the chat input on their Telegram clients (the keyboard lives
+client-side until the bot explicitly removes it).
+
+A single `SendMessage` can carry only one `reply_markup` value, and
+Telegram treats `InlineKeyboardMarkup` and `ReplyKeyboardRemove` as
+mutually exclusive — we can't piggy-back the removal on the home
+grid.
+
+So `/start`, `/menu`, and the daemon's boot ping each invoke a tiny
+helper that sends a throwaway `·` message with `ReplyKeyboardRemove`
+and immediately deletes it. The removal lands on the client before
+the delete arrives, so legacy users see the keyboard disappear with
+nothing extra remaining in the chat. Two extra API calls per
+`/start` is cheap (`/start` is rare), and failures are swallowed —
+the visible flow must never regress because of the cleanup.
+
+This is a one-time backstop for the v0.1.4 migration; new clients
+never had a reply keyboard so nothing happens for them visibly.
+
 ## Why no reply keyboard (inline-only navigation)
 
 Telegram offers two keyboard surfaces: **reply keyboards** (the bar

@@ -42,10 +42,10 @@ code on your Mac.
 | 🔊 Sound | Volume ± / set / mute / max |
 | 💡 Display | Brightness ± / set, trigger screen saver |
 | 🔋 Battery | Percent, charging state, health, cycle count |
-| 📶 Wi-Fi | Toggle, info, join network, DNS presets, speed test |
+| 📶 Wi-Fi | Toggle, info (SSID + BSSID + RSSI + Security + channel), join network, DNS presets, speed test |
 | 🔵 Bluetooth | Toggle, list, connect/disconnect paired devices |
 | ⚡ Power | Lock, sleep, restart, shutdown, logout, keep-awake |
-| 🖥 System | macOS/HW info, thermal pressure, memory, CPU, top N, kill proc |
+| 🖥 System | macOS/HW info, thermal pressure, memory + RAM hogs, CPU + busy/idle, tappable Top 10 with per-process Kill / Force Kill |
 | 📸 Media | Full/display/window screenshot, screen recording, webcam photo |
 | 🔔 Notify | Desktop notification (terminal-notifier → osascript fallback), text-to-speech |
 | 🛠 Tools | Clipboard get/set, timezone pick, time sync, disks list, run any Shortcut |

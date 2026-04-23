@@ -68,10 +68,10 @@ present` or `No batteries available` in the pmset output.
 |---|---|
 | Discover Wi-Fi interface | `networksetup -listallhardwareports` (find "Wi-Fi" or "AirPort" port) |
 | Get power | `networksetup -getairportpower <iface>` (parse "On"/"Off") |
-| Get SSID | `networksetup -getairportnetwork <iface>` (parse "Current Wi-Fi Network: …") |
+| Get SSID + rich link details | `sudo wdutil info` (preferred — parses SSID, BSSID, RSSI, Security, Tx Rate, Channel from the WIFI section). Falls back to `system_profiler SPAirPortDataType` (~2-3s, no sudo) when wdutil isn't authorized. `networksetup -getairportnetwork` is **not used** — Apple restricted it on macOS 14.4+. |
 | Set power | `networksetup -setairportpower <iface> on/off` |
 | Join | `networksetup -setairportnetwork <iface> <ssid> [<password>]` |
-| Diagnostics | `sudo wdutil info` |
+| Diagnostics dump | `sudo wdutil info` (full text, displayed verbatim) |
 | Set DNS (Cloudflare) | `networksetup -setdnsservers Wi-Fi 1.1.1.1 1.0.0.1` |
 | Set DNS (Google) | `networksetup -setdnsservers Wi-Fi 8.8.8.8 8.8.4.4` |
 | Reset DNS | `networksetup -setdnsservers Wi-Fi Empty` |
@@ -113,12 +113,15 @@ category is unusable.
 | Thermal pressure | `sudo powermetrics -n 1 -i 1000 --samplers thermal` (parses "Current pressure level: <Nominal\|Moderate\|Heavy\|Trapping\|Sleeping>") |
 | CPU °C | `smctemp -c` |
 | GPU °C | `smctemp -g` |
-| Memory pressure | `memory_pressure` (full output captured) |
-| VM stats | `vm_stat` (full output captured) |
-| Phys mem summary | `top -l 1 -s 0` (parses PhysMem line) |
-| CPU usage line | `top -l 1 -s 0` (parses CPU usage line) |
+| Memory free percentage | `memory_pressure` (parses `System-wide memory free percentage: N%`) |
+| Phys mem (used / wired / compressed / unused) | `top -l 1 -s 0` (parses PhysMem line into bytes) |
+| Swap usage | `sysctl vm.swapusage` (parses `total = …M used = …M`) |
+| CPU usage (user / sys / idle %) | `top -l 1 -s 0` (parses CPU usage line into floats) |
+| Load averages (1/5/15m) | `uptime` (parses `load averages: A B C`) + uptime duration / user count from the same line |
 | Top-N by CPU | `ps -Ao pid,pcpu,pmem,comm -r` (parses N rows) |
-| Kill by PID | `kill <pid>` (SIGTERM) |
+| Top-N by RAM | `ps -Ao pid,pcpu,pmem,comm -m` (same parser, `-m` flag for memory sort) |
+| Kill by PID (SIGTERM) | `kill <pid>` |
+| Force kill by PID (SIGKILL) | `kill -9 <pid>` (used by 💀 Force Kill drill-down with confirmation) |
 | Kill by name | `killall <name>` |
 
 Sudo: `powermetrics` needs the narrow sudoers entry.

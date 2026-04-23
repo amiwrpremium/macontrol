@@ -84,7 +84,7 @@ user gets a Telegram message from the bot:
 • macOS 15.3 on MacBookPro18,3 (tower.local)
 • 🔋 78% · charging · 1:12 remaining
 • 📶 Wi-Fi on · SSID home
-• 10:22 up 6 days, 3:14, 4 users, load averages: 0.92 0.87 0.85
+• ⏱ up 6 days, 3h 14m
 
 macOS 15.3 · 3/3 version-gated features available
 ```

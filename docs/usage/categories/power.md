@@ -13,7 +13,7 @@ Tap an action. Destructive actions require a second tap to confirm.
 [ 🔒 Lock        ] [ 💤 Sleep       ]
 [ 🔁 Restart     ] [ ⏻ Shutdown    ] [ 🚪 Logout   ]
 [ ☕ Keep awake… ] [ 🌑 Cancel awake ]
-[          🏠 Home                   ]
+[ ← Back ] [ 🏠 Home ]
 ```
 
 ## Buttons

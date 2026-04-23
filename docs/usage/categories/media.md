@@ -19,7 +19,7 @@ permission. Webcam photos need Camera.
 
 [ 📷 Screenshot ] [ 📷 Silent shot ]
 [ 📹 Record… ] [ 📸 Webcam photo ]
-[         🏠 Home                  ]
+[ ← Back ] [ 🏠 Home ]
 ```
 
 ## Buttons

@@ -15,7 +15,7 @@ Homebrew; manual installs need `brew install brightness`).
 [ −10 ] [ −5 ] [ +5 ] [ +10 ]
 [       Set exact value…       ]
 [ 🌙 Screensaver ] [ 🔄 Refresh ]
-[          🏠 Home              ]
+[ ← Back ] [ 🏠 Home ]
 ```
 
 If the `brightness` brew formula isn't installed, the header reads

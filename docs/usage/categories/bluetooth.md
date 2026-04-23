@@ -11,7 +11,7 @@ Homebrew; manual installs need `brew install blueutil`).
 
 [ ⏻ Turn off ] [ 📋 Paired devices ]
 [ 🔄 Refresh ]
-[        🏠 Home                 ]
+[ ← Back ] [ 🏠 Home ]
 ```
 
 Header: `on` or `off` — the radio's current state.

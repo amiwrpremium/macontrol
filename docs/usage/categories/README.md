@@ -48,10 +48,13 @@ remaining`; the menu has Refresh and Health.
 
 ## Navigation
 
-Every leaf dashboard ends with a 🏠 Home row. Tapping it edits the
-current message to the inline home grid, from which you can pick
-any category again without sending `/menu`.
+Every nested screen ends with a `[← Back] [🏠 Home]` row. **Back**
+edits to the immediate parent (e.g. a drill-down panel returns to its
+category dashboard); **Home** edits to the home grid. On a category
+dashboard reached directly from Home the two destinations are the
+same — Back is present anyway for consistency.
 
-Destructive actions in the Power category show a confirm
-sub-keyboard first. See
+Destructive actions (Power → Restart/Shutdown/Logout, System → Force
+Kill) show a confirm sub-keyboard first. Cancel returns to the parent
+dashboard, not Home. See
 [UX model → Confirm sub-keyboards](../ux-model.md#4-confirm-sub-keyboards-destructive-actions).

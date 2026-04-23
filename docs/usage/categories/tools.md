@@ -13,7 +13,7 @@ have" escape hatch.
 [ 🧭 Timezone…         ] [ 🔄 Sync time         ]
 [ 💿 Disks              ]
 [ ⚡ Run Shortcut…       ]    (only on macOS 13+)
-[          🏠 Home        ]
+[ ← Back ] [ 🏠 Home ]
 ```
 
 ## Buttons and flows
