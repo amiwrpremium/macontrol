@@ -384,3 +384,47 @@ func TestShortcutRun_Error(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+// ---------------- LookupCountry (zone1970.tab parser) ----------------
+
+func TestLookupCountry_KnownTimezones(t *testing.T) {
+	// These IANA names are stable across decades of tzdata releases.
+	// Skip if no zone tab is available on the host (macOS-14 GitHub
+	// runner has been observed without /usr/share/zoneinfo/zone1970.tab);
+	// the production code degrades to no-flag, so missing data isn't
+	// a behavioural bug — just no test coverage for that runner.
+	if _, ok := tools.LookupCountry("Asia/Tehran"); !ok {
+		t.Skip("zone1970.tab / zone.tab not available on this host — flag lookup degrades gracefully")
+	}
+	cases := map[string]string{
+		"Asia/Tehran":         "IR",
+		"America/Los_Angeles": "US",
+		"Europe/Istanbul":     "TR",
+		"Asia/Tokyo":          "JP",
+		"Europe/London":       "GB",
+	}
+	for tz, want := range cases {
+		got, ok := tools.LookupCountry(tz)
+		if !ok {
+			t.Errorf("LookupCountry(%q) returned ok=false", tz)
+			continue
+		}
+		if got != want {
+			t.Errorf("LookupCountry(%q) = %q; want %q", tz, got, want)
+		}
+	}
+}
+
+func TestLookupCountry_UnknownTimezones(t *testing.T) {
+	// GMT and UTC have no country in zone1970.tab. Skip if the host
+	// has no zone tab at all — both queried entries would return
+	// ok=false vacuously, providing no signal.
+	if _, ok := tools.LookupCountry("Asia/Tehran"); !ok {
+		t.Skip("zone1970.tab / zone.tab not available on this host")
+	}
+	for _, tz := range []string{"GMT", "UTC", "Etc/UCT", "Antarctica/Troll-Plumber"} {
+		if _, ok := tools.LookupCountry(tz); ok {
+			t.Errorf("LookupCountry(%q) unexpectedly returned ok=true", tz)
+		}
+	}
+}
