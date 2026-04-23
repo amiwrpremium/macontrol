@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/amiwrpremium/macontrol/compare/v0.4.0...v0.5.0) (2026-04-23)
+
+
+### Features
+
+* **bot:** tappable Shortcuts list with pagination + search ([#60](https://github.com/amiwrpremium/macontrol/issues/60)) ([a1a2be1](https://github.com/amiwrpremium/macontrol/commit/a1a2be1bc56b8812a066fbc1743aeb8be06ff820))
+
 ## [0.4.0](https://github.com/amiwrpremium/macontrol/compare/v0.3.0...v0.4.0) (2026-04-23)
 
 
