@@ -6,16 +6,23 @@ import (
 	"sync"
 )
 
-// zoneTabPath is the standard tzdata file shipped with macOS that
-// maps IANA timezone names to ISO 3166-1 alpha-2 country codes.
-// Format (tab-separated):
+// zoneTabPaths lists the candidate file paths in priority order.
+// macOS and Linux tzdata installs both ship one of these files, but
+// the exact layout varies by version. Format is tab-separated:
 //
 //	#country-codes	coordinates	TZ	[comments]
 //	IR	+3540+05131	Asia/Tehran
 //	CA,US	+340308-1181434	America/Los_Angeles	Pacific
 //
+// `zone1970.tab` is the modern file (multi-country aware); `zone.tab`
+// is the older single-country variant with the same column layout.
 // Multi-country rows take the first listed code.
-const zoneTabPath = "/usr/share/zoneinfo/zone1970.tab"
+var zoneTabPaths = []string{
+	"/usr/share/zoneinfo/zone1970.tab",
+	"/usr/share/zoneinfo/zone.tab",
+	"/var/db/timezone/zoneinfo/zone1970.tab",
+	"/var/db/timezone/zoneinfo/zone.tab",
+}
 
 var (
 	tzCountryOnce sync.Once
@@ -23,10 +30,9 @@ var (
 )
 
 // LookupCountry returns the ISO 3166-1 alpha-2 country code for an
-// IANA timezone, parsed once from /usr/share/zoneinfo/zone1970.tab.
+// IANA timezone, parsed once from the system's zoneinfo .tab file.
 // Returns ("", false) for timezones not in the table (Antarctica/*,
-// GMT, UTC, legacy macOS-only zones) or if the file is missing /
-// unparseable.
+// GMT, UTC, legacy macOS-only zones) or if no .tab file is available.
 func LookupCountry(tz string) (iso2 string, ok bool) {
 	tzCountryOnce.Do(loadZoneTab)
 	if tzCountryMap == nil {
@@ -37,9 +43,19 @@ func LookupCountry(tz string) (iso2 string, ok bool) {
 }
 
 func loadZoneTab() {
-	data, err := os.ReadFile(zoneTabPath)
+	for _, path := range zoneTabPaths {
+		if m := parseZoneTab(path); len(m) > 0 {
+			tzCountryMap = m
+			return
+		}
+	}
+	// All candidates missing/unparseable → flags disabled globally.
+}
+
+func parseZoneTab(path string) map[string]string {
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return // graceful: lookups will return ("",false) forever
+		return nil
 	}
 	m := make(map[string]string, 400)
 	for _, line := range strings.Split(string(data), "\n") {
@@ -59,7 +75,5 @@ func loadZoneTab() {
 		// fields[2] = IANA timezone name.
 		m[fields[2]] = codes[0]
 	}
-	if len(m) > 0 {
-		tzCountryMap = m
-	}
+	return m
 }
