@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/amiwrpremium/macontrol/compare/v0.2.4...v0.3.0) (2026-04-23)
+
+
+### Features
+
+* **bot:** tappable top-N processes in CPU and Memory panels ([#54](https://github.com/amiwrpremium/macontrol/issues/54)) ([debcef5](https://github.com/amiwrpremium/macontrol/commit/debcef5b05e09681847d9a6df51371a0172e25e3))
+
 ## [0.2.4](https://github.com/amiwrpremium/macontrol/compare/v0.2.3...v0.2.4) (2026-04-23)
 
 
