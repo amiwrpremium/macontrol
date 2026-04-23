@@ -58,9 +58,7 @@ func WiFi(info wifi.Info, features capability.Features) (text string, markup *mo
 			{Text: "🔗 Join network…", CallbackData: callbacks.Encode(callbacks.NSWifi, "join")},
 		},
 		{
-			{Text: "🌐 DNS → Cloudflare", CallbackData: callbacks.Encode(callbacks.NSWifi, "dns", "cf")},
-			{Text: "🌐 DNS → Google", CallbackData: callbacks.Encode(callbacks.NSWifi, "dns", "google")},
-			{Text: "🌐 DNS → DHCP", CallbackData: callbacks.Encode(callbacks.NSWifi, "dns", "reset")},
+			{Text: "🌐 DNS…", CallbackData: callbacks.Encode(callbacks.NSWifi, "dns-menu")},
 		},
 	}
 	if features.NetworkQuality {
@@ -73,6 +71,27 @@ func WiFi(info wifi.Info, features capability.Features) (text string, markup *mo
 	})
 	rows = append(rows, NavWithBack(callbacks.NSNav, "home"))
 	markup = &models.InlineKeyboardMarkup{InlineKeyboard: rows}
+	return
+}
+
+// WiFiDNS renders the DNS-preset submenu: three preset buttons
+// (Cloudflare, Google, DHCP reset) plus a refresh + back-to-Wi-Fi
+// row. The presets keep the existing `dns:<preset>` callback shape
+// so the handler branch is unchanged.
+func WiFiDNS() (text string, markup *models.InlineKeyboardMarkup) {
+	text = "🌐 *DNS servers*\n\nPick a preset — it applies instantly to the active Wi-Fi interface."
+	markup = &models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{
+			{{Text: "☁ Cloudflare (1.1.1.1)", CallbackData: callbacks.Encode(callbacks.NSWifi, "dns", "cf")}},
+			{{Text: "🅖 Google (8.8.8.8)", CallbackData: callbacks.Encode(callbacks.NSWifi, "dns", "google")}},
+			{{Text: "↺ Reset to DHCP", CallbackData: callbacks.Encode(callbacks.NSWifi, "dns", "reset")}},
+			{
+				{Text: "🔄 Refresh", CallbackData: callbacks.Encode(callbacks.NSWifi, "dns-menu")},
+				{Text: "← Back to Wi-Fi", CallbackData: callbacks.Encode(callbacks.NSWifi, "open")},
+			},
+			Nav(),
+		},
+	}
 	return
 }
 

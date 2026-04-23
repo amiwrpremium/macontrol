@@ -324,6 +324,18 @@ func TestWif_Info(t *testing.T) {
 	}
 }
 
+func TestWif_DNSMenu_OpensSubmenu(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	if err := handlers.NewCallbackRouter().Handle(context.Background(), h.Deps,
+		newCallbackUpdate("id", "wif:dns-menu")); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(h.Recorder.Last().Fields["text"], "DNS servers") {
+		t.Errorf("text = %q", h.Recorder.Last().Fields["text"])
+	}
+}
+
 func TestWif_DNSPresets(t *testing.T) {
 	for _, preset := range []string{"cf", "google", "reset"} {
 		preset := preset

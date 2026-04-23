@@ -44,6 +44,11 @@ func handleWiFi(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data 
 		}
 		return r.Edit(ctx, q, "📶 *Wi-Fi diagnostics*\n"+Code(truncate(out, 3500)), keyboards.WiFiDiagPanel())
 
+	case "dns-menu":
+		r.Ack(ctx, q)
+		text, kb := keyboards.WiFiDNS()
+		return r.Edit(ctx, q, text, kb)
+
 	case "dns":
 		r.Ack(ctx, q)
 		var servers []string
