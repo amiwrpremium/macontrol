@@ -16,6 +16,14 @@ engines:
     exclude_paths:
       - "**/*_test.go"
 
+  # SECURITY.md is the GitHub-standard place for the security-contact
+  # email and an explicit invitation to report things. Agentlinter
+  # flags both the email (PII) and the upstream-CLI sentence (vague-
+  # instructions) — both are intentional content there.
+  agentlinter:
+    exclude_paths:
+      - "SECURITY.md"
+
 languages:
   go:
     enabled: true
