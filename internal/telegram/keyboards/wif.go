@@ -71,14 +71,21 @@ func wifiHeader(info wifi.Info) string {
 
 // wifiDetailLine builds the optional second line with rich link
 // details (Security / RSSI / Tx rate / channel). Returns "" when
-// no detail field is populated.
+// Wi-Fi is off, the radio isn't associated, or no detail field
+// is populated.
 func wifiDetailLine(info wifi.Info) string {
 	if !info.PowerOn || info.SSID == "" {
 		return ""
 	}
-	if info.Security == "" && info.RSSI == 0 && info.TxRateMbps == 0 && info.Channel == "" {
-		return ""
-	}
+	parts := wifiDetailParts(info)
+	return strings.Join(parts, " · ")
+}
+
+// wifiDetailParts returns the slice of formatted detail tokens
+// (Security / RSSI / Tx rate / channel), each gated on its
+// respective field being set. Empty slice when nothing populated
+// — wifiDetailLine then returns "" via the no-op Join.
+func wifiDetailParts(info wifi.Info) []string {
 	var parts []string
 	if info.Security != "" {
 		parts = append(parts, fmt.Sprintf("`%s`", info.Security))
@@ -92,7 +99,7 @@ func wifiDetailLine(info wifi.Info) string {
 	if info.Channel != "" {
 		parts = append(parts, fmt.Sprintf("ch `%s`", info.Channel))
 	}
-	return strings.Join(parts, " · ")
+	return parts
 }
 
 // wifiRows builds the keyboard row list, including the optional
