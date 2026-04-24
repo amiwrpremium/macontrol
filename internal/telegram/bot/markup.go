@@ -5,15 +5,31 @@ import (
 	"strings"
 )
 
-// MDToHTML translates legacy Markdown-style markers (*bold*, _italic_,
-// `code`, ```fence```) into Telegram's HTML parse-mode equivalents
-// (<b>, <i>, <code>, <pre>). HTML meta characters in the input are
-// escaped first so dynamic content (error strings, hostnames, SSIDs)
-// can't inject markup.
+// MDToHTML translates the legacy Markdown-style markers used
+// throughout the codebase into Telegram's HTML parse-mode
+// equivalents.
 //
-// It lives in the bot package rather than handlers so both the handler
-// Reply helpers and the bot-level flow-reply path can call it without
-// an import cycle.
+// Mapping (in order applied):
+//   - HTML escape first — every input goes through
+//     [html.EscapeString] so dynamic content (error strings,
+//     hostnames, SSIDs, untrusted user input) can't inject
+//     `<` / `>` / `&` and break the parse mode.
+//   - ``` … ``` (fenced) → <pre> … </pre>. Done FIRST so
+//     fenced content isn't re-processed by the inline
+//     converters.
+//   - ` … ` → <code> … </code>.
+//   - * … * → <b> … </b>.
+//   - _ … _ → <i> … </i>.
+//
+// Why this lives in the bot package: both the handler [Reply]
+// helpers and the dispatcher's flow-reply path in
+// [Deps.dispatchFlow] need it. Handlers can't be the home
+// (the dispatcher would import handlers, breaking layering);
+// a separate util package felt like over-architecture. Bot
+// owns it.
+//
+// Returns the escaped + tag-converted string ready to send
+// with [models.ParseModeHTML].
 func MDToHTML(s string) string {
 	s = html.EscapeString(s)
 	// Fenced code blocks first so their inner text isn't reprocessed.
@@ -24,9 +40,27 @@ func MDToHTML(s string) string {
 	return s
 }
 
-// alternate replaces every pair of delim markers in s with open then
-// close. An odd (unbalanced) trailing delim is emitted as a literal so
-// callers with malformed markup still produce readable output.
+// alternate replaces every paired occurrence of delim in s
+// with the open / closeT tag pair, leaving odd / unpaired
+// trailing delims as literals.
+//
+// Behavior:
+//  1. Split s on delim. With N occurrences of delim, splits
+//     into N+1 parts.
+//  2. Compute `usable = (N/2)*2` — the count of delims that
+//     have a partner. Any orphan trailing delim (when N is
+//     odd) is preserved as a literal so malformed user input
+//     still produces readable output.
+//  3. Emit parts[0], then alternate open/closeT/open/closeT…
+//     until usable runs out. From there, emit any remaining
+//     delims as literals.
+//
+// Example: alternate("a*b*c*d", "*", "<b>", "</b>") →
+// "a<b>b</b>c*d" (third '*' is orphaned).
+//
+// Doesn't recurse — fenced blocks must be processed BEFORE
+// inline `code` to avoid the inline converter eating the
+// fence's content.
 func alternate(s, delim, open, closeT string) string {
 	parts := strings.Split(s, delim)
 	n := len(parts) - 1 // number of delim occurrences

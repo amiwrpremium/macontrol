@@ -16,6 +16,68 @@ import (
 	"github.com/amiwrpremium/macontrol/internal/telegram/keyboards"
 )
 
+// handleTools is the Tools dashboard's callback dispatcher.
+// Reached via the [callbacks.NSTools] namespace from any tap on
+// the 🛠 Tools menu, the Disks list + per-disk drill-down, the
+// Timezone region/city pickers, and the Run-Shortcut
+// list/search/typed flows.
+//
+// Routing rules (data.Action — first match wins):
+//
+//	Top-level menu:
+//	 - "open"        → render the Tools menu via [keyboards.Tools].
+//
+//	Clipboard (sub-action via data.Args[0]):
+//	 - "clip" / "get"  → read pbpaste, truncate to 3500 chars,
+//	                     render in a code block.
+//	 - "clip" / "set"  → install [flows.NewClipSet] for typed input.
+//
+//	Timezone picker (two-step + flows):
+//	 - "tz"          → render region picker via [renderTzRegions].
+//	 - "tz-region"   → render city picker for one region (page 0,
+//	                   no filter) via [renderTzCities].
+//	 - "tz-page"     → paginate within a region; carries page +
+//	                   filterID via [parseShortcutPageArgsAt].
+//	 - "tz-set"      → resolve ShortID → IANA name, apply via
+//	                   [tools.Service.TimezoneSet], re-render
+//	                   region picker with status banner.
+//	 - "tz-search"   → install [flows.NewTimezoneSearch] scoped
+//	                   to the region from data.Args[0].
+//	 - "tz-type"     → install the unscoped [flows.NewTimezone]
+//	                   typed-IANA fallback.
+//
+//	Sntp time sync:
+//	 - "synctime"    → run [tools.Service.TimeSync]; toast +
+//	                   re-render Tools menu with status suffix.
+//
+//	Disks list + drill-down:
+//	 - "disks"       → list user-facing mounts; build ShortMap
+//	                   ids for each so callbacks fit in 64 bytes.
+//	 - "disk"        → drill into one mount via
+//	                   [tools.Service.DiskInfo]; render via
+//	                   [buildDiskPanel].
+//	 - "disk-open"   → open the mount in Finder via
+//	                   [tools.Service.OpenInFinder]; toast.
+//	 - "disk-eject"  → eject via [tools.Service.EjectDisk];
+//	                   re-render the disks list with the ejected
+//	                   volume gone.
+//
+//	Run Shortcut (gated on Features.Shortcuts = macOS 13+):
+//	 - "shortcut"    → render page 0 of the shortcut list.
+//	 - "sc-page"     → paginate; carries page + filterID.
+//	 - "sc-run"      → run a shortcut by ShortID; re-render the
+//	                   list at the same page+filter the user
+//	                   came from with a status banner.
+//	 - "sc-search"   → install [flows.NewShortcutSearch] for a
+//	                   substring filter.
+//	 - "sc-type"     → install the typed-name fallback flow.
+//
+// All "session expired — refresh the list" errors come from a
+// 15-min ShortMap TTL miss (user kept a stale dashboard open).
+// Unknown actions fall through to a "Unknown tools action."
+// toast.
+//
+//nolint:gocyclo // Single dispatcher per category is the package convention.
 func handleTools(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
 	r := Reply{Deps: d}
 	svc := d.Services.Tools
@@ -247,8 +309,9 @@ func handleTools(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data
 	return nil
 }
 
-// renderTzRegions edits the current message to the timezone region
-// picker (step 1).
+// renderTzRegions edits the current message to the timezone
+// region picker (step 1 of the two-step picker). Thin wrapper
+// over [renderTzRegionsWith] with an empty status banner.
 func renderTzRegions(ctx context.Context, r Reply, q *models.CallbackQuery,
 	d *bot.Deps, svc *tools.Service,
 ) error {
@@ -256,13 +319,32 @@ func renderTzRegions(ctx context.Context, r Reply, q *models.CallbackQuery,
 }
 
 // rerenderTzRegionsWithStatus prepends a one-line status banner
-// (success or failure of a tz-set) above the region picker.
+// (success or failure of a tz-set) above the region picker, then
+// renders. Used after a tz-set so the user sees the outcome
+// without leaving the picker.
 func rerenderTzRegionsWithStatus(ctx context.Context, r Reply, q *models.CallbackQuery,
 	d *bot.Deps, svc *tools.Service, status string,
 ) error {
 	return renderTzRegionsWith(ctx, r, q, d, svc, status)
 }
 
+// renderTzRegionsWith is the shared implementation behind
+// [renderTzRegions] and [rerenderTzRegionsWithStatus]. Builds
+// the region picker by composing [tools.Service.TimezoneList],
+// [tools.Service.TimezoneCurrent], and [groupTimezones].
+//
+// Behavior:
+//   - Lists timezones via the service. On error, edits to the
+//     "unavailable" panel via [errEdit] and returns.
+//   - Reads the current timezone (best-effort; ignored on error).
+//   - Splits the list into per-region buckets + top-level
+//     timezones via [groupTimezones].
+//   - Maps regions to [keyboards.TimezoneRegion] rows; maps
+//     top-levels to [keyboards.TimezoneTopLevel] rows, parking
+//     each timezone name in [bot.Deps.ShortMap] for the tap
+//     callback.
+//   - Renders via [keyboards.ToolsTimezoneRegions], optionally
+//     prepended by the status banner.
 func renderTzRegionsWith(ctx context.Context, r Reply, q *models.CallbackQuery,
 	d *bot.Deps, svc *tools.Service, status string,
 ) error {
@@ -292,8 +374,19 @@ func renderTzRegionsWith(ctx context.Context, r Reply, q *models.CallbackQuery,
 	return r.Edit(ctx, q, text, kb)
 }
 
-// renderTzCities edits the message to the city picker (step 2) for
-// the given region, page, and optional filter substring.
+// renderTzCities edits the message to the city picker (step 2)
+// for region at the requested page and optional filter.
+//
+// Behavior:
+//   - Lists timezones; on error, edits to "unavailable" panel.
+//   - Reads current timezone (best-effort).
+//   - Filters the list to the region + substring via
+//     [flows.FilterTimezonesInRegion].
+//   - Pages via [flows.PageTimezones]; the helper also stamps
+//     each city's ShortMap id.
+//   - Stamps the filterTerm itself into ShortMap so the
+//     pagination callbacks can recover it via filterID.
+//   - Renders via [keyboards.ToolsTimezoneCities].
 func renderTzCities(ctx context.Context, r Reply, q *models.CallbackQuery,
 	d *bot.Deps, svc *tools.Service, region string, page int, filterTerm string,
 ) error {
@@ -312,16 +405,37 @@ func renderTzCities(ctx context.Context, r Reply, q *models.CallbackQuery,
 	return r.Edit(ctx, q, text, kb)
 }
 
-// groupedRegion is a single region slug + its child timezones.
+// groupedRegion is one IANA region slug + the timezones that
+// live under it. Internal to [groupTimezones].
+//
+// Field roles:
+//   - Slug is the bare region name ("Africa", "America", …).
+//   - Tzs is the slice of full IANA names that start with
+//     "<Slug>/", in their original [tools.Service.TimezoneList]
+//     order.
 type groupedRegion struct {
+	// Slug is the region name (the part before the first '/').
 	Slug string
-	Tzs  []string
+
+	// Tzs is the slice of full IANA names belonging to this
+	// region, in their original order.
+	Tzs []string
 }
 
-// groupTimezones splits the flat IANA timezone list into per-region
-// buckets plus top-level (no '/') timezones. Region buckets are
-// sorted alphabetically; cities within each region keep their
-// original order from systemsetup.
+// groupTimezones splits a flat IANA timezone list into per-
+// region buckets plus the top-level (no '/') entries.
+//
+// Behavior:
+//   - Walks the input once. Entries containing '/' are
+//     bucketed under their pre-slash region; entries without
+//     are appended to topLevels.
+//   - Region buckets are returned alphabetically sorted by
+//     slug for stable rendering. Cities within each bucket
+//     keep their original `systemsetup -listtimezones` order
+//     (which is itself already alphabetical, but the
+//     preservation is intentional in case Apple changes that).
+//
+// Returns (regions, topLevels). Either may be nil/empty.
 func groupTimezones(all []string) (regions []groupedRegion, topLevels []string) {
 	byRegion := map[string][]string{}
 	regionOrder := []string{}
@@ -346,8 +460,20 @@ func groupTimezones(all []string) (regions []groupedRegion, topLevels []string) 
 	return regions, topLevels
 }
 
-// renderShortcutsPage edits the current message to the Run-Shortcut
-// list at the requested page + filter (filterTerm empty = unfiltered).
+// renderShortcutsPage edits the current message to the Run-
+// Shortcut list at the requested page + filter. filterTerm == ""
+// means unfiltered.
+//
+// Behavior:
+//   - Lists shortcuts via [tools.Service.ShortcutsList]; on
+//     error, edits to "unavailable" panel.
+//   - Filters via [flows.FilterShortcuts] (case-insensitive
+//     substring match).
+//   - Pages via [flows.PageShortcuts]; the helper stamps each
+//     entry's ShortMap id.
+//   - When filterTerm is set, stamps the term itself into
+//     ShortMap so pagination callbacks can recover it.
+//   - Renders via [keyboards.ToolsShortcutsList].
 func renderShortcutsPage(ctx context.Context, r Reply, q *models.CallbackQuery,
 	d *bot.Deps, svc *tools.Service, page int, filterTerm string,
 ) error {
@@ -365,16 +491,31 @@ func renderShortcutsPage(ctx context.Context, r Reply, q *models.CallbackQuery,
 	return r.Edit(ctx, q, text, kb)
 }
 
-// parseShortcutPageArgs extracts (page, filterID) from a sc-page
-// callback's args. filterID is "" when the callback used the "-"
-// sentinel for unfiltered.
+// parseShortcutPageArgs extracts (page, filterID) from a
+// `sc-page` callback's args. Thin wrapper over
+// [parseShortcutPageArgsAt] starting at offset 0.
+//
+// filterID is "" when the callback used the "-" sentinel
+// (unfiltered) — see [keyboards.filterIDArg].
 func parseShortcutPageArgs(data callbacks.Data) (page int, filterID string) {
 	return parseShortcutPageArgsAt(data, 0)
 }
 
-// parseShortcutPageArgsAt extracts (page, filterID) from data.Args
-// starting at offset. Used by sc-run, which carries its own arg
-// before the page+filter pair.
+// parseShortcutPageArgsAt extracts (page, filterID) from
+// data.Args starting at the given offset.
+//
+// Behavior:
+//   - When data.Args has at least offset+1 entries, parses
+//     args[offset] as the int page. Atoi failures or negative
+//     values are clamped to 0.
+//   - When data.Args has at least offset+2 entries, reads
+//     args[offset+1] as filterID. The literal "-" sentinel
+//     (used by [keyboards.filterIDArg] for "unfiltered") is
+//     translated back to "".
+//
+// Used by both `sc-page` (offset 0) and `sc-run` (offset 1 —
+// because sc-run carries its own shortcut id before the
+// page+filter pair) and by `tz-page` (offset 1 — region first).
 func parseShortcutPageArgsAt(data callbacks.Data, offset int) (page int, filterID string) {
 	if len(data.Args) > offset {
 		page, _ = strconv.Atoi(data.Args[offset])
@@ -391,9 +532,18 @@ func parseShortcutPageArgsAt(data callbacks.Data, offset int) (page int, filterI
 	return page, filterID
 }
 
-// resolveDiskMount looks up data.Args[0] (a ShortMap id) and returns
-// the original mount path. Returns ok=false if the id is missing or
-// expired (15-min TTL — user kept a stale dashboard open).
+// resolveDiskMount looks up data.Args[0] (a [callbacks.ShortMap]
+// id) and returns the original mount path that the disks list
+// stamped into the ShortMap.
+//
+// Behavior:
+//   - Returns ("", false) when data.Args is empty.
+//   - Returns ("", false) when ShortMap.Get says the id is
+//     unknown or expired (15-min TTL — typical when the user
+//     left a disks dashboard open across the TTL).
+//
+// All disk-action branches (`disk`, `disk-open`, `disk-eject`)
+// route through this helper.
 func resolveDiskMount(d *bot.Deps, data callbacks.Data) (string, bool) {
 	if len(data.Args) == 0 {
 		return "", false
@@ -401,9 +551,23 @@ func resolveDiskMount(d *bot.Deps, data callbacks.Data) (string, bool) {
 	return d.ShortMap.Get(data.Args[0])
 }
 
-// buildDiskPanel renders the per-disk drill-down body. Falls back to
-// a minimal text + raw diskutil block if parsing didn't capture the
-// labelled fields.
+// buildDiskPanel renders the per-disk drill-down body for the
+// `disk` action. Composes the labelled fields from [tools.DiskDetails];
+// falls back to the raw diskutil text when the parser captured
+// nothing.
+//
+// Behavior:
+//   - Header line: "💿 *<volume-name>*", with " — `<size>` total"
+//     suffix when DiskSize is set. Falls back to the mount path
+//     when VolumeName is empty.
+//   - Used / Free line when at least one is set.
+//   - FS / Device line when at least one is set.
+//   - Italic location/media/storage descriptor (Internal/External
+//     · Fixed/Removable · SSD).
+//   - Italic " · read-only" suffix when ReadOnly.
+//   - When BOTH VolumeName and DiskSize were empty (parser saw
+//     nothing useful), appends a code-block dump of the raw
+//     diskutil output truncated to 1500 bytes.
 func buildDiskPanel(mount string, info tools.DiskDetails) string {
 	var b strings.Builder
 	name := info.VolumeName
@@ -445,6 +609,10 @@ func buildDiskPanel(mount string, info tools.DiskDetails) string {
 	return b.String()
 }
 
+// nonEmpty returns s when non-empty, "?" otherwise. Used by
+// [buildDiskPanel] to substitute a placeholder for missing
+// labelled fields so the rendered panel never has "Used:  ·
+// Free: 200 GB" with a blank slot.
 func nonEmpty(s string) string {
 	if s == "" {
 		return "?"

@@ -11,8 +11,39 @@ import (
 	"github.com/amiwrpremium/macontrol/internal/telegram/callbacks"
 )
 
-// WiFi renders the 📶 Wi-Fi dashboard. features gates version-sensitive
-// buttons (speedtest needs macOS 12+).
+// WiFi renders the 📶 Wi-Fi dashboard.
+//
+// Arguments:
+//   - info is the current [wifi.Info] snapshot. The renderer
+//     gracefully handles partial info (Wi-Fi off, not
+//     associated, missing rich-link fields).
+//   - features gates version-sensitive buttons. Currently only
+//     [capability.Features.NetworkQuality] (Speed test, macOS
+//     12+) is gated; everything else works on macOS 11+.
+//
+// Behavior:
+//
+// Header rendering:
+//  1. Power state: "on" or "off" based on info.PowerOn.
+//  2. SSID: info.SSID when associated, "(not associated)" when
+//     PowerOn but no SSID, "—" when PowerOn=false.
+//  3. Interface: info.Interface verbatim.
+//  4. Optional second line with rich link details (Security,
+//     RSSI, TxRateMbps, Channel) ONLY when:
+//     a) PowerOn is true AND
+//     b) SSID is non-empty AND
+//     c) at least one rich field is non-zero/non-empty.
+//     Each present field becomes a "·"-separated chip.
+//
+// Keyboard rendering:
+//   - Toggle button (Turn on / Turn off based on PowerOn).
+//   - Info button (drills into [WiFiDiagPanel]).
+//   - Join network… button.
+//   - DNS… button (drills into [WiFiDNS] submenu — collapses
+//     the previous triple-button DNS preset row, see PR #65).
+//   - Speed test button (only when features.NetworkQuality).
+//   - Refresh row.
+//   - Back/Home nav row.
 func WiFi(info wifi.Info, features capability.Features) (text string, markup *models.InlineKeyboardMarkup) {
 	power := "off"
 	ssid := "—"
@@ -74,10 +105,21 @@ func WiFi(info wifi.Info, features capability.Features) (text string, markup *mo
 	return
 }
 
-// WiFiDNS renders the DNS-preset submenu: three preset buttons
-// (Cloudflare, Google, DHCP reset) plus a refresh + back-to-Wi-Fi
-// row. The presets keep the existing `dns:<preset>` callback shape
-// so the handler branch is unchanged.
+// WiFiDNS renders the DNS-preset submenu reached by tapping
+// "🌐 DNS…" on the main Wi-Fi dashboard. Three preset buttons
+// (Cloudflare, Google, DHCP reset), then Refresh + Back-to-Wi-Fi
+// + Home.
+//
+// Behavior:
+//   - Returns a static header pointing at the current Wi-Fi
+//     interface ("Pick a preset — it applies instantly").
+//   - Each preset button keeps the original `wif:dns:<preset>`
+//     callback shape from PR #65 — the handler branch is
+//     unchanged from when the presets lived as direct buttons
+//     on the main dashboard. This means [Service.SetDNS] sees
+//     the same call regardless of how the user got there.
+//   - Refresh re-renders this menu (`wif:dns-menu`); Back
+//     returns to the Wi-Fi dashboard (`wif:open`).
 func WiFiDNS() (text string, markup *models.InlineKeyboardMarkup) {
 	text = "🌐 *DNS servers*\n\nPick a preset — it applies instantly to the active Wi-Fi interface."
 	markup = &models.InlineKeyboardMarkup{
@@ -95,9 +137,19 @@ func WiFiDNS() (text string, markup *models.InlineKeyboardMarkup) {
 	return
 }
 
-// WiFiDiagPanel renders the trailing keyboard for the diagnostics
-// drill-down (sudo wdutil info dump): refresh the same view, or back
-// to the main Wi-Fi dashboard.
+// WiFiDiagPanel renders the trailing keyboard for the
+// diagnostics drill-down opened by the "ℹ Info" button. The
+// drill-down body is the raw `sudo wdutil info` dump rendered
+// in a code block; this keyboard is what appears below it.
+//
+// Behavior:
+//   - Refresh re-runs the diagnostics dump (`wif:info`).
+//   - Back returns to the Wi-Fi dashboard (`wif:open`).
+//   - Standard Home row.
+//
+// Notably absent: any "Toggle" / "Join" buttons. The user is in
+// drill-down mode here; the keyboard is intentionally minimal
+// to avoid accidental state changes from the diagnostic view.
 func WiFiDiagPanel() *models.InlineKeyboardMarkup {
 	return &models.InlineKeyboardMarkup{
 		InlineKeyboard: [][]models.InlineKeyboardButton{

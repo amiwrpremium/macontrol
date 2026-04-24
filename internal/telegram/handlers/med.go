@@ -12,6 +12,32 @@ import (
 	"github.com/amiwrpremium/macontrol/internal/telegram/keyboards"
 )
 
+// handleMedia is the Media dashboard's callback dispatcher.
+// Reached via the [callbacks.NSMedia] namespace from any tap on
+// the 📸 Media menu.
+//
+// Routing rules (data.Action — first match wins):
+//  1. "open"   → render the Media menu via [keyboards.Media].
+//  2. "shot"   → toast "Capturing…", run
+//     [media.Service.Screenshot] with Silent gated on
+//     data.Args[0] == "silent". On success uploads via
+//     [Reply.SendPhoto] (which auto-deletes the temp file).
+//     On failure sends a hint about the Screen Recording
+//     TCC permission.
+//  3. "photo"  → toast "Taking photo…", run
+//     [media.Service.Photo] (webcam). Failure hint mentions
+//     `brew install imagesnap` + Camera permission.
+//  4. "record" → install [flows.NewRecord] for a typed
+//     duration in seconds. The flow is wired up with
+//     [newRecordSender] so it can upload the final .mov
+//     without depending on Telegram types directly.
+//
+// Unknown actions fall through to a "Unknown media action."
+// toast.
+//
+// Failure paths in shot/photo do NOT use [errEdit] (which
+// would strip the keyboard) — they send a fresh message with
+// the hint, leaving the Media menu intact for retries.
 func handleMedia(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
 	r := Reply{Deps: d}
 	svc := d.Services.Media
@@ -52,8 +78,18 @@ func handleMedia(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data
 	return nil
 }
 
-// newRecordSender adapts the Reply helper for the Record flow — so the flow
-// can send the final video without knowing about Telegram types.
+// newRecordSender adapts [Reply.SendVideo] into the
+// dependency-injected sender shape that [flows.NewRecord]
+// expects. Lets the Record flow upload the final .mov without
+// needing to depend on Telegram types or the [bot.Deps]
+// catalog directly.
+//
+// Behavior:
+//   - Returns a closure that calls [Reply.SendVideo] with the
+//     captured chatID and a fixed "📹 recording" caption.
+//   - The closure's path argument is the temp .mov path the
+//     Record flow returns from [media.Service.Record];
+//     SendVideo deletes it after upload (success or failure).
 func newRecordSender(r Reply, chatID int64) func(ctx context.Context, path string) error {
 	return func(ctx context.Context, path string) error {
 		return r.SendVideo(ctx, chatID, path, "📹 recording")

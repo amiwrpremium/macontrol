@@ -8,38 +8,87 @@ import (
 	"strings"
 )
 
-// Memory is a parsed memory snapshot. All numeric fields are zero
-// when their source couldn't be read or parsed; FreePercent is -1
-// when unknown. Raw preserves the `top` PhysMem line for fallback
-// rendering.
+// Memory is a parsed memory snapshot composed by [Service.Memory].
+// The dashboard renders the byte-count breakdown (Used / Wired /
+// Compressed / Unused), the free-percentage, swap stats, and the
+// top-3 RAM hogs as separate sections.
+//
+// Lifecycle:
+//   - Constructed by Service.Memory each time the System → Memory
+//     dashboard is opened or refreshed. Never cached.
+//
+// Field roles:
+//   - UsedBytes / WiredBytes / CompressedBytes / UnusedBytes come
+//     from the "PhysMem:" header line of `top -l 1`.
+//   - FreePercent comes from `memory_pressure`'s "System-wide
+//     memory free percentage:" line — stable across macOS
+//     versions, unlike the noisier header lines.
+//   - SwapUsedBytes / SwapTotalBytes come from `sysctl vm.swapusage`.
+//   - TopByMem is the top-3 processes by %MEM from
+//     [Service.TopByMem]. nil on failure.
+//   - Raw is the verbatim "PhysMem:" line for fallback rendering.
+//   - FreePercent is sentinel-valued at -1 (not 0) when unknown
+//     so the renderer can distinguish "memory_pressure failed"
+//     from "0% free".
 type Memory struct {
-	// UsedBytes is the "used" byte count from `top`'s PhysMem line.
+	// UsedBytes is the "used" byte count from `top`'s PhysMem
+	// line.
 	UsedBytes uint64
-	// WiredBytes is the kernel-wired byte count; 0 when not reported.
+
+	// WiredBytes is the kernel-wired byte count parsed from the
+	// PhysMem line's parenthetical breakdown. Zero when not
+	// reported.
 	WiredBytes uint64
-	// CompressedBytes is the compressor byte count; 0 on macOS
-	// versions or loads that don't emit a compressor breakdown.
+
+	// CompressedBytes is the compressor byte count from the
+	// same parenthetical. Zero on macOS versions or loads that
+	// don't emit a compressor breakdown.
 	CompressedBytes uint64
-	// UnusedBytes is the "unused" byte count from the PhysMem line.
+
+	// UnusedBytes is the "unused" byte count from the PhysMem
+	// line.
 	UnusedBytes uint64
+
 	// FreePercent is the system-wide free-memory percentage from
-	// `memory_pressure`; -1 when unknown, 0..100 otherwise.
+	// `memory_pressure`. Sentinel -1 means unknown; 0..100
+	// otherwise.
 	FreePercent int
-	// SwapUsedBytes is the active swap size from `sysctl vm.swapusage`.
+
+	// SwapUsedBytes is the active swap size from
+	// `sysctl vm.swapusage`.
 	SwapUsedBytes uint64
-	// SwapTotalBytes is the total swap size from `sysctl vm.swapusage`.
+
+	// SwapTotalBytes is the total swap size from
+	// `sysctl vm.swapusage`.
 	SwapTotalBytes uint64
-	// TopByMem is up to N processes sorted by RAM%; nil when `ps`
-	// failed.
+
+	// TopByMem is up to N processes sorted by %MEM as returned
+	// by [Service.TopByMem]. nil when ps failed.
 	TopByMem []Process
-	// Raw is the raw `top` PhysMem line, kept for fallback display
-	// when parsing fails.
+
+	// Raw is the original "PhysMem:" line, preserved for
+	// fallback display when parsing missed fields.
 	Raw string
 }
 
-// Memory reads a parsed memory snapshot. Best-effort: any source
-// that fails leaves its fields zero / nil. Returns an error only if
-// every source failed.
+// Memory reads the memory snapshot by composing several macOS
+// CLIs.
+//
+// Behavior:
+//  1. Reads `top -l 1 -s 0` and walks for the "PhysMem:" line;
+//     when found, stamps Raw and parses Used/Wired/Compressed/
+//     Unused via [ParsePhysMem].
+//  2. Reads `memory_pressure` and parses [ParseFreePercent].
+//  3. Reads `sysctl vm.swapusage` and parses [ParseSwap].
+//  4. Calls [Service.TopByMem] for the top-3 processes by %MEM.
+//
+// Tracks an internal `any` flag and returns a non-nil error only
+// when EVERY source failed — the dashboard prefers partial info
+// to a hard error.
+//
+// Returns the populated [Memory] (with FreePercent = -1 when not
+// read) and the "could not read any memory data" error in the
+// total-failure case.
 func (s *Service) Memory(ctx context.Context) (Memory, error) {
 	m := Memory{FreePercent: -1}
 	any := false
@@ -78,17 +127,52 @@ func (s *Service) Memory(ctx context.Context) (Memory, error) {
 	return m, nil
 }
 
+// Compiled regexes used by the memory parsers in this file.
+//
+// Each regex captures the smallest stable substring needed for
+// its parser. Empirically `top` formatting changes minor details
+// release-to-release (spacing, comma placement) so these are
+// intentionally lenient with whitespace and noisy separators.
 var (
+	// physMemRe captures the three top-level byte counts from
+	// the `top` PhysMem line: used, the parenthetical breakdown
+	// (wired + compressor inside), and unused.
 	physMemRe = regexp.MustCompile(`PhysMem:\s+(\S+)\s+used\s+\(([^)]*)\),\s+(\S+)\s+unused`)
-	wiredRe   = regexp.MustCompile(`(\S+)\s+wired`)
-	comprRe   = regexp.MustCompile(`(\S+)\s+compressor`)
+
+	// wiredRe matches the "<size> wired" token inside the
+	// PhysMem parenthetical.
+	wiredRe = regexp.MustCompile(`(\S+)\s+wired`)
+
+	// comprRe matches the "<size> compressor" token inside the
+	// PhysMem parenthetical. Optional — older macOS or lighter
+	// loads omit the compressor segment.
+	comprRe = regexp.MustCompile(`(\S+)\s+compressor`)
+
+	// freePctRe matches the stable "System-wide memory free
+	// percentage: N%" line from `memory_pressure`. Used in
+	// preference to the noisier human-readable header lines.
 	freePctRe = regexp.MustCompile(`(?i)System-wide memory free percentage:\s+(\d+)\s*%`)
-	swapRe    = regexp.MustCompile(`vm\.swapusage:\s+total\s*=\s*(\S+)\s+used\s*=\s*(\S+)`)
+
+	// swapRe captures total + used from
+	// `sysctl vm.swapusage: total = … used = …`. The free /
+	// encrypted suffixes are intentionally ignored.
+	swapRe = regexp.MustCompile(`vm\.swapusage:\s+total\s*=\s*(\S+)\s+used\s*=\s*(\S+)`)
 )
 
-// ParsePhysMem extracts byte counts from `top`'s PhysMem line, e.g.
-// "PhysMem: 23G used (3401M wired, 8367M compressor), 550M unused."
-// Compressor segment is optional (older macOS or lighter loads).
+// ParsePhysMem extracts the four byte counts from `top`'s
+// PhysMem line, e.g.
+// "PhysMem: 23G used (3401M wired, 8367M compressor), 550M unused.".
+//
+// Behavior:
+//   - On regex match, parses used + unused via [parseSizeSuffix]
+//     directly from the captured groups.
+//   - Then runs sub-regexes against the parenthetical to extract
+//     wired + compressor. Either is optional; missing tokens
+//     leave their field at zero.
+//   - On no overall match, returns (0, 0, 0, 0).
+//
+// Exported for tests and any future caller with a captured top
+// line in hand.
 func ParsePhysMem(line string) (used, wired, compressed, unused uint64) {
 	m := physMemRe.FindStringSubmatch(line)
 	if m == nil {
@@ -105,9 +189,16 @@ func ParsePhysMem(line string) (used, wired, compressed, unused uint64) {
 	return
 }
 
-// ParseFreePercent finds the "System-wide memory free percentage: N%"
-// line in `memory_pressure` output. This line is stable across macOS
-// versions, unlike the noisy "The system has …" header lines.
+// ParseFreePercent extracts the system-wide free-memory
+// percentage from `memory_pressure` output.
+//
+// Behavior:
+//   - Matches the "System-wide memory free percentage: N%" line
+//     via [freePctRe]. This line is stable across macOS releases,
+//     unlike the noisier "The system has …" header lines.
+//   - Returns (0, false) on no match or on Atoi failure of the
+//     captured digits.
+//   - Returns (N, true) on success.
 func ParseFreePercent(out string) (int, bool) {
 	m := freePctRe.FindStringSubmatch(out)
 	if m == nil {
@@ -120,8 +211,15 @@ func ParseFreePercent(out string) (int, bool) {
 	return n, true
 }
 
-// ParseSwap extracts swap usage from `sysctl vm.swapusage`, e.g.
+// ParseSwap extracts swap usage from `sysctl vm.swapusage` output,
+// e.g.
 // "vm.swapusage: total = 2048.00M  used = 1234.56M  free = 813.44M  (encrypted)".
+//
+// Behavior:
+//   - On regex match, parses total + used via [parseSizeSuffix].
+//     Returns (0, 0) on no match.
+//   - The "free" and "(encrypted)" trailing tokens are ignored —
+//     the renderer derives free as total - used.
 func ParseSwap(out string) (used, total uint64) {
 	m := swapRe.FindStringSubmatch(out)
 	if m == nil {
@@ -132,8 +230,22 @@ func ParseSwap(out string) (used, total uint64) {
 	return
 }
 
-// parseSizeSuffix converts strings like "23G", "3401M", "1234.56M",
-// "256K", "2048.00M" to bytes. Returns 0 on parse failure.
+// parseSizeSuffix converts macOS-style human-readable size
+// strings ("23G", "3401M", "1234.56M", "256K", "2048.00M") to
+// raw byte counts.
+//
+// Behavior:
+//   - Trims surrounding whitespace.
+//   - Inspects the last byte for a unit suffix (case-insensitive
+//     K / M / G / T) and pops it off the string. Missing suffix
+//     means raw bytes.
+//   - Multiplies via 1024-based units (1K = 1024 bytes,
+//     1M = 1024² bytes, etc.) — matching the binary base macOS
+//     uses for these tools, NOT the SI base.
+//   - Returns 0 on empty input or strconv.ParseFloat failure.
+//   - Lossy for very large values: float64 has ~15-16 digits of
+//     precision, so the conversion saturates around 8 PiB.
+//     Acceptable for a Mac dashboard.
 func parseSizeSuffix(s string) uint64 {
 	s = strings.TrimSpace(s)
 	if s == "" {

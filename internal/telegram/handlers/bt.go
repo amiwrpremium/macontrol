@@ -11,6 +11,38 @@ import (
 	"github.com/amiwrpremium/macontrol/internal/telegram/keyboards"
 )
 
+// handleBluetooth is the Bluetooth dashboard's callback
+// dispatcher. Reached via the [callbacks.NSBT] namespace from
+// any tap on the 🔵 Bluetooth menu, the paired-devices list,
+// or a per-device connect/disconnect button.
+//
+// Routing rules (data.Action — first match wins):
+//  1. "open" / "refresh" → run [bluetooth.Service.Get], render
+//     the dashboard via [keyboards.Bluetooth]. Get failures
+//     surface with the "blueutil not installed?" hint because
+//     the most likely cause is the missing brew formula.
+//  2. "toggle"           → run [bluetooth.Service.Toggle]
+//     (which composes Get + SetPower); re-render the
+//     dashboard with the post-toggle state.
+//  3. "paired"           → list paired devices via
+//     [bluetooth.Service.Paired], park each MAC in the
+//     [bot.Deps.ShortMap] (MAC strings are short but using
+//     the ShortMap keeps the callback shape uniform with
+//     other lists), build [keyboards.BluetoothDeviceRow]
+//     rows, render the device list keyboard.
+//  4. "conn" / "disc"    → connect/disconnect a device by
+//     ShortMap-resolved MAC. After the op (success or
+//     failure on the connect path), recursively dispatches
+//     the "paired" action to re-render the list with the
+//     post-op connected-state. This is the one place in the
+//     codebase where a handler calls itself.
+//
+// "Session expired; refresh the device list." is the
+// user-visible message when the ShortMap lookup misses
+// (15-min TTL — the user kept a stale dashboard open).
+//
+// Unknown actions fall through to a "Unknown bluetooth action."
+// toast.
 func handleBluetooth(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
 	r := Reply{Deps: d}
 	svc := d.Services.Bluetooth

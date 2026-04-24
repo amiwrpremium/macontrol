@@ -8,13 +8,56 @@ import (
 	"github.com/amiwrpremium/macontrol/internal/config"
 )
 
-// version metadata — populated at link time by GoReleaser.
+// Build-time metadata. GoReleaser stamps these via -ldflags
+// "-X main.version=…" so `macontrol version` and the daemon
+// boot log show the actual build provenance.
+//
+//   - version is the semver tag (e.g. "0.6.0") or "dev" for
+//     local builds.
+//   - commit is the short git SHA (e.g. "a1b2c3d") or "none".
+//   - date is the build timestamp in RFC3339 (e.g.
+//     "2026-04-23T17:00:00Z") or "unknown".
+//
+// Local `go build`/`go run` doesn't stamp anything, hence the
+// safe defaults.
 var (
+	// version is the semver tag stamped at build time.
 	version = "dev"
-	commit  = "none"
-	date    = "unknown"
+
+	// commit is the short git SHA stamped at build time.
+	commit = "none"
+
+	// date is the RFC3339 build timestamp stamped at build
+	// time.
+	date = "unknown"
 )
 
+// main is the cmd/macontrol entry point. Dispatches to the
+// matching subcommand based on os.Args[1], or to the daemon
+// loop ([dispatchRun]) when no subcommand is given.
+//
+// Routing rules (os.Args[1] — first match wins):
+//
+//	Known subcommands:
+//	 - "run"          → [dispatchRun] with the rest of the args.
+//	 - "setup"        → [runSetup] (interactive first-run wizard).
+//	 - "service"      → [runService] (LaunchAgent install/start/stop/logs).
+//	 - "whitelist"    → [runWhitelist] (manage allowed Telegram user IDs).
+//	 - "token"        → [runToken] (rotate / clear / re-grant the bot token).
+//	 - "doctor"       → [runDoctor] (capability + brew + sudoers self-check).
+//	 - "version" / "--version" / "-v" → print version + commit + date.
+//	 - "help" / "--help" / "-h"       → [printHelp].
+//
+//	Else:
+//	 - First arg starts with "-" → treat the whole tail as flags
+//	   for `run` (so `macontrol --log-level=debug` works without
+//	   the explicit "run" subcommand).
+//	 - Anything else                → unknown subcommand error +
+//	   help text + exit 2.
+//
+// Tests cannot reach this function directly because it
+// terminates the process on most paths; coverage comes from
+// the per-subcommand functions.
 func main() {
 	if len(os.Args) < 2 {
 		dispatchRun(nil)
@@ -49,10 +92,24 @@ func main() {
 	}
 }
 
-// dispatchRun parses the flag set for `macontrol run` and hands control to
-// the daemon loop. Flags are kept narrow: just log level and log file. Any
-// other runtime knobs should be expressed as Keychain entries (secrets) or
-// new flags (non-secrets).
+// dispatchRun parses the daemon's flag set and hands control
+// to [runDaemon]. The flag set is intentionally narrow: just
+// log level and log file path. Other runtime knobs belong
+// either in the Keychain (for secrets) or as new explicit
+// flags (for non-secrets).
+//
+// Behavior:
+//   - Constructs a [flag.FlagSet] with [flag.ExitOnError], so
+//     parse failures terminate the process with a usage message.
+//   - --log-level defaults to "info"; valid values are debug /
+//     info / warn / error (validated downstream in
+//     [runDaemon]).
+//   - --log-file defaults to [config.DefaultLogPath]'s
+//     "~/Library/Logs/macontrol/macontrol.log" — passing an
+//     empty string logs to stderr instead.
+//   - Calls [runDaemon] with the parsed values. Never returns
+//     under normal operation; the daemon blocks on the bot's
+//     long-poll loop.
 func dispatchRun(args []string) {
 	fs := flag.NewFlagSet("run", flag.ExitOnError)
 	logLevel := fs.String("log-level", "info", "log level: debug, info, warn, error")
@@ -68,6 +125,14 @@ func dispatchRun(args []string) {
 	runDaemon(*logLevel, *logFile)
 }
 
+// printHelp writes the full subcommand reference to stdout.
+// Triggered by "macontrol help", "--help", "-h", or as a
+// follow-up to an unknown-subcommand error.
+//
+// The text is a single multi-line raw string literal kept in
+// sync by hand with the [main] dispatch table and [dispatchRun]'s
+// flag set. A future refactor could generate it from the table
+// to remove the manual sync risk.
 func printHelp() {
 	fmt.Print(`macontrol — Telegram bot that controls your Mac.
 
