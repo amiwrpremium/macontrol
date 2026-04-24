@@ -4,15 +4,31 @@ on:
   push:
     tags:
       - "v*"
+  # Temporary dry-run trigger so we can verify the per-job permission
+  # scopes against a snapshot build before the next real release.
+  # Removed in a follow-up PR once the verification run is green.
+  workflow_dispatch:
+    inputs:
+      snapshot:
+        description: "Snapshot mode — build artifacts but skip publish, tag push, and tap update"
+        type: boolean
+        default: true
 
-permissions:
-  contents: write
-  id-token: write
+# Default-deny at the workflow level. The single job opts into the
+# narrowest scopes it actually needs.
+permissions: {}
 
 jobs:
   goreleaser:
     name: GoReleaser
     runs-on: ubuntu-latest
+    permissions:
+      # goreleaser needs to push the GitHub Release + upload assets.
+      contents: write
+      # id-token enables future Sigstore / cosign keyless signing.
+      # Not currently used by .goreleaser.yaml but kept so a later
+      # `signs:` block works without a separate permissions PR.
+      id-token: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -26,7 +42,11 @@ jobs:
         with:
           distribution: goreleaser
           version: "~> v2"
-          args: release --clean
+          # In snapshot mode (workflow_dispatch with snapshot=true)
+          # goreleaser builds binaries + checksums to dist/ but does
+          # NOT push tags, publish a GitHub release, or update the
+          # homebrew-tap. Exercises every step's permissions safely.
+          args: ${{ (github.event_name == 'workflow_dispatch' && inputs.snapshot) && 'release --clean --snapshot --skip=publish' || 'release --clean' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Fine-grained PAT with `contents: write` on amiwrpremium/homebrew-tap.
