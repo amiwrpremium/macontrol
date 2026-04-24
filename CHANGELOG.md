@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/amiwrpremium/macontrol/compare/v0.6.0...v0.6.1) (2026-04-24)
+
+
+### Refactors
+
+* split overgrown handlers and table-drive parsers ([#82](https://github.com/amiwrpremium/macontrol/issues/82)) ([9f045d2](https://github.com/amiwrpremium/macontrol/commit/9f045d234060e03a16a46ffad2ea2547423bbadc))
+
 ## [0.6.0](https://github.com/amiwrpremium/macontrol/compare/v0.5.0...v0.6.0) (2026-04-23)
 
 
