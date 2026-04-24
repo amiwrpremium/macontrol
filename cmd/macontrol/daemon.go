@@ -83,13 +83,28 @@ func runDaemon(logLevel, logFile string) {
 	defer cancel()
 
 	r := runner.New()
-
 	rep, err := capability.Detect(ctx, r)
 	if err != nil {
 		logger.Warn("capability detect failed — assuming empty feature set", "err", err)
 	}
 	logger.Info("capabilities", "summary", rep.Summary())
 
+	deps := buildDaemonDeps(ctx, logger, cfg, r, rep)
+	go pingOnBoot(ctx, deps)
+
+	if err := bot.Start(ctx, cfg.TelegramBotToken, deps); err != nil {
+		logger.Error("bot exited", "err", err)
+		cancel()
+		//nolint:gocritic // explicit cancel() above flushes the context before exit
+		os.Exit(1)
+	}
+}
+
+// buildDaemonDeps wires the service bundle, short-map, flow
+// registry, and whitelist into a [bot.Deps] ready for
+// [bot.Start]. Factored out of [runDaemon] so the big boilerplate
+// construction doesn't inflate the entrypoint.
+func buildDaemonDeps(ctx context.Context, logger *slog.Logger, cfg config.Config, r runner.Runner, rep capability.Report) *bot.Deps {
 	services := bot.Services{
 		Sound:     sound.New(r),
 		Display:   display.New(r),
@@ -103,14 +118,11 @@ func runDaemon(logLevel, logFile string) {
 		Tools:     tools.New(r),
 		Status:    status.New(r),
 	}
-
 	shortmap := callbacks.NewShortMap(15 * time.Minute)
 	shortmap.StartJanitor(ctx.Done())
-
 	flowReg := flows.NewRegistry(5 * time.Minute)
 	flowReg.StartJanitor(ctx)
-
-	deps := &bot.Deps{
+	return &bot.Deps{
 		Logger:     logger,
 		Whitelist:  bot.NewWhitelist(cfg.AllowedUserIDs),
 		Commands:   handlers.NewCommandRouter(),
@@ -120,15 +132,6 @@ func runDaemon(logLevel, logFile string) {
 		Capability: rep,
 		ShortMap:   shortmap,
 		FlowReg:    flowReg,
-	}
-
-	go pingOnBoot(ctx, deps)
-
-	if err := bot.Start(ctx, cfg.TelegramBotToken, deps); err != nil {
-		logger.Error("bot exited", "err", err)
-		cancel()
-		//nolint:gocritic // explicit cancel() above flushes the context before exit
-		os.Exit(1)
 	}
 }
 

@@ -402,20 +402,49 @@ func (s *Service) Speedtest(ctx context.Context) (SpeedResult, error) {
 //     sibling section will be classified as still-in-WIFI until
 //     the list is updated, which would cause garbage from that
 //     section to leak into info. See the smells list.
+//
+// wdutilSetters maps each KEY in the wdutil "WIFI" section to
+// the function that parses VALUE and writes the result to Info.
+// Built once at package init so applyWdutilInfo's inner loop is a
+// single map lookup per line.
+var wdutilSetters = map[string]func(*Info, string){
+	"SSID":     func(i *Info, v string) { i.SSID = v },
+	"BSSID":    func(i *Info, v string) { i.BSSID = v },
+	"Security": func(i *Info, v string) { i.Security = v },
+	"Channel":  func(i *Info, v string) { i.Channel = v },
+	"Tx Rate":  func(i *Info, v string) { i.TxRateMbps = parseMbps(v) },
+	"RSSI": func(i *Info, v string) {
+		fields := strings.Fields(v)
+		if len(fields) > 0 {
+			if n, err := strconv.Atoi(fields[0]); err == nil {
+				i.RSSI = n
+			}
+		}
+	},
+}
+
+// wdutilSectionEnders is the set of section banners (other than
+// "WIFI" itself) that wdutil emits. Crossing one means we're no
+// longer in the WIFI section.
+var wdutilSectionEnders = map[string]struct{}{
+	"NETWORK":                   {},
+	"BLUETOOTH":                 {},
+	"AWDL":                      {},
+	"POWER":                     {},
+	"WIFI FAULTS LAST HOUR":     {},
+	"WIFI RECOVERIES LAST HOUR": {},
+	"WIFI LINK TESTS LAST HOUR": {},
+}
+
 func applyWdutilInfo(info *Info, out string) {
 	inWifi := false
 	for _, raw := range strings.Split(out, "\n") {
-		// Section banner: a line of em-dashes precedes / follows the
-		// section name. We just look for the section name itself.
 		trim := strings.TrimSpace(raw)
-		switch trim {
-		case "WIFI":
+		if trim == "WIFI" {
 			inWifi = true
 			continue
-		case "NETWORK", "BLUETOOTH", "AWDL", "POWER",
-			"WIFI FAULTS LAST HOUR",
-			"WIFI RECOVERIES LAST HOUR",
-			"WIFI LINK TESTS LAST HOUR":
+		}
+		if _, ok := wdutilSectionEnders[trim]; ok {
 			inWifi = false
 			continue
 		}
@@ -426,26 +455,8 @@ func applyWdutilInfo(info *Info, out string) {
 		if !ok {
 			continue
 		}
-		switch key {
-		case "SSID":
-			info.SSID = val
-		case "BSSID":
-			info.BSSID = val
-		case "RSSI":
-			// e.g. "-45 dBm"
-			fields := strings.Fields(val)
-			if len(fields) > 0 {
-				if v, err := strconv.Atoi(fields[0]); err == nil {
-					info.RSSI = v
-				}
-			}
-		case "Security":
-			info.Security = val
-		case "Tx Rate":
-			// e.g. "144.0 Mbps"
-			info.TxRateMbps = parseMbps(val)
-		case "Channel":
-			info.Channel = val
+		if setter, ok := wdutilSetters[key]; ok {
+			setter(info, val)
 		}
 	}
 }
@@ -473,64 +484,111 @@ func applyWdutilInfo(info *Info, out string) {
 // The indent-based parsing is fragile but matches Apple's
 // long-stable formatting; see the smells list for the brittleness
 // note.
+// spInnerSetters is the table-driven dispatcher for the inner
+// block of system_profiler's "Current Network Information:"
+// section. Each entry's prefix is matched against the trimmed
+// line; on hit the value (everything after the prefix) is parsed
+// and applied if the corresponding Info field is still at zero.
+//
+// Wdutil-first: all setters guard on "field still empty" so a
+// preceding wdutil pass takes precedence when both ran.
+var spInnerSetters = []struct {
+	prefix string
+	apply  func(*Info, string)
+}{
+	{"Channel: ", func(i *Info, v string) {
+		if i.Channel == "" {
+			i.Channel = v
+		}
+	}},
+	{"Security: ", func(i *Info, v string) {
+		if i.Security == "" {
+			i.Security = v
+		}
+	}},
+	{"Transmit Rate: ", func(i *Info, v string) {
+		if i.TxRateMbps != 0 {
+			return
+		}
+		f, _ := strconv.ParseFloat(v, 64)
+		i.TxRateMbps = f
+	}},
+	{"Signal / Noise: ", func(i *Info, v string) {
+		if i.RSSI != 0 {
+			return
+		}
+		parts := strings.Fields(v)
+		if len(parts) == 0 {
+			return
+		}
+		if n, err := strconv.Atoi(parts[0]); err == nil {
+			i.RSSI = n
+		}
+	}},
+}
+
+// applySpInnerLine matches subTrim against [spInnerSetters] and
+// applies the first hit. Returns silently when nothing matches.
+func applySpInnerLine(info *Info, subTrim string) {
+	for _, s := range spInnerSetters {
+		if strings.HasPrefix(subTrim, s.prefix) {
+			s.apply(info, strings.TrimPrefix(subTrim, s.prefix))
+			return
+		}
+	}
+}
+
 func applySystemProfilerInfo(info *Info, out string) {
 	lines := strings.Split(out, "\n")
 	for i := 0; i < len(lines); i++ {
-		line := lines[i]
-		if !strings.Contains(line, "Current Network Information:") {
+		if !strings.Contains(lines[i], "Current Network Information:") {
 			continue
 		}
-		// Expect the next non-blank line to be the SSID heading,
-		// indented further than the "Current Network Information:" line
-		// and ending with ':'.
-		baseIndent := indentWidth(line)
-		for j := i + 1; j < len(lines); j++ {
-			cand := lines[j]
-			if strings.TrimSpace(cand) == "" {
-				continue
-			}
-			candIndent := indentWidth(cand)
-			if candIndent <= baseIndent {
-				return // moved out of the block; SSID heading not found
-			}
-			cand = strings.TrimSpace(cand)
-			if strings.HasSuffix(cand, ":") {
-				ssid := strings.TrimSuffix(cand, ":")
-				if info.SSID == "" {
-					info.SSID = ssid
-				}
-				// Walk the inner block for additional fields.
-				for k := j + 1; k < len(lines); k++ {
-					sub := lines[k]
-					if strings.TrimSpace(sub) == "" {
-						continue
-					}
-					if indentWidth(sub) <= candIndent {
-						return
-					}
-					subTrim := strings.TrimSpace(sub)
-					switch {
-					case strings.HasPrefix(subTrim, "Channel: ") && info.Channel == "":
-						info.Channel = strings.TrimPrefix(subTrim, "Channel: ")
-					case strings.HasPrefix(subTrim, "Security: ") && info.Security == "":
-						info.Security = strings.TrimPrefix(subTrim, "Security: ")
-					case strings.HasPrefix(subTrim, "Transmit Rate: ") && info.TxRateMbps == 0:
-						v, _ := strconv.ParseFloat(strings.TrimPrefix(subTrim, "Transmit Rate: "), 64)
-						info.TxRateMbps = v
-					case strings.HasPrefix(subTrim, "Signal / Noise: ") && info.RSSI == 0:
-						// e.g. "Signal / Noise: -48 dBm / -84 dBm"
-						parts := strings.Fields(strings.TrimPrefix(subTrim, "Signal / Noise: "))
-						if len(parts) > 0 {
-							if v, err := strconv.Atoi(parts[0]); err == nil {
-								info.RSSI = v
-							}
-						}
-					}
-				}
-				return
-			}
-			return // unexpected non-heading line
+		applySpCurrentNetworkBlock(info, lines, i)
+		return
+	}
+}
+
+// applySpCurrentNetworkBlock walks the indented block starting at
+// lines[i] (a "Current Network Information:" line). Looks for the
+// SSID heading, then walks the inner block applying per-field
+// setters via [applySpInnerLine].
+func applySpCurrentNetworkBlock(info *Info, lines []string, i int) {
+	baseIndent := indentWidth(lines[i])
+	for j := i + 1; j < len(lines); j++ {
+		cand := lines[j]
+		if strings.TrimSpace(cand) == "" {
+			continue
 		}
+		candIndent := indentWidth(cand)
+		if candIndent <= baseIndent {
+			return
+		}
+		candTrim := strings.TrimSpace(cand)
+		if !strings.HasSuffix(candTrim, ":") {
+			return
+		}
+		if info.SSID == "" {
+			info.SSID = strings.TrimSuffix(candTrim, ":")
+		}
+		applySpInnerBlock(info, lines, j, candIndent)
+		return
+	}
+}
+
+// applySpInnerBlock walks the lines deeper than ssidIndent inside
+// the SSID sub-block, applying per-field setters until we leave
+// the block.
+func applySpInnerBlock(info *Info, lines []string, ssidLine, ssidIndent int) {
+	for k := ssidLine + 1; k < len(lines); k++ {
+		sub := lines[k]
+		if strings.TrimSpace(sub) == "" {
+			continue
+		}
+		if indentWidth(sub) <= ssidIndent {
+			return
+		}
+		applySpInnerLine(info, strings.TrimSpace(sub))
 	}
 }
 

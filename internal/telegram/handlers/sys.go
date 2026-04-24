@@ -49,128 +49,168 @@ import (
 // Unknown actions fall through to a "Unknown system action."
 // toast. Errors from any sub-step are surfaced via [errEdit] so
 // the user sees the macOS CLI's own diagnostic.
+// systemDispatch maps System callback action names to per-action
+// handlers. Declared once at package init for O(1) dispatch.
+var systemDispatch = map[string]func(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error{
+	"open":     handleSystemOpen,
+	"info":     handleSystemInfo,
+	"temp":     handleSystemTemp,
+	"mem":      handleSystemMem,
+	"cpu":      handleSystemCPU,
+	"top":      handleSystemTop,
+	"proc":     handleSystemProc,
+	"kill-pid": handleSystemKillPID,
+	"kill9":    handleSystemKill9,
+	"kill":     handleSystemKill,
+}
+
 func handleSystem(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
+	h, ok := systemDispatch[data.Action]
+	if !ok {
+		Reply{Deps: d}.Toast(ctx, q, "Unknown system action.")
+		return nil
+	}
+	return h(ctx, d, q, data)
+}
+
+func handleSystemOpen(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	text, kb := keyboards.System()
+	return r.Edit(ctx, q, text, kb)
+}
+
+func handleSystemInfo(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	info, err := d.Services.System.Info(ctx)
+	if err != nil {
+		return errEdit(ctx, r, q, "🖥 *System info* — unavailable", err)
+	}
+	var body strings.Builder
+	fmt.Fprintf(&body,
+		"🖥 *System info*\n\n• %s %s (%s)\n• Host: `%s`\n• Model: `%s`\n• Chip: `%s`\n• Cores: `%s`\n• RAM: `%s`",
+		info.ProductName, info.ProductVersion, info.BuildVersion,
+		info.Hostname, info.Model, info.ChipName, info.CPUCores,
+		fmtBytes(info.TotalRAMBytes),
+	)
+	writeUptimeBlock(&body, info.Uptime, info.CPUCores)
+	return r.Edit(ctx, q, body.String(), keyboards.SystemPanel("info"))
+}
+
+func handleSystemTemp(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	t, err := d.Services.System.Thermal(ctx)
+	if err != nil {
+		return errEdit(ctx, r, q, "🌡 *Thermal* — unavailable", err)
+	}
+	var body strings.Builder
+	fmt.Fprintf(&body, "🌡 *Thermal*\n\n• Pressure: `%s`", t.Pressure)
+	if t.SmctempAvail {
+		fmt.Fprintf(&body, "\n• CPU: `%.1f°C`\n• GPU: `%.1f°C`", t.CPUTempC, t.GPUTempC)
+	} else {
+		body.WriteString("\n• °C readings unavailable (install `brew install smctemp`).")
+	}
+	return r.Edit(ctx, q, body.String(), keyboards.SystemPanel("temp"))
+}
+
+func handleSystemMem(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
 	r := Reply{Deps: d}
 	svc := d.Services.System
-
-	switch data.Action {
-	case "open":
-		r.Ack(ctx, q)
-		text, kb := keyboards.System()
-		return r.Edit(ctx, q, text, kb)
-
-	case "info":
-		r.Ack(ctx, q)
-		info, err := svc.Info(ctx)
-		if err != nil {
-			return errEdit(ctx, r, q, "🖥 *System info* — unavailable", err)
-		}
-		var body strings.Builder
-		fmt.Fprintf(&body,
-			"🖥 *System info*\n\n• %s %s (%s)\n• Host: `%s`\n• Model: `%s`\n• Chip: `%s`\n• Cores: `%s`\n• RAM: `%s`",
-			info.ProductName, info.ProductVersion, info.BuildVersion,
-			info.Hostname, info.Model, info.ChipName, info.CPUCores,
-			fmtBytes(info.TotalRAMBytes),
-		)
-		writeUptimeBlock(&body, info.Uptime, info.CPUCores)
-		return r.Edit(ctx, q, body.String(), keyboards.SystemPanel("info"))
-
-	case "temp":
-		r.Ack(ctx, q)
-		t, err := svc.Thermal(ctx)
-		if err != nil {
-			return errEdit(ctx, r, q, "🌡 *Thermal* — unavailable", err)
-		}
-		var body strings.Builder
-		fmt.Fprintf(&body, "🌡 *Thermal*\n\n• Pressure: `%s`", t.Pressure)
-		if t.SmctempAvail {
-			fmt.Fprintf(&body, "\n• CPU: `%.1f°C`\n• GPU: `%.1f°C`", t.CPUTempC, t.GPUTempC)
-		} else {
-			body.WriteString("\n• °C readings unavailable (install `brew install smctemp`).")
-		}
-		return r.Edit(ctx, q, body.String(), keyboards.SystemPanel("temp"))
-
-	case "mem":
-		r.Ack(ctx, q)
-		m, err := svc.Memory(ctx)
-		if err != nil {
-			return errEdit(ctx, r, q, "🧠 *Memory* — unavailable", err)
-		}
-		info, _ := svc.Info(ctx)
-		return r.Edit(ctx, q, buildMemoryPanel(m, info.TotalRAMBytes),
-			keyboards.SystemPanelWithProcs("mem", m.TopByMem, memProcLabel))
-
-	case "cpu":
-		r.Ack(ctx, q)
-		c, err := svc.CPU(ctx)
-		if err != nil {
-			return errEdit(ctx, r, q, "⚙ *CPU* — unavailable", err)
-		}
-		info, _ := svc.Info(ctx)
-		return r.Edit(ctx, q, buildCPUPanel(c, info.CPUCores),
-			keyboards.SystemPanelWithProcs("cpu", c.TopByCPU, cpuProcLabel))
-
-	case "top":
-		r.Ack(ctx, q)
-		procs, err := svc.TopN(ctx, 10)
-		if err != nil {
-			return errEdit(ctx, r, q, "📋 *Top* — unavailable", err)
-		}
-		return r.Edit(ctx, q, "📋 *Top 10 by CPU*\n\nTap a process for actions.",
-			keyboards.SystemTopList(procs))
-
-	case "proc":
-		r.Ack(ctx, q)
-		pid, ok := pidArg(data)
-		if !ok {
-			return errEdit(ctx, r, q, "📋 *Process*", fmt.Errorf("missing or invalid PID"))
-		}
-		p, found := findProc(ctx, svc, pid)
-		if !found {
-			return r.Edit(ctx, q,
-				fmt.Sprintf("📋 *PID %d* — not in current Top 10 (may have exited).", pid),
-				keyboards.SystemProcPanel(pid))
-		}
-		body := fmt.Sprintf("📋 *%s*\nPID: `%d` · CPU: `%.1f%%` · RAM: `%.1f%%`\n`%s`",
-			leafOfPath(p.Command), p.PID, p.CPU, p.Mem, p.Command)
-		return r.Edit(ctx, q, body, keyboards.SystemProcPanel(pid))
-
-	case "kill-pid":
-		r.Ack(ctx, q)
-		pid, ok := pidArg(data)
-		if !ok {
-			return errEdit(ctx, r, q, "🔪 *Kill*", fmt.Errorf("missing or invalid PID"))
-		}
-		if err := svc.Kill(ctx, pid); err != nil {
-			return errEdit(ctx, r, q, fmt.Sprintf("🔪 *Kill PID %d* — failed", pid), err)
-		}
-		return rerenderTopWithToast(ctx, r, q, svc, fmt.Sprintf("✅ SIGTERM sent to PID `%d`.", pid))
-
-	case "kill9":
-		r.Ack(ctx, q)
-		pid, ok := pidArg(data)
-		if !ok {
-			return errEdit(ctx, r, q, "💀 *Force kill*", fmt.Errorf("missing or invalid PID"))
-		}
-		if !isConfirm(data.Args[1:]) {
-			name := procNameByPID(ctx, svc, pid)
-			text, kb := keyboards.SystemKillConfirm(pid, name)
-			return r.Edit(ctx, q, text, kb)
-		}
-		if err := svc.KillForce(ctx, pid); err != nil {
-			return errEdit(ctx, r, q, fmt.Sprintf("💀 *Force kill PID %d* — failed", pid), err)
-		}
-		return rerenderTopWithToast(ctx, r, q, svc, fmt.Sprintf("💀 SIGKILL sent to PID `%d`.", pid))
-
-	case "kill":
-		r.Ack(ctx, q)
-		chatID := q.Message.Message.Chat.ID
-		f := flows.NewKillProc(svc)
-		d.FlowReg.Install(chatID, f)
-		return sendFlowPrompt(ctx, r, chatID, f.Start(ctx))
+	r.Ack(ctx, q)
+	m, err := svc.Memory(ctx)
+	if err != nil {
+		return errEdit(ctx, r, q, "🧠 *Memory* — unavailable", err)
 	}
-	r.Toast(ctx, q, "Unknown system action.")
-	return nil
+	info, _ := svc.Info(ctx)
+	return r.Edit(ctx, q, buildMemoryPanel(m, info.TotalRAMBytes),
+		keyboards.SystemPanelWithProcs("mem", m.TopByMem, memProcLabel))
+}
+
+func handleSystemCPU(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	svc := d.Services.System
+	r.Ack(ctx, q)
+	c, err := svc.CPU(ctx)
+	if err != nil {
+		return errEdit(ctx, r, q, "⚙ *CPU* — unavailable", err)
+	}
+	info, _ := svc.Info(ctx)
+	return r.Edit(ctx, q, buildCPUPanel(c, info.CPUCores),
+		keyboards.SystemPanelWithProcs("cpu", c.TopByCPU, cpuProcLabel))
+}
+
+func handleSystemTop(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	procs, err := d.Services.System.TopN(ctx, 10)
+	if err != nil {
+		return errEdit(ctx, r, q, "📋 *Top* — unavailable", err)
+	}
+	return r.Edit(ctx, q, "📋 *Top 10 by CPU*\n\nTap a process for actions.",
+		keyboards.SystemTopList(procs))
+}
+
+func handleSystemProc(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
+	r := Reply{Deps: d}
+	svc := d.Services.System
+	r.Ack(ctx, q)
+	pid, ok := pidArg(data)
+	if !ok {
+		return errEdit(ctx, r, q, "📋 *Process*", fmt.Errorf("missing or invalid PID"))
+	}
+	p, found := findProc(ctx, svc, pid)
+	if !found {
+		return r.Edit(ctx, q,
+			fmt.Sprintf("📋 *PID %d* — not in current Top 10 (may have exited).", pid),
+			keyboards.SystemProcPanel(pid))
+	}
+	body := fmt.Sprintf("📋 *%s*\nPID: `%d` · CPU: `%.1f%%` · RAM: `%.1f%%`\n`%s`",
+		leafOfPath(p.Command), p.PID, p.CPU, p.Mem, p.Command)
+	return r.Edit(ctx, q, body, keyboards.SystemProcPanel(pid))
+}
+
+func handleSystemKillPID(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
+	r := Reply{Deps: d}
+	svc := d.Services.System
+	r.Ack(ctx, q)
+	pid, ok := pidArg(data)
+	if !ok {
+		return errEdit(ctx, r, q, "🔪 *Kill*", fmt.Errorf("missing or invalid PID"))
+	}
+	if err := svc.Kill(ctx, pid); err != nil {
+		return errEdit(ctx, r, q, fmt.Sprintf("🔪 *Kill PID %d* — failed", pid), err)
+	}
+	return rerenderTopWithToast(ctx, r, q, svc, fmt.Sprintf("✅ SIGTERM sent to PID `%d`.", pid))
+}
+
+func handleSystemKill9(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
+	r := Reply{Deps: d}
+	svc := d.Services.System
+	r.Ack(ctx, q)
+	pid, ok := pidArg(data)
+	if !ok {
+		return errEdit(ctx, r, q, "💀 *Force kill*", fmt.Errorf("missing or invalid PID"))
+	}
+	if !isConfirm(data.Args[1:]) {
+		name := procNameByPID(ctx, svc, pid)
+		text, kb := keyboards.SystemKillConfirm(pid, name)
+		return r.Edit(ctx, q, text, kb)
+	}
+	if err := svc.KillForce(ctx, pid); err != nil {
+		return errEdit(ctx, r, q, fmt.Sprintf("💀 *Force kill PID %d* — failed", pid), err)
+	}
+	return rerenderTopWithToast(ctx, r, q, svc, fmt.Sprintf("💀 SIGKILL sent to PID `%d`.", pid))
+}
+
+func handleSystemKill(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	chatID := q.Message.Message.Chat.ID
+	f := flows.NewKillProc(d.Services.System)
+	d.FlowReg.Install(chatID, f)
+	return sendFlowPrompt(ctx, r, chatID, f.Start(ctx))
 }
 
 // pidArg extracts a positive integer PID from data.Args[0].
@@ -296,33 +336,47 @@ func fmtBytes(n uint64) string {
 func buildCPUPanel(c system.CPU, cpuCores string) string {
 	var b strings.Builder
 	b.WriteString("⚙ *CPU*\n")
-
-	if c.UserPct > 0 || c.SysPct > 0 || c.IdlePct > 0 {
-		busy := c.UserPct + c.SysPct
-		fmt.Fprintf(&b, "\n• Busy: `%.0f%%` (User `%.0f%%` · Kernel `%.0f%%`) · Idle: `%.0f%%`",
-			busy, c.UserPct, c.SysPct, c.IdlePct)
-	} else if c.Raw != "" {
-		fmt.Fprintf(&b, "\n• %s", c.Raw)
-	}
+	writeCPUBusyLine(&b, c)
 	if c.Load1 > 0 || c.Load5 > 0 || c.Load15 > 0 {
-		cores, ok := system.FirstInt(cpuCores)
-		if ok && cores > 0 {
-			fmt.Fprintf(&b,
-				"\n• Load avg (1/5/15m): `%.2f / %.2f / %.2f` (~%.0f%% / %.0f%% / %.0f%% of %d cores)",
-				c.Load1, c.Load5, c.Load15,
-				c.Load1/float64(cores)*100,
-				c.Load5/float64(cores)*100,
-				c.Load15/float64(cores)*100,
-				cores)
-		} else {
-			fmt.Fprintf(&b, "\n• Load avg (1/5/15m): `%.2f / %.2f / %.2f`",
-				c.Load1, c.Load5, c.Load15)
-		}
+		writeLoadAvgLine(&b, c.Load1, c.Load5, c.Load15, cpuCores)
 	}
 	if len(c.TopByCPU) > 0 {
 		b.WriteString("\n\n_Top by CPU — tap a process to drill in:_")
 	}
 	return b.String()
+}
+
+// writeCPUBusyLine appends the labelled busy/idle bullet, or
+// the raw fallback when no parsed percentages are available.
+func writeCPUBusyLine(b *strings.Builder, c system.CPU) {
+	if c.UserPct > 0 || c.SysPct > 0 || c.IdlePct > 0 {
+		busy := c.UserPct + c.SysPct
+		fmt.Fprintf(b, "\n• Busy: `%.0f%%` (User `%.0f%%` · Kernel `%.0f%%`) · Idle: `%.0f%%`",
+			busy, c.UserPct, c.SysPct, c.IdlePct)
+		return
+	}
+	if c.Raw != "" {
+		fmt.Fprintf(b, "\n• %s", c.Raw)
+	}
+}
+
+// writeLoadAvgLine appends a "Load avg (1/5/15m): a / b / c"
+// bullet, with per-core utilisation percentages appended when
+// cpuCores parses to a positive integer. Shared by the CPU
+// panel and the System info uptime block.
+func writeLoadAvgLine(b *strings.Builder, l1, l5, l15 float64, cpuCores string) {
+	cores, ok := system.FirstInt(cpuCores)
+	if ok && cores > 0 {
+		fmt.Fprintf(b,
+			"\n• Load avg (1/5/15m): `%.2f / %.2f / %.2f` (~%.0f%% / %.0f%% / %.0f%% of %d cores)",
+			l1, l5, l15,
+			l1/float64(cores)*100,
+			l5/float64(cores)*100,
+			l15/float64(cores)*100,
+			cores)
+		return
+	}
+	fmt.Fprintf(b, "\n• Load avg (1/5/15m): `%.2f / %.2f / %.2f`", l1, l5, l15)
 }
 
 // cpuProcLabel formats a [system.Process] as a CPU-panel
@@ -359,25 +413,8 @@ func memProcLabel(p system.Process) string {
 func buildMemoryPanel(m system.Memory, totalRAMBytes uint64) string {
 	var b strings.Builder
 	b.WriteString("🧠 *Memory*\n")
-
-	if m.UsedBytes > 0 || totalRAMBytes > 0 {
-		fmt.Fprintf(&b, "\n• Used: `%s / %s` (%d%%) · Free: `%s`",
-			humanBytes(m.UsedBytes), humanBytes(totalRAMBytes),
-			percentOf(m.UsedBytes, totalRAMBytes),
-			humanBytes(m.UnusedBytes))
-	} else if m.Raw != "" {
-		fmt.Fprintf(&b, "\n• %s", m.Raw)
-	}
-	if m.WiredBytes > 0 {
-		fmt.Fprintf(&b, "\n• Wired: `%s` _(kernel-pinned)_", humanBytes(m.WiredBytes))
-	}
-	if m.CompressedBytes > 0 {
-		fmt.Fprintf(&b, "\n• Compressed: `%s` _(in-RAM compression)_", humanBytes(m.CompressedBytes))
-	}
-	if m.SwapTotalBytes > 0 {
-		fmt.Fprintf(&b, "\n• Swap used: `%s` of `%s`",
-			humanBytes(m.SwapUsedBytes), humanBytes(m.SwapTotalBytes))
-	}
+	writeMemUsedLine(&b, m, totalRAMBytes)
+	writeMemDetailLines(&b, m)
 	if m.FreePercent >= 0 {
 		fmt.Fprintf(&b, "\n• Pressure: `%s` (%d%% free)",
 			pressureLabel(m.FreePercent), m.FreePercent)
@@ -386,6 +423,36 @@ func buildMemoryPanel(m system.Memory, totalRAMBytes uint64) string {
 		b.WriteString("\n\n_Top by RAM — tap a process to drill in:_")
 	}
 	return b.String()
+}
+
+// writeMemUsedLine appends the Used/Total/Free header bullet,
+// or the raw fallback when no parsed bytes are available.
+func writeMemUsedLine(b *strings.Builder, m system.Memory, totalRAMBytes uint64) {
+	if m.UsedBytes > 0 || totalRAMBytes > 0 {
+		fmt.Fprintf(b, "\n• Used: `%s / %s` (%d%%) · Free: `%s`",
+			humanBytes(m.UsedBytes), humanBytes(totalRAMBytes),
+			percentOf(m.UsedBytes, totalRAMBytes),
+			humanBytes(m.UnusedBytes))
+		return
+	}
+	if m.Raw != "" {
+		fmt.Fprintf(b, "\n• %s", m.Raw)
+	}
+}
+
+// writeMemDetailLines appends the optional Wired / Compressed /
+// Swap bullets, each gated on its respective field being > 0.
+func writeMemDetailLines(b *strings.Builder, m system.Memory) {
+	if m.WiredBytes > 0 {
+		fmt.Fprintf(b, "\n• Wired: `%s` _(kernel-pinned)_", humanBytes(m.WiredBytes))
+	}
+	if m.CompressedBytes > 0 {
+		fmt.Fprintf(b, "\n• Compressed: `%s` _(in-RAM compression)_", humanBytes(m.CompressedBytes))
+	}
+	if m.SwapTotalBytes > 0 {
+		fmt.Fprintf(b, "\n• Swap used: `%s` of `%s`",
+			humanBytes(m.SwapUsedBytes), humanBytes(m.SwapTotalBytes))
+	}
 }
 
 // pressureLabel maps a free-memory percentage to a coarse
@@ -469,24 +536,19 @@ func writeUptimeBlock(b *strings.Builder, u system.Uptime, cpuCores string) {
 	if u.Duration != "" {
 		fmt.Fprintf(b, "\n• Uptime: `%s`", u.Duration)
 	}
-	if u.Users > 0 {
-		noun := "users"
-		if u.Users == 1 {
-			noun = "user"
-		}
-		fmt.Fprintf(b, "\n• Logged-in %s: `%d`", noun, u.Users)
+	writeLoggedInUsersLine(b, u.Users)
+	writeLoadAvgLine(b, u.Load1, u.Load5, u.Load15, cpuCores)
+}
+
+// writeLoggedInUsersLine appends the "Logged-in N user(s)"
+// bullet when n > 0. Handles English plural agreement.
+func writeLoggedInUsersLine(b *strings.Builder, n int) {
+	if n <= 0 {
+		return
 	}
-	cores, ok := system.FirstInt(cpuCores)
-	if ok && cores > 0 {
-		fmt.Fprintf(b,
-			"\n• Load avg (1/5/15m): `%.2f / %.2f / %.2f` (~%.0f%% / %.0f%% / %.0f%% of %d cores)",
-			u.Load1, u.Load5, u.Load15,
-			u.Load1/float64(cores)*100,
-			u.Load5/float64(cores)*100,
-			u.Load15/float64(cores)*100,
-			cores)
-	} else {
-		fmt.Fprintf(b, "\n• Load avg (1/5/15m): `%.2f / %.2f / %.2f`",
-			u.Load1, u.Load5, u.Load15)
+	noun := "users"
+	if n == 1 {
+		noun = "user"
 	}
+	fmt.Fprintf(b, "\n• Logged-in %s: `%d`", noun, n)
 }

@@ -29,6 +29,22 @@ type CallbackRouter struct{}
 // be installed on bot.Deps.Calls.
 func NewCallbackRouter() *CallbackRouter { return &CallbackRouter{} }
 
+// namespaceDispatch maps each callback namespace to its per-
+// namespace entry handler. One entry per keyboard category.
+var namespaceDispatch = map[string]func(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error{
+	callbacks.NSNav:     handleNav,
+	callbacks.NSSound:   handleSound,
+	callbacks.NSDisplay: handleDisplay,
+	callbacks.NSPower:   handlePower,
+	callbacks.NSBattery: handleBattery,
+	callbacks.NSWifi:    handleWiFi,
+	callbacks.NSBT:      handleBluetooth,
+	callbacks.NSSystem:  handleSystem,
+	callbacks.NSMedia:   handleMedia,
+	callbacks.NSNotify:  handleNotify,
+	callbacks.NSTools:   handleTools,
+}
+
 // Handle is the [bot.Router] implementation for callback queries.
 //
 // Behavior:
@@ -39,12 +55,11 @@ func NewCallbackRouter() *CallbackRouter { return &CallbackRouter{} }
 //  2. Parses callback_data via [callbacks.Decode]. On parse
 //     failure, toasts "Bad callback data." and returns the
 //     decode error so the dispatcher logs it.
-//  3. Switches on [callbacks.Data.Namespace] to dispatch to the
-//     matching per-namespace handler. The 11 cases mirror the
-//     NS… constants in the [callbacks] package and the
-//     handler files in this directory (snd.go, dsp.go, pwr.go,
-//     wif.go, bt.go, bat.go, sys.go, med.go, ntf.go, tls.go,
-//     nav.go).
+//  3. Looks up [namespaceDispatch] for the per-namespace entry
+//     handler. The 11 entries mirror the NS… constants in the
+//     [callbacks] package and the handler files in this
+//     directory (snd.go, dsp.go, pwr.go, wif.go, bt.go, bat.go,
+//     sys.go, med.go, ntf.go, tls.go, nav.go).
 //  4. Unknown namespace → toast "Unknown namespace." and
 //     return an error. Should never happen in practice — every
 //     keyboard rendered by the package emits one of the known
@@ -65,32 +80,10 @@ func (CallbackRouter) Handle(ctx context.Context, d *bot.Deps, update *models.Up
 		Reply{Deps: d}.Toast(ctx, q, "Bad callback data.")
 		return err
 	}
-
-	r := Reply{Deps: d}
-	switch data.Namespace {
-	case callbacks.NSNav:
-		return handleNav(ctx, d, q, data)
-	case callbacks.NSSound:
-		return handleSound(ctx, d, q, data)
-	case callbacks.NSDisplay:
-		return handleDisplay(ctx, d, q, data)
-	case callbacks.NSPower:
-		return handlePower(ctx, d, q, data)
-	case callbacks.NSBattery:
-		return handleBattery(ctx, d, q, data)
-	case callbacks.NSWifi:
-		return handleWiFi(ctx, d, q, data)
-	case callbacks.NSBT:
-		return handleBluetooth(ctx, d, q, data)
-	case callbacks.NSSystem:
-		return handleSystem(ctx, d, q, data)
-	case callbacks.NSMedia:
-		return handleMedia(ctx, d, q, data)
-	case callbacks.NSNotify:
-		return handleNotify(ctx, d, q, data)
-	case callbacks.NSTools:
-		return handleTools(ctx, d, q, data)
+	h, ok := namespaceDispatch[data.Namespace]
+	if !ok {
+		Reply{Deps: d}.Toast(ctx, q, "Unknown namespace.")
+		return fmt.Errorf("unknown callback namespace: %q", data.Namespace)
 	}
-	r.Toast(ctx, q, "Unknown namespace.")
-	return fmt.Errorf("unknown callback namespace: %q", data.Namespace)
+	return h(ctx, d, q, data)
 }

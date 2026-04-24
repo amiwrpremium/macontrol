@@ -45,6 +45,17 @@ import (
 //   - Refresh row.
 //   - Back/Home nav row.
 func WiFi(info wifi.Info, features capability.Features) (text string, markup *models.InlineKeyboardMarkup) {
+	text = wifiHeader(info)
+	if extra := wifiDetailLine(info); extra != "" {
+		text += "\n" + extra
+	}
+	markup = &models.InlineKeyboardMarkup{InlineKeyboard: wifiRows(info, features)}
+	return
+}
+
+// wifiHeader builds the first line of the Wi-Fi dashboard:
+// power + SSID + interface name.
+func wifiHeader(info wifi.Info) string {
 	power := "off"
 	ssid := "—"
 	if info.PowerOn {
@@ -55,31 +66,42 @@ func WiFi(info wifi.Info, features capability.Features) (text string, markup *mo
 			ssid = "(not associated)"
 		}
 	}
-	text = fmt.Sprintf("📶 *Wi-Fi* — `%s` · SSID `%s` · iface `%s`", power, ssid, info.Interface)
-	// Optional second line with rich link details (only if any of them
-	// are populated — wdutil/system_profiler may not be available).
-	if info.PowerOn && info.SSID != "" && (info.Security != "" || info.RSSI != 0 || info.TxRateMbps != 0 || info.Channel != "") {
-		var parts []string
-		if info.Security != "" {
-			parts = append(parts, fmt.Sprintf("`%s`", info.Security))
-		}
-		if info.RSSI != 0 {
-			parts = append(parts, fmt.Sprintf("`%d dBm`", info.RSSI))
-		}
-		if info.TxRateMbps != 0 {
-			parts = append(parts, fmt.Sprintf("`%g Mbps`", info.TxRateMbps))
-		}
-		if info.Channel != "" {
-			parts = append(parts, fmt.Sprintf("ch `%s`", info.Channel))
-		}
-		text += "\n" + strings.Join(parts, " · ")
-	}
+	return fmt.Sprintf("📶 *Wi-Fi* — `%s` · SSID `%s` · iface `%s`", power, ssid, info.Interface)
+}
 
+// wifiDetailLine builds the optional second line with rich link
+// details (Security / RSSI / Tx rate / channel). Returns "" when
+// no detail field is populated.
+func wifiDetailLine(info wifi.Info) string {
+	if !info.PowerOn || info.SSID == "" {
+		return ""
+	}
+	if info.Security == "" && info.RSSI == 0 && info.TxRateMbps == 0 && info.Channel == "" {
+		return ""
+	}
+	var parts []string
+	if info.Security != "" {
+		parts = append(parts, fmt.Sprintf("`%s`", info.Security))
+	}
+	if info.RSSI != 0 {
+		parts = append(parts, fmt.Sprintf("`%d dBm`", info.RSSI))
+	}
+	if info.TxRateMbps != 0 {
+		parts = append(parts, fmt.Sprintf("`%g Mbps`", info.TxRateMbps))
+	}
+	if info.Channel != "" {
+		parts = append(parts, fmt.Sprintf("ch `%s`", info.Channel))
+	}
+	return strings.Join(parts, " · ")
+}
+
+// wifiRows builds the keyboard row list, including the optional
+// Speed test row when the macOS networkQuality CLI is present.
+func wifiRows(info wifi.Info, features capability.Features) [][]models.InlineKeyboardButton {
 	toggle := "⏻ Turn on"
 	if info.PowerOn {
 		toggle = "⏻ Turn off"
 	}
-
 	rows := [][]models.InlineKeyboardButton{
 		{
 			{Text: toggle, CallbackData: callbacks.Encode(callbacks.NSWifi, "toggle")},
@@ -101,8 +123,7 @@ func WiFi(info wifi.Info, features capability.Features) (text string, markup *mo
 		{Text: "🔄 Refresh", CallbackData: callbacks.Encode(callbacks.NSWifi, "refresh")},
 	})
 	rows = append(rows, NavWithBack(callbacks.NSNav, "home"))
-	markup = &models.InlineKeyboardMarkup{InlineKeyboard: rows}
-	return
+	return rows
 }
 
 // WiFiDNS renders the DNS-preset submenu reached by tapping

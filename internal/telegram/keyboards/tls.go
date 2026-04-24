@@ -363,6 +363,35 @@ func ToolsTimezoneRegions(current string, regions []TimezoneRegion, topLevels []
 //   - Back goes to "tz" (the region picker), not "open" (the
 //     Tools dashboard) — drill-back, not exit.
 func ToolsTimezoneCities(region, current string, items []TimezoneListItem, page, totalPages, total int, filterID, filterTerm string) (text string, markup *models.InlineKeyboardMarkup) {
+	text = tzCitiesHeader(region, current, page, totalPages, total, filterTerm)
+	rows := make([][]models.InlineKeyboardButton, 0, len(items)+5)
+	for _, it := range items {
+		rows = append(rows, []models.InlineKeyboardButton{{
+			Text:         it.Label,
+			CallbackData: callbacks.Encode(callbacks.NSTools, "tz-set", it.ShortID),
+		}})
+	}
+	if nav := tzCitiesPagerRow(region, page, totalPages, filterID); nav != nil {
+		rows = append(rows, nav)
+	}
+	rows = append(rows, []models.InlineKeyboardButton{
+		{Text: "🔍 Search", CallbackData: callbacks.Encode(callbacks.NSTools, "tz-search", region)},
+		{Text: "⌨ Type exact name", CallbackData: callbacks.Encode(callbacks.NSTools, "tz-type")},
+	})
+	rows = append(rows, []models.InlineKeyboardButton{
+		{Text: "← Back to regions", CallbackData: callbacks.Encode(callbacks.NSTools, "tz")},
+	})
+	rows = append(rows, Nav())
+	markup = &models.InlineKeyboardMarkup{InlineKeyboard: rows}
+	return
+}
+
+// tzCitiesHeader builds the header line for the city picker.
+// Picks between the unfiltered "N timezones" and the filtered
+// "Filtered: <term> · N matches" variant, and appends the
+// "Current: …" suffix when known. Renders an empty-state
+// trailer when total == 0.
+func tzCitiesHeader(region, current string, page, totalPages, total int, filterTerm string) string {
 	header := fmt.Sprintf("🧭 *%s*  ·  Page %d/%d  ·  %d timezone%s",
 		region, page+1, atLeastOne(totalPages), total, plural(total, "s"))
 	if filterTerm != "" {
@@ -375,43 +404,32 @@ func ToolsTimezoneCities(region, current string, items []TimezoneListItem, page,
 	if total == 0 {
 		header += "\n\n_No timezones found._"
 	}
-	text = header
+	return header
+}
 
-	rows := make([][]models.InlineKeyboardButton, 0, len(items)+5)
-	for _, it := range items {
-		rows = append(rows, []models.InlineKeyboardButton{{
-			Text:         it.Label,
-			CallbackData: callbacks.Encode(callbacks.NSTools, "tz-set", it.ShortID),
-		}})
+// tzCitiesPagerRow builds the Prev/Next pagination row, or
+// returns nil when totalPages <= 1 (no pagination needed).
+func tzCitiesPagerRow(region string, page, totalPages int, filterID string) []models.InlineKeyboardButton {
+	if totalPages <= 1 {
+		return nil
 	}
-	if totalPages > 1 {
-		nav := make([]models.InlineKeyboardButton, 0, 2)
-		if page > 0 {
-			nav = append(nav, models.InlineKeyboardButton{
-				Text:         "← Prev",
-				CallbackData: callbacks.Encode(callbacks.NSTools, "tz-page", region, strconv.Itoa(page-1), filterIDArg(filterID)),
-			})
-		}
-		if page < totalPages-1 {
-			nav = append(nav, models.InlineKeyboardButton{
-				Text:         "Next →",
-				CallbackData: callbacks.Encode(callbacks.NSTools, "tz-page", region, strconv.Itoa(page+1), filterIDArg(filterID)),
-			})
-		}
-		if len(nav) > 0 {
-			rows = append(rows, nav)
-		}
+	nav := make([]models.InlineKeyboardButton, 0, 2)
+	if page > 0 {
+		nav = append(nav, models.InlineKeyboardButton{
+			Text:         "← Prev",
+			CallbackData: callbacks.Encode(callbacks.NSTools, "tz-page", region, strconv.Itoa(page-1), filterIDArg(filterID)),
+		})
 	}
-	rows = append(rows, []models.InlineKeyboardButton{
-		{Text: "🔍 Search", CallbackData: callbacks.Encode(callbacks.NSTools, "tz-search", region)},
-		{Text: "⌨ Type exact name", CallbackData: callbacks.Encode(callbacks.NSTools, "tz-type")},
-	})
-	rows = append(rows, []models.InlineKeyboardButton{
-		{Text: "← Back to regions", CallbackData: callbacks.Encode(callbacks.NSTools, "tz")},
-	})
-	rows = append(rows, Nav())
-	markup = &models.InlineKeyboardMarkup{InlineKeyboard: rows}
-	return
+	if page < totalPages-1 {
+		nav = append(nav, models.InlineKeyboardButton{
+			Text:         "Next →",
+			CallbackData: callbacks.Encode(callbacks.NSTools, "tz-page", region, strconv.Itoa(page+1), filterIDArg(filterID)),
+		})
+	}
+	if len(nav) == 0 {
+		return nil
+	}
+	return nav
 }
 
 // FlagFromISO2 converts a 2-letter ISO 3166-1 alpha-2 country

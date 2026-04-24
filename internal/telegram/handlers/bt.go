@@ -43,74 +43,94 @@ import (
 //
 // Unknown actions fall through to a "Unknown bluetooth action."
 // toast.
+// bluetoothDispatch maps Bluetooth callback actions to handlers.
+// "open"/"refresh" share a handler; "conn"/"disc" share one
+// because they differ only in which service method to call.
+var bluetoothDispatch = map[string]func(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error{
+	"open":    handleBluetoothRefresh,
+	"refresh": handleBluetoothRefresh,
+	"toggle":  handleBluetoothToggle,
+	"paired":  handleBluetoothPaired,
+	"conn":    handleBluetoothConnOp,
+	"disc":    handleBluetoothConnOp,
+}
+
 func handleBluetooth(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
+	h, ok := bluetoothDispatch[data.Action]
+	if !ok {
+		Reply{Deps: d}.Toast(ctx, q, "Unknown bluetooth action.")
+		return nil
+	}
+	return h(ctx, d, q, data)
+}
+
+func handleBluetoothRefresh(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	st, err := d.Services.Bluetooth.Get(ctx)
+	if err != nil {
+		return errEdit(ctx, r, q, "🔵 *Bluetooth* — `blueutil` not installed?", err)
+	}
+	text, kb := keyboards.Bluetooth(st)
+	return r.Edit(ctx, q, text, kb)
+}
+
+func handleBluetoothToggle(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	st, err := d.Services.Bluetooth.Toggle(ctx)
+	if err != nil {
+		return errEdit(ctx, r, q, "🔵 *Bluetooth* — toggle failed", err)
+	}
+	text, kb := keyboards.Bluetooth(st)
+	return r.Edit(ctx, q, text, kb)
+}
+
+func handleBluetoothPaired(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	devs, err := d.Services.Bluetooth.Paired(ctx)
+	if err != nil {
+		return errEdit(ctx, r, q, "🔵 *Bluetooth devices* — unavailable", err)
+	}
+	rows := make([]keyboards.BluetoothDeviceRow, 0, len(devs))
+	for _, dev := range devs {
+		id := d.ShortMap.Put(dev.Address)
+		label := dev.Name
+		if label == "" {
+			label = dev.Address
+		}
+		rows = append(rows, keyboards.BluetoothDeviceRow{
+			Label:     label,
+			ShortID:   id,
+			Connected: dev.Connected,
+		})
+	}
+	text, kb := keyboards.BluetoothDevices(rows)
+	return r.Edit(ctx, q, text, kb)
+}
+
+func handleBluetoothConnOp(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
 	r := Reply{Deps: d}
 	svc := d.Services.Bluetooth
-
-	switch data.Action {
-	case "open", "refresh":
-		r.Ack(ctx, q)
-		st, err := svc.Get(ctx)
-		if err != nil {
-			return errEdit(ctx, r, q, "🔵 *Bluetooth* — `blueutil` not installed?", err)
-		}
-		text, kb := keyboards.Bluetooth(st)
-		return r.Edit(ctx, q, text, kb)
-
-	case "toggle":
-		r.Ack(ctx, q)
-		st, err := svc.Toggle(ctx)
-		if err != nil {
-			return errEdit(ctx, r, q, "🔵 *Bluetooth* — toggle failed", err)
-		}
-		text, kb := keyboards.Bluetooth(st)
-		return r.Edit(ctx, q, text, kb)
-
-	case "paired":
-		r.Ack(ctx, q)
-		devs, err := svc.Paired(ctx)
-		if err != nil {
-			return errEdit(ctx, r, q, "🔵 *Bluetooth devices* — unavailable", err)
-		}
-		rows := make([]keyboards.BluetoothDeviceRow, 0, len(devs))
-		for _, dev := range devs {
-			id := d.ShortMap.Put(dev.Address)
-			label := dev.Name
-			if label == "" {
-				label = dev.Address
-			}
-			rows = append(rows, keyboards.BluetoothDeviceRow{
-				Label:     label,
-				ShortID:   id,
-				Connected: dev.Connected,
-			})
-		}
-		text, kb := keyboards.BluetoothDevices(rows)
-		return r.Edit(ctx, q, text, kb)
-
-	case "conn", "disc":
-		if len(data.Args) == 0 {
-			r.Toast(ctx, q, "Missing device id.")
-			return nil
-		}
-		addr, ok := d.ShortMap.Get(data.Args[0])
-		if !ok {
-			r.Toast(ctx, q, "Session expired; refresh the device list.")
-			return nil
-		}
-		r.Toast(ctx, q, fmt.Sprintf("Talking to %s…", addr))
-		var err error
-		if data.Action == "conn" {
-			err = svc.Connect(ctx, addr)
-		} else {
-			err = svc.Disconnect(ctx, addr)
-		}
-		if err != nil {
-			return errEdit(ctx, r, q, "🔵 *Bluetooth* — device op failed", err)
-		}
-		// Re-render device list to show updated connected state.
-		return handleBluetooth(ctx, d, q, callbacks.Data{Namespace: callbacks.NSBT, Action: "paired"})
+	if len(data.Args) == 0 {
+		r.Toast(ctx, q, "Missing device id.")
+		return nil
 	}
-	r.Toast(ctx, q, "Unknown bluetooth action.")
-	return nil
+	addr, ok := d.ShortMap.Get(data.Args[0])
+	if !ok {
+		r.Toast(ctx, q, "Session expired; refresh the device list.")
+		return nil
+	}
+	r.Toast(ctx, q, fmt.Sprintf("Talking to %s…", addr))
+	var err error
+	if data.Action == "conn" {
+		err = svc.Connect(ctx, addr)
+	} else {
+		err = svc.Disconnect(ctx, addr)
+	}
+	if err != nil {
+		return errEdit(ctx, r, q, "🔵 *Bluetooth* — device op failed", err)
+	}
+	return handleBluetoothPaired(ctx, d, q, callbacks.Data{Namespace: callbacks.NSBT, Action: "paired"})
 }

@@ -157,31 +157,53 @@ func cmdStatus(ctx context.Context, d *bot.Deps, u *models.Update) error {
 func renderStatus(s status.Snapshot) string {
 	var b strings.Builder
 	b.WriteString("🖥 *macontrol status*\n\n")
-	if s.InfoErr == nil {
-		fmt.Fprintf(&b, "• %s %s on `%s` (`%s`)\n", s.Info.ProductName, s.Info.ProductVersion, s.Info.Model, s.Info.Hostname)
-	}
-	if s.BatteryErr == nil && s.Battery.Present {
-		fmt.Fprintf(&b, "• 🔋 %d%% · %s\n", s.Battery.Percent, s.Battery.State)
-	}
-	if s.WiFiErr == nil {
-		ssid := s.WiFi.SSID
-		if ssid == "" {
-			ssid = "—"
-		}
-		power := "off"
-		if s.WiFi.PowerOn {
-			power = "on"
-		}
-		fmt.Fprintf(&b, "• 📶 Wi-Fi `%s` · SSID `%s`\n", power, ssid)
-	}
-	if s.InfoErr == nil {
-		if d := s.Info.Uptime.Duration; d != "" {
-			fmt.Fprintf(&b, "• ⏱ up `%s`\n", d)
-		} else if s.Info.Uptime.Raw != "" {
-			fmt.Fprintf(&b, "• ⏱ %s\n", s.Info.Uptime.Raw)
-		}
-	}
+	writeStatusInfoLine(&b, s)
+	writeStatusBatteryLine(&b, s)
+	writeStatusWiFiLine(&b, s)
+	writeStatusUptimeLine(&b, s)
 	return b.String()
+}
+
+func writeStatusInfoLine(b *strings.Builder, s status.Snapshot) {
+	if s.InfoErr != nil {
+		return
+	}
+	fmt.Fprintf(b, "• %s %s on `%s` (`%s`)\n", s.Info.ProductName, s.Info.ProductVersion, s.Info.Model, s.Info.Hostname)
+}
+
+func writeStatusBatteryLine(b *strings.Builder, s status.Snapshot) {
+	if s.BatteryErr != nil || !s.Battery.Present {
+		return
+	}
+	fmt.Fprintf(b, "• 🔋 %d%% · %s\n", s.Battery.Percent, s.Battery.State)
+}
+
+func writeStatusWiFiLine(b *strings.Builder, s status.Snapshot) {
+	if s.WiFiErr != nil {
+		return
+	}
+	ssid := s.WiFi.SSID
+	if ssid == "" {
+		ssid = "—"
+	}
+	power := "off"
+	if s.WiFi.PowerOn {
+		power = "on"
+	}
+	fmt.Fprintf(b, "• 📶 Wi-Fi `%s` · SSID `%s`\n", power, ssid)
+}
+
+func writeStatusUptimeLine(b *strings.Builder, s status.Snapshot) {
+	if s.InfoErr != nil {
+		return
+	}
+	if d := s.Info.Uptime.Duration; d != "" {
+		fmt.Fprintf(b, "• ⏱ up `%s`\n", d)
+		return
+	}
+	if s.Info.Uptime.Raw != "" {
+		fmt.Fprintf(b, "• ⏱ %s\n", s.Info.Uptime.Raw)
+	}
 }
 
 // BootPing returns the text the daemon sends to every
