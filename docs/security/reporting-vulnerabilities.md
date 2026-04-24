@@ -12,8 +12,10 @@ Use GitHub's private vulnerability reporting:
 This creates a draft security advisory visible only to the maintainer
 (@amiwrpremium) until disclosure.
 
-If you can't use GitHub's UI, email **amiwrpremium@gmail.com** with
-the subject line `[macontrol-security]`.
+The GitHub Security Advisory form is the only accepted intake —
+please open one there even if you only have a summary to share. A
+maintainer will reply on the advisory thread and pull in whatever
+extra detail is needed.
 
 ## What to include
 
@@ -96,7 +98,7 @@ Advisories tab without a CVE.
   publish your write-up referencing the patched version. Preferred.
 - **Uncoordinated** (90+ days with no patch): if we've gone radio
   silent or refuse to fix, you're free to disclose publicly. Please
-  give us a heads-up first via email.
+  give us a heads-up first on the advisory thread.
 
 The short version: be a good citizen, give us a chance to fix it,
 and we'll do the same for you.

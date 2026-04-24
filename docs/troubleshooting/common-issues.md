@@ -288,6 +288,7 @@ ls -la ~/Library/Logs/macontrol/
 ```
 
 If empty, either:
+
 - The daemon never started (check `launchctl list`).
 - Log path is overridden by `--log-file` in the LaunchAgent plist's
   `ProgramArguments`.

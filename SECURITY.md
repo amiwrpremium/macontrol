@@ -13,12 +13,8 @@ Only the latest released version receives security fixes.
 
 **Please do not open a public GitHub issue for security reports.**
 
-Use GitHub's private vulnerability reporting:
-
-<https://github.com/amiwrpremium/macontrol/security/advisories/new>
-
-Or email **amiwrpremium@gmail.com** with `[macontrol-security]` in the
-subject line.
+Use GitHub's private vulnerability reporting to
+[open a security advisory](https://github.com/amiwrpremium/macontrol/security/advisories/new).
 
 Please include:
 

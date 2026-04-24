@@ -24,12 +24,14 @@ levels 1–4 plus its own).
 ## Level 1 — Internet drive-by
 
 **Capabilities**:
+
 - Know that you have a macontrol bot (if they DM it and see no
   response, they can't tell whether the bot is silent or doesn't exist).
 - Add your bot to a group they're in. Bot will see group messages
   but won't act on them (whitelist drops everything).
 
 **Mitigations already in place**:
+
 - Bot is silent to non-whitelisted users — no enumeration that the
   bot is real or that macontrol is running.
 - Long-poll, no public endpoint — there's no port to scan.
@@ -41,12 +43,14 @@ bot alone.
 ## Level 2 — On the whitelist
 
 **Capabilities**:
+
 - Every action a legitimate user can perform: lock, sleep, restart,
   shutdown, change DNS, take screenshots and recordings, use webcam,
   send notifications, set timezone, run any user Shortcut, etc.
 - Everything in [Usage → Categories](../usage/categories/README.md).
 
 **What this means concretely**:
+
 - They can shut your Mac down right now. (You can't undo via Telegram
   after that — you'd need physical access to power it back on.)
 - They can take a screenshot of whatever's on your screen, including
@@ -61,6 +65,7 @@ bot alone.
   iCloud queries, etc.).
 
 **They CANNOT** (without elevating further):
+
 - Read or modify files on your Mac other than what those actions
   expose.
 - Run arbitrary shell commands. There's no `/sh`.
@@ -69,6 +74,7 @@ bot alone.
 - Pivot to other Macs.
 
 **Mitigations**:
+
 - Confirmation step on destructive actions (Restart / Shutdown /
   Logout). Two taps, not one.
 - Audit log captures every action with the user ID — you can review
@@ -81,12 +87,14 @@ trust with full control of your Mac.
 ## Level 3 — Has the bot token
 
 **Capabilities**:
+
 - Send messages from your bot.
 - Receive every Telegram update sent to your bot (via long-poll).
 - Edit and delete the bot's messages.
 - See usernames and IDs of anyone who messages the bot.
 
 **They CANNOT**:
+
 - Trigger any macOS action — they're not on your whitelist, and
   Telegram's authentication binds messages to real user accounts
   (which they don't have).
@@ -94,6 +102,7 @@ trust with full control of your Mac.
 - Change the whitelist (would require Mac access).
 
 **Damage they can do**:
+
 - **Spam your DMs** with the bot. Your phone keeps getting "macontrol"
   notifications. Annoying.
 - **Confuse you** — send a message that looks like it's from your
@@ -102,6 +111,7 @@ trust with full control of your Mac.
   to them.
 
 **Mitigations**:
+
 - Whitelist enforcement — without your user ID, they can't trigger
   actions.
 - BotFather token revocation is one DM and 30 seconds.
@@ -125,10 +135,12 @@ catastrophic if your whitelist is locked down.
   Can't decrypt it without your account password.
 
 **What they CAN extract**:
+
 - The bot's behavior log (Telegram user IDs you've granted).
 - Anything in your terminal history (`history`, `~/.zsh_history`).
 
 **What they CANNOT do (without escalating)**:
+
 - Read or extract the bot token. macontrol stores it only in the
   Keychain — there is no plaintext file copy on disk.
 - Read or modify the whitelist. Same reason.
@@ -136,6 +148,7 @@ catastrophic if your whitelist is locked down.
   password or the macontrol binary running with the right ACL.
 
 **Mitigations**:
+
 - Bot token + whitelist live in the Keychain (encrypted at rest).
 - FileVault encryption protects against offline disk access (USB
   boot, drive removal).
@@ -182,7 +195,7 @@ been lost.
 
 ## Recommended posture
 
-For a normal solo user:
+### Baseline — normal solo user
 
 1. **Use the narrow sudoers entry**, not blanket sudo.
 2. **Whitelist exactly the user IDs you need** — no spares "in case".
@@ -195,17 +208,19 @@ For a normal solo user:
 6. **Review logs occasionally** — `tail -100 ~/Library/Logs/macontrol/macontrol.log`
    is a 30-second sanity check.
 
-For a higher-threat user (security researcher, journalist, public
-figure):
+### Extras — higher-threat profiles
 
-7. **Rotate the bot token quarterly** (`/revoke` in BotFather, update
+For security researchers, journalists, and public figures, on top of
+the baseline:
+
+1. **Rotate the bot token quarterly** (`/revoke` in BotFather, update
    config, restart).
-8. **Run on a dedicated user account** that doesn't have admin rights
+2. **Run on a dedicated user account** that doesn't have admin rights
    itself.
-9. **Audit `sudoers.d/macontrol` content matches the template** —
+3. **Audit `sudoers.d/macontrol` content matches the template** —
    defense against tampering.
-10. **Pin the bot to a single chat** (yourself, no group inclusions)
-    so you can spot stray messages.
+4. **Pin the bot to a single chat** (yourself, no group inclusions)
+   so you can spot stray messages.
 
 ## Out of scope
 

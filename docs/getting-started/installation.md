@@ -110,7 +110,7 @@ If you want to audit the script first:
 curl -fsSL https://raw.githubusercontent.com/amiwrpremium/macontrol/master/scripts/install.sh | less
 ```
 
-### Next
+### Next steps
 
 ```bash
 macontrol setup

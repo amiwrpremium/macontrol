@@ -369,10 +369,10 @@ Three options for testing handlers:
 
 1. **Mock the bot library** — define our own minimal `Bot` interface,
    inject a stub. Big refactor; every handler signature changes.
-2. **Use the library's documented test hooks** — `tgbot.WithServerURL`
-   + `tgbot.WithSkipGetMe`. We point a real `*Bot` at an in-process
-   `httptest.Server` that records every API call. Zero production-code
-   changes.
+2. **Use the library's documented test hooks** —
+   `tgbot.WithServerURL` together with `tgbot.WithSkipGetMe`. We
+   point a real `*Bot` at an in-process `httptest.Server` that
+   records every API call. Zero production-code changes.
 3. **Don't test handlers** — leave them as integration-only. Fragile.
 
 Option 2 is what `internal/telegram/telegramtest/server.go` does. The

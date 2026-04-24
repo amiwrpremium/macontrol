@@ -32,6 +32,7 @@ Used by the LaunchAgent plist as the `ProgramArguments`.
 | `--log-file` | `~/Library/Logs/macontrol/macontrol.log` | Lumberjack-rotated. Pass an empty string (`--log-file=`) to log to stderr instead. |
 
 **Exit codes**:
+
 - `0` — clean exit (signal received, context cancelled).
 - `1` — Keychain entry missing/locked, capability error, or bot init failure.
 
@@ -55,6 +56,7 @@ Walks through:
 the wizard refuses to overwrite).
 
 **Exit codes**:
+
 - `0` — wizard completed successfully or user declined to overwrite.
 - `1` — token validation failed, user input invalid, file write error.
 
@@ -81,6 +83,7 @@ macontrol service logs
 | `logs` | `tail -n 200 -f` on `~/Library/Logs/macontrol/macontrol.log`. |
 
 **Exit codes**:
+
 - `0` — operation succeeded.
 - `1` — invalid subcommand.
 - non-zero from `launchctl` for command failures.
@@ -121,6 +124,7 @@ After any add / remove / clear, restart the daemon for it to pick up
 the change (`brew services restart macontrol`).
 
 **Exit codes**:
+
 - `0` — operation succeeded
 - `1` — invalid argument or Keychain error
 - `2` — missing required subcommand
