@@ -34,8 +34,9 @@ Examples of unacceptable behavior include:
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the project maintainers at **amiwrpremium@gmail.com**. All
-complaints will be reviewed and investigated promptly and fairly.
+reported to the project maintainers via
+[GitHub Security Advisory](https://github.com/amiwrpremium/macontrol/security/advisories/new).
+All complaints will be reviewed and investigated promptly and fairly.
 
 ## Attribution
 
