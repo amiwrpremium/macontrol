@@ -12,6 +12,39 @@ import (
 	"github.com/amiwrpremium/macontrol/internal/telegram/keyboards"
 )
 
+// handleWiFi is the Wi-Fi dashboard's callback dispatcher.
+// Reached via the [callbacks.NSWifi] namespace from any tap on
+// the 📶 Wi-Fi menu, the DNS submenu, the Info diagnostics
+// drill-down, or the speed-test action.
+//
+// Routing rules (data.Action — first match wins):
+//  1. "open" / "refresh" → run [wifi.Service.Get], render the
+//     main Wi-Fi dashboard via [keyboards.WiFi]. Both actions
+//     share the same code path; "refresh" is the user-tap entry
+//     point, "open" is the dispatched-from-home entry point.
+//  2. "toggle" → run [wifi.Service.Toggle] (which composes
+//     Get + SetPower), render the post-toggle dashboard.
+//  3. "info" → run [wifi.Service.Diag] for the verbatim
+//     `sudo wdutil info` dump; render in a code block via
+//     [Code] with [keyboards.WiFiDiagPanel] underneath.
+//  4. "dns-menu" → render the DNS submenu via [keyboards.WiFiDNS].
+//     Pure UX navigation; no Wi-Fi state changes.
+//  5. "dns" → apply a DNS preset (cf / google / reset) via
+//     [wifi.Service.SetDNS], then re-render the main Wi-Fi
+//     dashboard with a "DNS updated → <preset>" suffix.
+//  6. "speedtest" → gated on [capability.Features.NetworkQuality];
+//     toasts "needs macOS 12+" when the gate is false. Otherwise
+//     toasts "Running — takes ~15s…" then invokes
+//     [wifi.Service.Speedtest] (which extends ctx to 60s
+//     internally) and renders the result panel.
+//  7. "join" → install the [flows.NewJoinWifi] two-step flow
+//     for SSID + password.
+//
+// Unknown actions fall through to a "Unknown wifi action."
+// toast. Errors from any sub-step are surfaced via [errEdit] so
+// the user sees the macOS CLI's own diagnostic (e.g. the
+// "sudo: a password is required" hint when the sudoers entry
+// for wdutil is missing).
 func handleWiFi(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
 	r := Reply{Deps: d}
 	svc := d.Services.WiFi
@@ -100,6 +133,20 @@ func handleWiFi(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data 
 	return nil
 }
 
+// truncate cuts s at n bytes and appends a "(truncated)" marker
+// when s exceeds n. Used by [handleWiFi]'s "info" branch to
+// keep the wdutil diagnostics dump under Telegram's ~4096-char
+// message limit (3500 here leaves headroom for the surrounding
+// Markdown markers + safety margin).
+//
+// Behavior:
+//   - Returns s unchanged when len(s) <= n.
+//   - Otherwise returns s[:n] with a "\n…(truncated)" suffix.
+//
+// Note: byte-truncation, NOT rune-truncation. A multi-byte UTF-8
+// codepoint at the cut boundary will be rendered as invalid
+// UTF-8 in Telegram. wdutil output is ASCII in practice so this
+// hasn't bitten yet.
 func truncate(s string, n int) string {
 	if len(s) <= n {
 		return s

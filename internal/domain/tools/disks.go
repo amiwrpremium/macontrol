@@ -6,62 +6,131 @@ import (
 	"strings"
 )
 
-// DiskVolume is a mounted filesystem (one row of `df -h`, parsed).
+// DiskVolume is one mounted filesystem from the user-facing
+// subset of `df -h`. Returned by [Service.DisksList]; the
+// keyboard renders one row per volume in the Disks panel.
+//
+// Lifecycle:
+//   - Constructed by Service.DisksList each render. Never cached.
+//
+// Field roles:
+//   - Filesystem is the device path from df's first column,
+//     e.g. "/dev/disk3s1s1".
+//   - Size / Used / Available / Capacity are the human-readable
+//     columns from df (verbatim, including units like "494Gi").
+//   - MountedOn is the mount point. The keyboard uses this as
+//     the lookup key when the user taps a volume to drill into
+//     [DiskDetails].
 type DiskVolume struct {
-	// Filesystem is the device path from `df`, e.g. "/dev/disk3s1s1".
+	// Filesystem is the device path, e.g. "/dev/disk3s1s1".
 	Filesystem string
-	// Size is the human-readable total size column.
+
+	// Size is the human-readable total size column from df.
 	Size string
-	// Used is the human-readable used-bytes column.
+
+	// Used is the human-readable used-bytes column from df.
 	Used string
-	// Available is the human-readable free-bytes column.
+
+	// Available is the human-readable free-bytes column from df.
 	Available string
+
 	// Capacity is the percent-used column, e.g. "42%".
 	Capacity string
+
 	// MountedOn is the mount point, e.g. "/" or "/Volumes/Backup".
 	MountedOn string
 }
 
 // DiskDetails is the per-disk drill-down view, parsed from
-// `diskutil info <mount>`. Empty fields mean diskutil didn't expose
-// that line on this Mac / for this volume.
+// `diskutil info <mount>`. Returned by [Service.DiskInfo].
+//
+// Lifecycle:
+//   - Constructed by Service.DiskInfo each time the user taps
+//     a volume in the Disks panel. Never cached.
+//
+// Field roles:
+//   - VolumeName / MountPoint / Device / FSType are identification
+//     fields parsed from the corresponding diskutil keys.
+//   - DiskSize / UsedSpace / FreeSpace are size strings stripped
+//     of diskutil's verbose " (N Bytes) (exactly …)" suffix via
+//     [trimAfterParen].
+//   - Removable / Internal / ReadOnly / SolidState are bool
+//     classifiers used by the keyboard to decide which action
+//     buttons to show (e.g. Eject only on removable volumes).
+//   - Raw is the full unparsed `diskutil info` output, kept for
+//     fallback display when a parse miss leaves key fields empty.
+//
+// Empty fields mean diskutil didn't expose that line on this Mac
+// or for this volume — partial parses are normal.
 type DiskDetails struct {
-	// VolumeName is the user-visible volume name, e.g. "Macintosh HD".
+	// VolumeName is the user-visible volume name, e.g.
+	// "Macintosh HD".
 	VolumeName string
-	// MountPoint is the mount path, e.g. "/".
+
+	// MountPoint is the mount path, e.g. "/" or "/Volumes/Backup".
 	MountPoint string
+
 	// Device is the device node, e.g. "/dev/disk3s1s1".
 	Device string
-	// FSType is the filesystem personality reported by diskutil,
-	// e.g. "APFS".
+
+	// FSType is the filesystem personality reported by
+	// diskutil, e.g. "APFS" / "exFAT" / "Tagged HFS+".
 	FSType string
-	// DiskSize is the total capacity string with trailing byte
-	// counts stripped, e.g. "494.4 GB".
+
+	// DiskSize is the total capacity string with diskutil's
+	// trailing byte-count suffix stripped, e.g. "494.4 GB".
 	DiskSize string
-	// UsedSpace is the used portion of the APFS container, stripped
-	// of the trailing byte count.
+
+	// UsedSpace is the used portion of the APFS container with
+	// the trailing byte-count stripped.
 	UsedSpace string
-	// FreeSpace is the container-wide free space, stripped of the
-	// trailing byte count.
+
+	// FreeSpace is the container-wide free space with the
+	// trailing byte-count stripped.
 	FreeSpace string
-	// Removable is true when diskutil reports "Removable Media:
-	// Removable".
+
+	// Removable is true when diskutil reports
+	// "Removable Media: Removable". Used by the keyboard to
+	// show the Eject button.
 	Removable bool
-	// Internal is true when diskutil reports "Device Location:
-	// Internal".
+
+	// Internal is true when diskutil reports
+	// "Device Location: Internal". Internal volumes don't get
+	// the Eject button regardless of Removable.
 	Internal bool
-	// ReadOnly is true when diskutil reports "Volume Read-Only: Yes…".
+
+	// ReadOnly is true when diskutil reports
+	// "Volume Read-Only: Yes…". Currently informational only;
+	// no action gates on it.
 	ReadOnly bool
-	// SolidState is true when diskutil reports "Solid State: Yes".
+
+	// SolidState is true when diskutil reports
+	// "Solid State: Yes". Currently informational only.
 	SolidState bool
-	// Raw is the full `diskutil info` output for fallback display.
+
+	// Raw is the full `diskutil info` output, preserved for
+	// fallback display when parsing missed key fields.
 	Raw string
 }
 
-// DisksList returns user-facing mounts only: the root volume "/" and
-// anything under "/Volumes/" (external drives, mounted DMGs). System
-// mounts, devfs, simulator volumes, and other internal noise are
-// hidden — they're meaningless for a remote-control bot.
+// DisksList returns the user-facing subset of mounted volumes:
+// the root volume "/" and anything under "/Volumes/" (external
+// drives, mounted DMGs, network mounts).
+//
+// Behavior:
+//   - Shells out to `df -h` and walks the output line by line.
+//   - Skips the header row.
+//   - Skips lines with fewer than 9 whitespace-split fields
+//     (defensive against malformed entries).
+//   - Joins fields[8:] as the mount path so paths containing
+//     spaces ("/Volumes/Foo Bar/") survive intact.
+//   - Filters: keeps only mount == "/" OR mount starts with
+//     "/Volumes/". Drops devfs, /System/Volumes/*, simulator
+//     mounts, and other internal noise — meaningless for a
+//     remote-control bot.
+//
+// Returns the filtered slice (may be empty if no qualifying
+// mounts exist) or the underlying df error.
 func (s *Service) DisksList(ctx context.Context) ([]DiskVolume, error) {
 	out, err := s.r.Exec(ctx, "df", "-h")
 	if err != nil {
@@ -92,9 +161,26 @@ func (s *Service) DisksList(ctx context.Context) ([]DiskVolume, error) {
 	return volumes, nil
 }
 
-// DiskInfo returns parsed detail for one mount via `diskutil info`.
-// Best-effort: missing fields stay empty; Raw always carries the
-// full output for fallback rendering.
+// DiskInfo returns the parsed per-disk detail view via
+// `diskutil info <mount>`.
+//
+// Behavior:
+//   - Rejects empty mount with "mount is required".
+//   - Shells out to `diskutil info <mount>`.
+//   - On subprocess failure, returns DiskDetails{Raw: <stdout>}
+//     plus the error so callers can still display the raw text.
+//   - On success, walks the output line by line, splitting each
+//     into KEY: VALUE via [splitDiskutilKV] and switching on KEY
+//     to populate the typed field.
+//   - Size strings (Disk Size / Volume Used Space / Container
+//     Free Space) get stripped of diskutil's trailing
+//     " (N Bytes) (exactly …)" suffix via [trimAfterParen].
+//   - Bool flags use case-insensitive matches against the
+//     diskutil-reported value: Removable Media: Removable,
+//     Device Location: Internal, Volume Read-Only: Yes…,
+//     Solid State: Yes.
+//   - Fields not present in the diskutil output are left at
+//     their zero value — partial parses are normal.
 func (s *Service) DiskInfo(ctx context.Context, mount string) (DiskDetails, error) {
 	if mount == "" {
 		return DiskDetails{}, fmt.Errorf("mount is required")
@@ -137,9 +223,17 @@ func (s *Service) DiskInfo(ctx context.Context, mount string) (DiskDetails, erro
 	return d, nil
 }
 
-// EjectDisk runs `diskutil eject <mount>`. Caller is responsible for
-// only invoking this on volumes that are actually ejectable
-// (typically /Volumes/* with Removable Media: Removable).
+// EjectDisk runs `diskutil eject <mount>`. The keyboard layer
+// gates this behind the [DiskDetails.Removable] check so the
+// button only appears for actually-ejectable volumes — but this
+// method is the trusted boundary; calling it on the root volume
+// would fail at the diskutil layer.
+//
+// Behavior:
+//   - Rejects empty mount with "mount is required".
+//   - Returns the runner error verbatim on diskutil failure
+//     ("Eject failed: Cannot eject because the volume is in
+//     use" is a common one).
 func (s *Service) EjectDisk(ctx context.Context, mount string) error {
 	if mount == "" {
 		return fmt.Errorf("mount is required")
@@ -148,7 +242,15 @@ func (s *Service) EjectDisk(ctx context.Context, mount string) error {
 	return err
 }
 
-// OpenInFinder runs `open <mount>` to reveal the volume in Finder.
+// OpenInFinder runs `open <mount>` to reveal the volume in
+// Finder. Works on every mount type — root, external, network,
+// DMG.
+//
+// Behavior:
+//   - Rejects empty mount with "mount is required".
+//   - Returns the runner error verbatim on `open` failure (rare;
+//     `open` is forgiving and will silently no-op on
+//     not-actually-ejected paths).
 func (s *Service) OpenInFinder(ctx context.Context, mount string) error {
 	if mount == "" {
 		return fmt.Errorf("mount is required")
@@ -157,8 +259,15 @@ func (s *Service) OpenInFinder(ctx context.Context, mount string) error {
 	return err
 }
 
-// splitDiskutilKV parses a `   KEY:    VALUE` line from diskutil
-// output. Returns ok=false on lines without ':' or with empty key.
+// splitDiskutilKV splits a `   KEY:    VALUE` diskutil line into
+// the trimmed key + trimmed value.
+//
+// Behavior:
+//   - Returns ok=false when line has no ':' separator.
+//   - Returns ok=false when the trimmed key is empty (defends
+//     against ": foo" garbage lines).
+//   - Splits on the FIRST ':' so values containing ':' (rare in
+//     diskutil but possible in device-path values) survive intact.
 func splitDiskutilKV(line string) (key, val string, ok bool) {
 	idx := strings.Index(line, ":")
 	if idx < 0 {
@@ -172,9 +281,17 @@ func splitDiskutilKV(line string) (key, val string, ok bool) {
 	return key, val, true
 }
 
-// trimAfterParen strips the long " (N Bytes) (exactly …)" suffix
-// diskutil tacks onto size lines, leaving just the human form
-// ("494.4 GB").
+// trimAfterParen strips diskutil's trailing
+// " (N Bytes) (exactly N Bytes)" suffix from a size string,
+// returning just the human form ("494.4 GB").
+//
+// Behavior:
+//   - Searches for the first " (" and returns everything before
+//     it (trimmed).
+//   - On no match, returns the input trimmed.
+//
+// Used by [Service.DiskInfo] to clean up Disk Size / Volume Used
+// Space / Container Free Space values for display.
 func trimAfterParen(s string) string {
 	if i := strings.Index(s, " ("); i > 0 {
 		return strings.TrimSpace(s[:i])
