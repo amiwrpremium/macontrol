@@ -43,6 +43,9 @@ else
   mkdir -p "$install_dir"
   case ":$PATH:" in
     *":$install_dir:"*) ;;
+    # The literal $PATH in the printf format is intentional — we're
+    # printing a snippet for the user to paste into their shellrc.
+    # shellcheck disable=SC2016
     *) printf 'note: %s is not on PATH yet — add `export PATH="%s:$PATH"` to your shell rc.\n' "$install_dir" "$install_dir" ;;
   esac
 fi
