@@ -77,236 +77,296 @@ import (
 // Unknown actions fall through to a "Unknown tools action."
 // toast.
 //
-//nolint:gocyclo // Single dispatcher per category is the package convention.
+// toolsDispatch maps callback action names to per-action handlers.
+// Declared as a package-level var (not a func-local map literal) so
+// the table is built once at init rather than per dispatch.
+var toolsDispatch = map[string]func(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error{
+	"open":       handleToolsOpen,
+	"clip":       handleToolsClip,
+	"tz":         handleToolsTz,
+	"tz-region":  handleToolsTzRegion,
+	"tz-page":    handleToolsTzPage,
+	"tz-set":     handleToolsTzSet,
+	"tz-search":  handleToolsTzSearch,
+	"tz-type":    handleToolsTzType,
+	"synctime":   handleToolsSyncTime,
+	"disks":      handleToolsDisks,
+	"disk":       handleToolsDisk,
+	"disk-open":  handleToolsDiskOpen,
+	"disk-eject": handleToolsDiskEject,
+	"shortcut":   handleToolsShortcut,
+	"sc-page":    handleToolsShortcutPage,
+	"sc-run":     handleToolsShortcutRun,
+	"sc-search":  handleToolsShortcutSearch,
+	"sc-type":    handleToolsShortcutType,
+}
+
 func handleTools(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
+	h, ok := toolsDispatch[data.Action]
+	if !ok {
+		Reply{Deps: d}.Toast(ctx, q, "Unknown tools action.")
+		return nil
+	}
+	return h(ctx, d, q, data)
+}
+
+func handleToolsOpen(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	text, kb := keyboards.Tools(d.Capability.Features)
+	return r.Edit(ctx, q, text, kb)
+}
+
+func handleToolsClip(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
 	r := Reply{Deps: d}
 	svc := d.Services.Tools
-
-	switch data.Action {
-	case "open":
-		r.Ack(ctx, q)
-		text, kb := keyboards.Tools(d.Capability.Features)
-		return r.Edit(ctx, q, text, kb)
-
-	case "clip":
-		if len(data.Args) == 0 {
-			r.Toast(ctx, q, "Missing sub-action.")
-			return nil
-		}
-		switch data.Args[0] {
-		case "get":
-			r.Ack(ctx, q)
-			text, err := svc.ClipboardRead(ctx)
-			if err != nil {
-				return errEdit(ctx, r, q, "📋 *Clipboard* — unavailable", err)
-			}
-			if len(text) > 3500 {
-				text = text[:3500] + "\n…(truncated)"
-			}
-			body := "📋 *Clipboard*\n" + Code(text)
-			_, kb := keyboards.Tools(d.Capability.Features)
-			return r.Edit(ctx, q, body, kb)
-		case "set":
-			r.Ack(ctx, q)
-			chatID := q.Message.Message.Chat.ID
-			f := flows.NewClipSet(svc)
-			d.FlowReg.Install(chatID, f)
-			return sendFlowPrompt(ctx, r, chatID, f.Start(ctx))
-		}
-
-	case "tz":
-		r.Ack(ctx, q)
-		return renderTzRegions(ctx, r, q, d, svc)
-
-	case "tz-region":
-		r.Ack(ctx, q)
-		if len(data.Args) == 0 {
-			return errEdit(ctx, r, q, "🧭 *Timezone*", fmt.Errorf("missing region"))
-		}
-		return renderTzCities(ctx, r, q, d, svc, data.Args[0], 0, "")
-
-	case "tz-page":
-		r.Ack(ctx, q)
-		if len(data.Args) == 0 {
-			return errEdit(ctx, r, q, "🧭 *Timezone*", fmt.Errorf("missing region"))
-		}
-		region := data.Args[0]
-		page, filterID := parseShortcutPageArgsAt(data, 1)
-		filterTerm, _ := d.ShortMap.Get(filterID)
-		return renderTzCities(ctx, r, q, d, svc, region, page, filterTerm)
-
-	case "tz-set":
-		if len(data.Args) == 0 {
-			return errEdit(ctx, r, q, "🧭 *Timezone*", fmt.Errorf("missing timezone id"))
-		}
-		tz, ok := d.ShortMap.Get(data.Args[0])
-		if !ok {
-			return errEdit(ctx, r, q, "🧭 *Timezone*", fmt.Errorf("session expired — refresh the timezone list"))
-		}
-		r.Toast(ctx, q, fmt.Sprintf("Setting timezone → %s…", tz))
-		var status string
-		if err := svc.TimezoneSet(ctx, tz); err != nil {
-			status = fmt.Sprintf("⚠ set failed: `%v`", err)
-		} else {
-			status = fmt.Sprintf("✅ Timezone set — `%s`", tz)
-		}
-		// Re-render the region picker with the status banner above.
-		return rerenderTzRegionsWithStatus(ctx, r, q, d, svc, status)
-
-	case "tz-search":
-		if len(data.Args) == 0 {
-			return errEdit(ctx, r, q, "🧭 *Timezone*", fmt.Errorf("missing region"))
-		}
-		r.Ack(ctx, q)
-		chatID := q.Message.Message.Chat.ID
-		f := flows.NewTimezoneSearch(svc, d.ShortMap, data.Args[0])
-		d.FlowReg.Install(chatID, f)
-		return sendFlowPrompt(ctx, r, chatID, f.Start(ctx))
-
-	case "tz-type":
-		r.Ack(ctx, q)
-		chatID := q.Message.Message.Chat.ID
-		f := flows.NewTimezone(svc)
-		d.FlowReg.Install(chatID, f)
-		return sendFlowPrompt(ctx, r, chatID, f.Start(ctx))
-
-	case "synctime":
-		r.Toast(ctx, q, "Syncing clock…")
-		if err := svc.TimeSync(ctx); err != nil {
-			return errEdit(ctx, r, q, "🛠 *Tools* — sntp failed", err)
-		}
-		text, kb := keyboards.Tools(d.Capability.Features)
-		return r.Edit(ctx, q, text+"\n\n_Clock synced._", kb)
-
-	case "disks":
-		r.Ack(ctx, q)
-		vols, err := svc.DisksList(ctx)
-		if err != nil {
-			return errEdit(ctx, r, q, "💿 *Disks* — unavailable", err)
-		}
-		rows := make([]keyboards.ToolsDiskRow, 0, len(vols))
-		for _, v := range vols {
-			rows = append(rows, keyboards.ToolsDiskRow{
-				Mount:    v.MountedOn,
-				Size:     v.Size,
-				Capacity: v.Capacity,
-				ShortID:  d.ShortMap.Put(v.MountedOn),
-			})
-		}
-		body := "💿 *Disks*\n\nTap a disk for actions."
-		if len(rows) == 0 {
-			body = "💿 *Disks*\n\n_No user-facing volumes mounted._"
-		}
-		return r.Edit(ctx, q, body, keyboards.ToolsDisksList(rows))
-
-	case "disk":
-		r.Ack(ctx, q)
-		mount, ok := resolveDiskMount(d, data)
-		if !ok {
-			return errEdit(ctx, r, q, "💿 *Disk*", fmt.Errorf("session expired — refresh the disks list"))
-		}
-		info, err := svc.DiskInfo(ctx, mount)
-		if err != nil {
-			return errEdit(ctx, r, q, fmt.Sprintf("💿 *%s* — diskutil failed", mount), err)
-		}
-		body := buildDiskPanel(mount, info)
-		return r.Edit(ctx, q, body, keyboards.ToolsDiskPanel(data.Args[0], info.Removable))
-
-	case "disk-open":
-		mount, ok := resolveDiskMount(d, data)
-		if !ok {
-			return errEdit(ctx, r, q, "📂 *Open*", fmt.Errorf("session expired — refresh the disks list"))
-		}
-		if err := svc.OpenInFinder(ctx, mount); err != nil {
-			return errEdit(ctx, r, q, fmt.Sprintf("📂 *Open %s* — failed", mount), err)
-		}
-		r.Toast(ctx, q, "Opened in Finder.")
+	if len(data.Args) == 0 {
+		r.Toast(ctx, q, "Missing sub-action.")
 		return nil
-
-	case "disk-eject":
-		mount, ok := resolveDiskMount(d, data)
-		if !ok {
-			return errEdit(ctx, r, q, "⏏ *Eject*", fmt.Errorf("session expired — refresh the disks list"))
-		}
-		if err := svc.EjectDisk(ctx, mount); err != nil {
-			return errEdit(ctx, r, q, fmt.Sprintf("⏏ *Eject %s* — failed", mount), err)
-		}
-		r.Toast(ctx, q, "Ejected — re-rendering disks list.")
-		// Re-fetch the list (the ejected disk should be gone).
-		vols, _ := svc.DisksList(ctx)
-		rows := make([]keyboards.ToolsDiskRow, 0, len(vols))
-		for _, v := range vols {
-			rows = append(rows, keyboards.ToolsDiskRow{
-				Mount: v.MountedOn, Size: v.Size, Capacity: v.Capacity,
-				ShortID: d.ShortMap.Put(v.MountedOn),
-			})
-		}
-		return r.Edit(ctx, q, fmt.Sprintf("💿 *Disks*\n\n_Ejected `%s`._", mount),
-			keyboards.ToolsDisksList(rows))
-
-	case "shortcut":
-		if !d.Capability.Features.Shortcuts {
-			r.Toast(ctx, q, "Shortcuts CLI needs macOS 13+")
-			return nil
-		}
+	}
+	switch data.Args[0] {
+	case "get":
 		r.Ack(ctx, q)
-		return renderShortcutsPage(ctx, r, q, d, svc, 0, "")
-
-	case "sc-page":
-		r.Ack(ctx, q)
-		page, filterID := parseShortcutPageArgs(data)
-		filterTerm, _ := d.ShortMap.Get(filterID)
-		return renderShortcutsPage(ctx, r, q, d, svc, page, filterTerm)
-
-	case "sc-run":
-		// args: <shortcutShortID> <page> <filterID>
-		if len(data.Args) < 1 {
-			return errEdit(ctx, r, q, "⚡ *Shortcut*", fmt.Errorf("missing shortcut id"))
+		text, err := svc.ClipboardRead(ctx)
+		if err != nil {
+			return errEdit(ctx, r, q, "📋 *Clipboard* — unavailable", err)
 		}
-		name, ok := d.ShortMap.Get(data.Args[0])
-		if !ok {
-			return errEdit(ctx, r, q, "⚡ *Shortcut*", fmt.Errorf("session expired — refresh the list"))
+		if len(text) > 3500 {
+			text = text[:3500] + "\n…(truncated)"
 		}
-		r.Toast(ctx, q, fmt.Sprintf("▶ Running '%s'…", name))
-		var status string
-		if err := svc.ShortcutRun(ctx, name); err != nil {
-			status = fmt.Sprintf("⚠ `%s` failed: `%v`", name, err)
-		} else {
-			status = fmt.Sprintf("✅ Ran `%s`.", name)
-		}
-		// Re-render at the same page+filter the user came from.
-		page, filterID := parseShortcutPageArgsAt(data, 1)
-		filterTerm, _ := d.ShortMap.Get(filterID)
-		all, _ := svc.ShortcutsList(ctx)
-		matches := flows.FilterShortcuts(all, filterTerm)
-		items, totalPages := flows.PageShortcuts(matches, page, d.ShortMap)
-		text, kb := keyboards.ToolsShortcutsList(items, page, totalPages, len(matches), filterID, filterTerm)
-		return r.Edit(ctx, q, status+"\n\n"+text, kb)
-
-	case "sc-search":
-		if !d.Capability.Features.Shortcuts {
-			r.Toast(ctx, q, "Shortcuts CLI needs macOS 13+")
-			return nil
-		}
+		body := "📋 *Clipboard*\n" + Code(text)
+		_, kb := keyboards.Tools(d.Capability.Features)
+		return r.Edit(ctx, q, body, kb)
+	case "set":
 		r.Ack(ctx, q)
 		chatID := q.Message.Message.Chat.ID
-		f := flows.NewShortcutSearch(svc, d.ShortMap)
-		d.FlowReg.Install(chatID, f)
-		return sendFlowPrompt(ctx, r, chatID, f.Start(ctx))
-
-	case "sc-type":
-		if !d.Capability.Features.Shortcuts {
-			r.Toast(ctx, q, "Shortcuts CLI needs macOS 13+")
-			return nil
-		}
-		r.Ack(ctx, q)
-		chatID := q.Message.Message.Chat.ID
-		f := flows.NewShortcut(svc)
+		f := flows.NewClipSet(svc)
 		d.FlowReg.Install(chatID, f)
 		return sendFlowPrompt(ctx, r, chatID, f.Start(ctx))
 	}
-	r.Toast(ctx, q, "Unknown tools action.")
 	return nil
+}
+
+func handleToolsTz(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	return renderTzRegions(ctx, r, q, d, d.Services.Tools)
+}
+
+func handleToolsTzRegion(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	if len(data.Args) == 0 {
+		return errEdit(ctx, r, q, "🧭 *Timezone*", fmt.Errorf("missing region"))
+	}
+	return renderTzCities(ctx, r, q, d, d.Services.Tools, data.Args[0], 0, "")
+}
+
+func handleToolsTzPage(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	if len(data.Args) == 0 {
+		return errEdit(ctx, r, q, "🧭 *Timezone*", fmt.Errorf("missing region"))
+	}
+	region := data.Args[0]
+	page, filterID := parseShortcutPageArgsAt(data, 1)
+	filterTerm, _ := d.ShortMap.Get(filterID)
+	return renderTzCities(ctx, r, q, d, d.Services.Tools, region, page, filterTerm)
+}
+
+func handleToolsTzSet(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
+	r := Reply{Deps: d}
+	svc := d.Services.Tools
+	if len(data.Args) == 0 {
+		return errEdit(ctx, r, q, "🧭 *Timezone*", fmt.Errorf("missing timezone id"))
+	}
+	tz, ok := d.ShortMap.Get(data.Args[0])
+	if !ok {
+		return errEdit(ctx, r, q, "🧭 *Timezone*", fmt.Errorf("session expired — refresh the timezone list"))
+	}
+	r.Toast(ctx, q, fmt.Sprintf("Setting timezone → %s…", tz))
+	var status string
+	if err := svc.TimezoneSet(ctx, tz); err != nil {
+		status = fmt.Sprintf("⚠ set failed: `%v`", err)
+	} else {
+		status = fmt.Sprintf("✅ Timezone set — `%s`", tz)
+	}
+	return rerenderTzRegionsWithStatus(ctx, r, q, d, svc, status)
+}
+
+func handleToolsTzSearch(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
+	r := Reply{Deps: d}
+	if len(data.Args) == 0 {
+		return errEdit(ctx, r, q, "🧭 *Timezone*", fmt.Errorf("missing region"))
+	}
+	r.Ack(ctx, q)
+	chatID := q.Message.Message.Chat.ID
+	f := flows.NewTimezoneSearch(d.Services.Tools, d.ShortMap, data.Args[0])
+	d.FlowReg.Install(chatID, f)
+	return sendFlowPrompt(ctx, r, chatID, f.Start(ctx))
+}
+
+func handleToolsTzType(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	chatID := q.Message.Message.Chat.ID
+	f := flows.NewTimezone(d.Services.Tools)
+	d.FlowReg.Install(chatID, f)
+	return sendFlowPrompt(ctx, r, chatID, f.Start(ctx))
+}
+
+func handleToolsSyncTime(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Toast(ctx, q, "Syncing clock…")
+	if err := d.Services.Tools.TimeSync(ctx); err != nil {
+		return errEdit(ctx, r, q, "🛠 *Tools* — sntp failed", err)
+	}
+	text, kb := keyboards.Tools(d.Capability.Features)
+	return r.Edit(ctx, q, text+"\n\n_Clock synced._", kb)
+}
+
+func handleToolsDisks(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	vols, err := d.Services.Tools.DisksList(ctx)
+	if err != nil {
+		return errEdit(ctx, r, q, "💿 *Disks* — unavailable", err)
+	}
+	rows := make([]keyboards.ToolsDiskRow, 0, len(vols))
+	for _, v := range vols {
+		rows = append(rows, keyboards.ToolsDiskRow{
+			Mount:    v.MountedOn,
+			Size:     v.Size,
+			Capacity: v.Capacity,
+			ShortID:  d.ShortMap.Put(v.MountedOn),
+		})
+	}
+	body := "💿 *Disks*\n\nTap a disk for actions."
+	if len(rows) == 0 {
+		body = "💿 *Disks*\n\n_No user-facing volumes mounted._"
+	}
+	return r.Edit(ctx, q, body, keyboards.ToolsDisksList(rows))
+}
+
+func handleToolsDisk(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	mount, ok := resolveDiskMount(d, data)
+	if !ok {
+		return errEdit(ctx, r, q, "💿 *Disk*", fmt.Errorf("session expired — refresh the disks list"))
+	}
+	info, err := d.Services.Tools.DiskInfo(ctx, mount)
+	if err != nil {
+		return errEdit(ctx, r, q, fmt.Sprintf("💿 *%s* — diskutil failed", mount), err)
+	}
+	body := buildDiskPanel(mount, info)
+	return r.Edit(ctx, q, body, keyboards.ToolsDiskPanel(data.Args[0], info.Removable))
+}
+
+func handleToolsDiskOpen(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
+	r := Reply{Deps: d}
+	mount, ok := resolveDiskMount(d, data)
+	if !ok {
+		return errEdit(ctx, r, q, "📂 *Open*", fmt.Errorf("session expired — refresh the disks list"))
+	}
+	if err := d.Services.Tools.OpenInFinder(ctx, mount); err != nil {
+		return errEdit(ctx, r, q, fmt.Sprintf("📂 *Open %s* — failed", mount), err)
+	}
+	r.Toast(ctx, q, "Opened in Finder.")
+	return nil
+}
+
+func handleToolsDiskEject(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
+	r := Reply{Deps: d}
+	svc := d.Services.Tools
+	mount, ok := resolveDiskMount(d, data)
+	if !ok {
+		return errEdit(ctx, r, q, "⏏ *Eject*", fmt.Errorf("session expired — refresh the disks list"))
+	}
+	if err := svc.EjectDisk(ctx, mount); err != nil {
+		return errEdit(ctx, r, q, fmt.Sprintf("⏏ *Eject %s* — failed", mount), err)
+	}
+	r.Toast(ctx, q, "Ejected — re-rendering disks list.")
+	vols, _ := svc.DisksList(ctx)
+	rows := make([]keyboards.ToolsDiskRow, 0, len(vols))
+	for _, v := range vols {
+		rows = append(rows, keyboards.ToolsDiskRow{
+			Mount: v.MountedOn, Size: v.Size, Capacity: v.Capacity,
+			ShortID: d.ShortMap.Put(v.MountedOn),
+		})
+	}
+	return r.Edit(ctx, q, fmt.Sprintf("💿 *Disks*\n\n_Ejected `%s`._", mount),
+		keyboards.ToolsDisksList(rows))
+}
+
+func handleToolsShortcut(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	if !d.Capability.Features.Shortcuts {
+		r.Toast(ctx, q, "Shortcuts CLI needs macOS 13+")
+		return nil
+	}
+	r.Ack(ctx, q)
+	return renderShortcutsPage(ctx, r, q, d, d.Services.Tools, 0, "")
+}
+
+func handleToolsShortcutPage(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	page, filterID := parseShortcutPageArgs(data)
+	filterTerm, _ := d.ShortMap.Get(filterID)
+	return renderShortcutsPage(ctx, r, q, d, d.Services.Tools, page, filterTerm)
+}
+
+func handleToolsShortcutRun(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
+	r := Reply{Deps: d}
+	svc := d.Services.Tools
+	if len(data.Args) < 1 {
+		return errEdit(ctx, r, q, "⚡ *Shortcut*", fmt.Errorf("missing shortcut id"))
+	}
+	name, ok := d.ShortMap.Get(data.Args[0])
+	if !ok {
+		return errEdit(ctx, r, q, "⚡ *Shortcut*", fmt.Errorf("session expired — refresh the list"))
+	}
+	r.Toast(ctx, q, fmt.Sprintf("▶ Running '%s'…", name))
+	var status string
+	if err := svc.ShortcutRun(ctx, name); err != nil {
+		status = fmt.Sprintf("⚠ `%s` failed: `%v`", name, err)
+	} else {
+		status = fmt.Sprintf("✅ Ran `%s`.", name)
+	}
+	page, filterID := parseShortcutPageArgsAt(data, 1)
+	filterTerm, _ := d.ShortMap.Get(filterID)
+	all, _ := svc.ShortcutsList(ctx)
+	matches := flows.FilterShortcuts(all, filterTerm)
+	items, totalPages := flows.PageShortcuts(matches, page, d.ShortMap)
+	text, kb := keyboards.ToolsShortcutsList(items, page, totalPages, len(matches), filterID, filterTerm)
+	return r.Edit(ctx, q, status+"\n\n"+text, kb)
+}
+
+func handleToolsShortcutSearch(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	if !d.Capability.Features.Shortcuts {
+		r.Toast(ctx, q, "Shortcuts CLI needs macOS 13+")
+		return nil
+	}
+	r.Ack(ctx, q)
+	chatID := q.Message.Message.Chat.ID
+	f := flows.NewShortcutSearch(d.Services.Tools, d.ShortMap)
+	d.FlowReg.Install(chatID, f)
+	return sendFlowPrompt(ctx, r, chatID, f.Start(ctx))
+}
+
+func handleToolsShortcutType(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	if !d.Capability.Features.Shortcuts {
+		r.Toast(ctx, q, "Shortcuts CLI needs macOS 13+")
+		return nil
+	}
+	r.Ack(ctx, q)
+	chatID := q.Message.Message.Chat.ID
+	f := flows.NewShortcut(d.Services.Tools)
+	d.FlowReg.Install(chatID, f)
+	return sendFlowPrompt(ctx, r, chatID, f.Start(ctx))
 }
 
 // renderTzRegions edits the current message to the timezone
@@ -570,22 +630,52 @@ func resolveDiskMount(d *bot.Deps, data callbacks.Data) (string, bool) {
 //     diskutil output truncated to 1500 bytes.
 func buildDiskPanel(mount string, info tools.DiskDetails) string {
 	var b strings.Builder
+	writeDiskHeader(&b, mount, info)
+	writeDiskUsageLine(&b, info)
+	writeDiskFSLine(&b, info)
+	writeDiskDescriptor(&b, info)
+	if info.VolumeName == "" && info.DiskSize == "" {
+		b.WriteString("\n\n" + Code(truncate(info.Raw, 1500)))
+	}
+	return b.String()
+}
+
+// writeDiskHeader appends the "💿 *Name*" header bullet, with
+// the optional " — `X` total" suffix when DiskSize is set.
+func writeDiskHeader(b *strings.Builder, mount string, info tools.DiskDetails) {
 	name := info.VolumeName
 	if name == "" {
 		name = mount
 	}
-	fmt.Fprintf(&b, "💿 *%s*", name)
+	fmt.Fprintf(b, "💿 *%s*", name)
 	if info.DiskSize != "" {
-		fmt.Fprintf(&b, " — `%s` total", info.DiskSize)
+		fmt.Fprintf(b, " — `%s` total", info.DiskSize)
 	}
 	b.WriteString("\n")
+}
 
-	if info.UsedSpace != "" || info.FreeSpace != "" {
-		fmt.Fprintf(&b, "Used: `%s` · Free: `%s`\n", nonEmpty(info.UsedSpace), nonEmpty(info.FreeSpace))
+// writeDiskUsageLine appends the "Used / Free" line when at
+// least one of the two fields is set.
+func writeDiskUsageLine(b *strings.Builder, info tools.DiskDetails) {
+	if info.UsedSpace == "" && info.FreeSpace == "" {
+		return
 	}
-	if info.FSType != "" || info.Device != "" {
-		fmt.Fprintf(&b, "FS: `%s` · Device: `%s`\n", nonEmpty(info.FSType), nonEmpty(info.Device))
+	fmt.Fprintf(b, "Used: `%s` · Free: `%s`\n", nonEmpty(info.UsedSpace), nonEmpty(info.FreeSpace))
+}
+
+// writeDiskFSLine appends the "FS / Device" line when at least
+// one of the two fields is set.
+func writeDiskFSLine(b *strings.Builder, info tools.DiskDetails) {
+	if info.FSType == "" && info.Device == "" {
+		return
 	}
+	fmt.Fprintf(b, "FS: `%s` · Device: `%s`\n", nonEmpty(info.FSType), nonEmpty(info.Device))
+}
+
+// writeDiskDescriptor appends the italic
+// "Internal/External · Fixed/Removable · SSD" descriptor and
+// the optional read-only suffix.
+func writeDiskDescriptor(b *strings.Builder, info tools.DiskDetails) {
 	location := "Internal"
 	if !info.Internal {
 		location = "External"
@@ -598,15 +688,10 @@ func buildDiskPanel(mount string, info tools.DiskDetails) string {
 	if info.SolidState {
 		storage = " · SSD"
 	}
-	fmt.Fprintf(&b, "_%s · %s%s_", location, media, storage)
+	fmt.Fprintf(b, "_%s · %s%s_", location, media, storage)
 	if info.ReadOnly {
 		b.WriteString(" · _read-only_")
 	}
-	if info.VolumeName == "" && info.DiskSize == "" {
-		// Parser saw nothing useful — surface the raw diskutil text.
-		b.WriteString("\n\n" + Code(truncate(info.Raw, 1500)))
-	}
-	return b.String()
 }
 
 // nonEmpty returns s when non-empty, "?" otherwise. Used by

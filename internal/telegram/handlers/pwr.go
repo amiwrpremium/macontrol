@@ -44,58 +44,86 @@ import (
 // only — a malicious caller emitting a callback with "ok"
 // directly would bypass the confirm step. The whitelist
 // (in bot.Deps.Whitelist) is the actual security boundary.
+// powerDispatch maps Power callback actions to handlers. The
+// three destructive actions (restart/shutdown/logout) share one
+// handler because they differ only in which service method to
+// call AFTER the confirm step passes.
+var powerDispatch = map[string]func(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error{
+	"open":        handlePowerOpen,
+	"lock":        handlePowerLock,
+	"sleep":       handlePowerSleep,
+	"restart":     handlePowerDestructive,
+	"shutdown":    handlePowerDestructive,
+	"logout":      handlePowerDestructive,
+	"keepawake":   handlePowerKeepAwake,
+	"cancelawake": handlePowerCancelAwake,
+}
+
 func handlePower(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
+	h, ok := powerDispatch[data.Action]
+	if !ok {
+		Reply{Deps: d}.Toast(ctx, q, "Unknown power action.")
+		return nil
+	}
+	return h(ctx, d, q, data)
+}
+
+func handlePowerOpen(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	text, kb := keyboards.Power()
+	return r.Edit(ctx, q, text, kb)
+}
+
+func handlePowerLock(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Toast(ctx, q, "Locking…")
+	return d.Services.Power.Lock(ctx)
+}
+
+func handlePowerSleep(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Toast(ctx, q, "Sleeping…")
+	return d.Services.Power.Sleep(ctx)
+}
+
+func handlePowerDestructive(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
 	r := Reply{Deps: d}
 	svc := d.Services.Power
-
-	switch data.Action {
-	case "open":
-		r.Ack(ctx, q)
-		text, kb := keyboards.Power()
-		return r.Edit(ctx, q, text, kb)
-
-	case "lock":
-		r.Toast(ctx, q, "Locking…")
-		return svc.Lock(ctx)
-
-	case "sleep":
-		r.Toast(ctx, q, "Sleeping…")
-		return svc.Sleep(ctx)
-
-	case "restart", "shutdown", "logout":
-		if isConfirm(data.Args) {
-			r.Toast(ctx, q, "Executing "+data.Action+"…")
-			switch data.Action {
-			case "restart":
-				return svc.Restart(ctx)
-			case "shutdown":
-				return svc.Shutdown(ctx)
-			case "logout":
-				return svc.Logout(ctx)
-			}
+	if isConfirm(data.Args) {
+		r.Toast(ctx, q, "Executing "+data.Action+"…")
+		switch data.Action {
+		case "restart":
+			return svc.Restart(ctx)
+		case "shutdown":
+			return svc.Shutdown(ctx)
+		case "logout":
+			return svc.Logout(ctx)
 		}
-		r.Ack(ctx, q)
-		label := labelFor(data.Action)
-		text, kb := keyboards.PowerConfirm(data.Action, label)
-		return r.Edit(ctx, q, text, kb)
-
-	case "keepawake":
-		r.Ack(ctx, q)
-		chatID := q.Message.Message.Chat.ID
-		f := flows.NewKeepAwake(svc)
-		d.FlowReg.Install(chatID, f)
-		return sendFlowPrompt(ctx, r, chatID, f.Start(ctx))
-
-	case "cancelawake":
-		r.Toast(ctx, q, "Cancelling keep-awake…")
-		if err := svc.CancelKeepAwake(ctx); err != nil {
-			return errEdit(ctx, r, q, "⚡ *Power* — cancel failed", err)
-		}
-		text, kb := keyboards.Power()
-		return r.Edit(ctx, q, text+"\n\n_keep-awake cancelled_", kb)
 	}
-	r.Toast(ctx, q, "Unknown power action.")
-	return nil
+	r.Ack(ctx, q)
+	label := labelFor(data.Action)
+	text, kb := keyboards.PowerConfirm(data.Action, label)
+	return r.Edit(ctx, q, text, kb)
+}
+
+func handlePowerKeepAwake(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	chatID := q.Message.Message.Chat.ID
+	f := flows.NewKeepAwake(d.Services.Power)
+	d.FlowReg.Install(chatID, f)
+	return sendFlowPrompt(ctx, r, chatID, f.Start(ctx))
+}
+
+func handlePowerCancelAwake(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Toast(ctx, q, "Cancelling keep-awake…")
+	if err := d.Services.Power.CancelKeepAwake(ctx); err != nil {
+		return errEdit(ctx, r, q, "⚡ *Power* — cancel failed", err)
+	}
+	text, kb := keyboards.Power()
+	return r.Edit(ctx, q, text+"\n\n_keep-awake cancelled_", kb)
 }
 
 // labelFor maps a destructive-action callback name to its

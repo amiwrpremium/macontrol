@@ -92,39 +92,69 @@ type Memory struct {
 func (s *Service) Memory(ctx context.Context) (Memory, error) {
 	m := Memory{FreePercent: -1}
 	any := false
-
-	if out, err := s.r.Exec(ctx, "top", "-l", "1", "-s", "0"); err == nil {
-		for _, line := range strings.Split(string(out), "\n") {
-			if !strings.HasPrefix(line, "PhysMem:") {
-				continue
-			}
-			m.Raw = line
-			m.UsedBytes, m.WiredBytes, m.CompressedBytes, m.UnusedBytes = ParsePhysMem(line)
-			any = true
-			break
-		}
-	}
-	if out, err := s.r.Exec(ctx, "memory_pressure"); err == nil {
-		if pct, ok := ParseFreePercent(string(out)); ok {
-			m.FreePercent = pct
-			any = true
-		}
-	}
-	if out, err := s.r.Exec(ctx, "sysctl", "vm.swapusage"); err == nil {
-		m.SwapUsedBytes, m.SwapTotalBytes = ParseSwap(string(out))
-		if m.SwapTotalBytes > 0 {
-			any = true
-		}
-	}
-	if procs, err := s.TopByMem(ctx, 3); err == nil && len(procs) > 0 {
-		m.TopByMem = procs
-		any = true
-	}
-
+	any = s.fillMemFromTop(ctx, &m) || any
+	any = s.fillMemFromPressure(ctx, &m) || any
+	any = s.fillMemFromSwap(ctx, &m) || any
+	any = s.fillMemTopByMem(ctx, &m) || any
 	if !any {
 		return m, fmt.Errorf("could not read any memory data")
 	}
 	return m, nil
+}
+
+// fillMemFromTop populates Used/Wired/Compressed/Unused bytes
+// from `top -l 1 -s 0`'s PhysMem line. Returns true on success.
+func (s *Service) fillMemFromTop(ctx context.Context, m *Memory) bool {
+	out, err := s.r.Exec(ctx, "top", "-l", "1", "-s", "0")
+	if err != nil {
+		return false
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		if !strings.HasPrefix(line, "PhysMem:") {
+			continue
+		}
+		m.Raw = line
+		m.UsedBytes, m.WiredBytes, m.CompressedBytes, m.UnusedBytes = ParsePhysMem(line)
+		return true
+	}
+	return false
+}
+
+// fillMemFromPressure populates FreePercent from
+// `memory_pressure`. Returns true when the percentage was read.
+func (s *Service) fillMemFromPressure(ctx context.Context, m *Memory) bool {
+	out, err := s.r.Exec(ctx, "memory_pressure")
+	if err != nil {
+		return false
+	}
+	pct, ok := ParseFreePercent(string(out))
+	if !ok {
+		return false
+	}
+	m.FreePercent = pct
+	return true
+}
+
+// fillMemFromSwap populates SwapUsedBytes / SwapTotalBytes from
+// `sysctl vm.swapusage`. Returns true when SwapTotalBytes > 0.
+func (s *Service) fillMemFromSwap(ctx context.Context, m *Memory) bool {
+	out, err := s.r.Exec(ctx, "sysctl", "vm.swapusage")
+	if err != nil {
+		return false
+	}
+	m.SwapUsedBytes, m.SwapTotalBytes = ParseSwap(string(out))
+	return m.SwapTotalBytes > 0
+}
+
+// fillMemTopByMem populates TopByMem from a top-3 ps query.
+// Returns true when at least one process was returned.
+func (s *Service) fillMemTopByMem(ctx context.Context, m *Memory) bool {
+	procs, err := s.TopByMem(ctx, 3)
+	if err != nil || len(procs) == 0 {
+		return false
+	}
+	m.TopByMem = procs
+	return true
 }
 
 // Compiled regexes used by the memory parsers in this file.

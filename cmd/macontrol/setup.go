@@ -60,35 +60,73 @@ func runSetup(args []string) {
 	account := currentUser()
 	exe, _ := os.Executable()
 
-	// Refuse to overwrite without --reconfigure.
-	if !reconfigure {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		_, err := kc.Get(ctx, keychain.ServiceToken, account)
-		cancel()
-		if err == nil {
-			fmt.Println("⚠ a token is already stored in the Keychain")
-			fmt.Println("   run `macontrol setup --reconfigure` to overwrite.")
-			return
-		}
+	if !reconfigure && existingTokenRefusesOverwrite(kc, account) {
+		return
 	}
 
 	in := bufio.NewReader(os.Stdin)
+	token := promptTokenOrExit()
+	ids := promptWhitelistOrExit(in)
+	botUser := verifyTokenOrExit(token)
+	storeSecretsOrExit(kc, account, exe, token, ids)
 
+	installAgent := promptYesNo(in, "▸ Install LaunchAgent so macontrol starts at login? [Y/n] ", true)
+	if installAgent {
+		installLaunchAgent()
+	}
+	if promptYesNo(in, "▸ Install narrow sudoers entry (shutdown/pmset/wdutil/powermetrics/systemsetup)? [y/N] ", false) {
+		installSudoersEntry()
+	}
+	printTCCReminder()
+	if installAgent && promptYesNo(in, "▸ Start the daemon now? [Y/n] ", true) {
+		startDaemonNow()
+	}
+	fmt.Printf("\nDone. Send /start to @%s.\n", botUser)
+}
+
+// existingTokenRefusesOverwrite returns true when a token is
+// already stored and the caller asked not to --reconfigure.
+// Prints the refusal message as a side effect.
+func existingTokenRefusesOverwrite(kc *keychain.Client, account string) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if _, err := kc.Get(ctx, keychain.ServiceToken, account); err == nil {
+		fmt.Println("⚠ a token is already stored in the Keychain")
+		fmt.Println("   run `macontrol setup --reconfigure` to overwrite.")
+		return true
+	}
+	return false
+}
+
+// promptTokenOrExit reads the bot token from stdin with echo
+// suppressed. Fatalf-exits the process when the input is empty.
+func promptTokenOrExit() string {
 	token := promptHidden("▸ Telegram bot token (from @BotFather): ")
 	if token == "" {
 		fatalf("token is required")
 	}
-	primary := promptLine(in, "▸ Your Telegram user ID (from @userinfobot): ")
-	primary = strings.TrimSpace(primary)
+	return token
+}
+
+// promptWhitelistOrExit reads the primary + extra user IDs and
+// returns the comma-joined whitelist string. Fatalf-exits when
+// the primary ID is not a valid integer.
+func promptWhitelistOrExit(in *bufio.Reader) string {
+	primary := strings.TrimSpace(promptLine(in, "▸ Your Telegram user ID (from @userinfobot): "))
 	if _, err := strconv.ParseInt(primary, 10, 64); err != nil {
 		fatalf("user id must be an integer, got %q", primary)
 	}
-	extra := promptLine(in, "▸ Additional user IDs to allow, comma-separated (blank = none): ")
-	ids := strings.TrimSpace(primary)
-	if extra = strings.TrimSpace(extra); extra != "" {
+	ids := primary
+	if extra := strings.TrimSpace(promptLine(in, "▸ Additional user IDs to allow, comma-separated (blank = none): ")); extra != "" {
 		ids = ids + "," + extra
 	}
+	return ids
+}
 
+// verifyTokenOrExit calls [verifyToken] and prints the tick/
+// cross. Fatalf-exits on failure; returns the bot's @username
+// on success.
+func verifyTokenOrExit(token string) string {
 	fmt.Print("▸ Verifying token…  ")
 	botUser, err := verifyToken(token)
 	if err != nil {
@@ -96,57 +134,70 @@ func runSetup(args []string) {
 		fatalf("token verification failed: %v", err)
 	}
 	fmt.Printf("✓ bot @%s\n", botUser)
+	return botUser
+}
 
-	// Store both secrets in the Keychain. Trust the macontrol binary so
-	// the daemon can read silently after the first prompt.
-	storeCtx, storeCancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer storeCancel()
+// storeSecretsOrExit writes the token and whitelist into the
+// Keychain, trusting the macontrol binary so the daemon can
+// read silently after first prompt. Fatalf-exits on either
+// write failure.
+func storeSecretsOrExit(kc *keychain.Client, account, exe, token, ids string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	trusted := []string{}
 	if exe != "" {
 		trusted = append(trusted, exe)
 	}
-	if err := kc.Set(storeCtx, keychain.ServiceToken, account, token, trusted...); err != nil {
+	if err := kc.Set(ctx, keychain.ServiceToken, account, token, trusted...); err != nil {
 		fatalf("storing token in Keychain: %v", err)
 	}
-	if err := kc.Set(storeCtx, keychain.ServiceWhitelist, account, ids, trusted...); err != nil {
+	if err := kc.Set(ctx, keychain.ServiceWhitelist, account, ids, trusted...); err != nil {
 		fatalf("storing whitelist in Keychain: %v", err)
 	}
 	fmt.Println("▸ Stored token + whitelist in Keychain  ✓")
+}
 
-	installAgent := promptYesNo(in, "▸ Install LaunchAgent so macontrol starts at login? [Y/n] ", true)
-	if installAgent {
-		if err := serviceInstall(); err != nil {
-			fmt.Printf("⚠ could not install LaunchAgent: %v\n", err)
-		} else {
-			fmt.Println("▸ LaunchAgent installed  ✓")
-		}
+// installLaunchAgent runs [serviceInstall] and prints a
+// success/warning line. Non-fatal on error — the setup proceeds
+// so the user can still install the LaunchAgent later.
+func installLaunchAgent() {
+	if err := serviceInstall(); err != nil {
+		fmt.Printf("⚠ could not install LaunchAgent: %v\n", err)
+		return
 	}
+	fmt.Println("▸ LaunchAgent installed  ✓")
+}
 
-	installSudoers := promptYesNo(in, "▸ Install narrow sudoers entry (shutdown/pmset/wdutil/powermetrics/systemsetup)? [y/N] ", false)
-	if installSudoers {
-		if err := installSudoersFile(); err != nil {
-			fmt.Printf("⚠ could not install sudoers entry: %v\n", err)
-			fmt.Println("  You can install it later by copying sudoers.d/macontrol.sample to /etc/sudoers.d/macontrol via `sudo visudo -f /etc/sudoers.d/macontrol`.")
-		} else {
-			fmt.Println("▸ /etc/sudoers.d/macontrol written  ✓")
-		}
+// installSudoersEntry runs [installSudoersFile] with a fallback
+// hint when the copy fails (user declined the sudo prompt).
+func installSudoersEntry() {
+	if err := installSudoersFile(); err != nil {
+		fmt.Printf("⚠ could not install sudoers entry: %v\n", err)
+		fmt.Println("  You can install it later by copying sudoers.d/macontrol.sample to /etc/sudoers.d/macontrol via `sudo visudo -f /etc/sudoers.d/macontrol`.")
+		return
 	}
+	fmt.Println("▸ /etc/sudoers.d/macontrol written  ✓")
+}
 
+// printTCCReminder prints the Screen Recording / Accessibility
+// / Camera checklist the user has to tick in System Settings.
+func printTCCReminder() {
 	fmt.Println()
 	fmt.Println("TCC permissions to grant (System Settings → Privacy & Security):")
 	fmt.Println("  • Screen Recording  — /screenshot, /record")
 	fmt.Println("  • Accessibility     — app listing, fallback brightness")
 	fmt.Println("  • Camera            — /photo")
 	fmt.Println()
+}
 
-	if installAgent && promptYesNo(in, "▸ Start the daemon now? [Y/n] ", true) {
-		if err := serviceStart(); err != nil {
-			fmt.Printf("⚠ start failed: %v\n", err)
-		} else {
-			fmt.Println("  daemon started.")
-		}
+// startDaemonNow calls [serviceStart] with a success/warning
+// line. Non-fatal — the user can start manually later.
+func startDaemonNow() {
+	if err := serviceStart(); err != nil {
+		fmt.Printf("⚠ start failed: %v\n", err)
+		return
 	}
-	fmt.Printf("\nDone. Send /start to @%s.\n", botUser)
+	fmt.Println("  daemon started.")
 }
 
 // promptLine reads one line of (visible) input from the

@@ -45,36 +45,60 @@ const (
 // Empty args prints usage + exits 2; unknown subcommands route
 // to [fatalf] (exits 1 with the macontrol-setup-prefixed
 // message).
+// serviceSubcommands maps each `macontrol service <sub>` name to
+// the handler that runs it. Each handler owns its own stdout and
+// fatalf-exits on error; runService itself only dispatches.
+var serviceSubcommands = map[string]func(){
+	"install":   runServiceInstall,
+	"uninstall": runServiceUninstall,
+	"start":     runServiceStart,
+	"stop":      runServiceStop,
+	"status":    serviceStatus,
+	"logs":      serviceLogs,
+}
+
 func runService(args []string) {
 	if len(args) == 0 {
 		fmt.Println("usage: macontrol service {install|uninstall|start|stop|status|logs}")
 		os.Exit(2)
 	}
-	switch args[0] {
-	case "install":
-		if err := serviceInstall(); err != nil {
-			fatalf("service install: %v", err)
-		}
-		fmt.Println("installed.")
-	case "uninstall":
-		if err := serviceUninstall(); err != nil {
-			fatalf("service uninstall: %v", err)
-		}
-		fmt.Println("uninstalled.")
-	case "start":
-		if err := serviceStart(); err != nil {
-			fatalf("service start: %v", err)
-		}
-	case "stop":
-		if err := serviceStop(); err != nil {
-			fatalf("service stop: %v", err)
-		}
-	case "status":
-		serviceStatus()
-	case "logs":
-		serviceLogs()
-	default:
+	h, ok := serviceSubcommands[args[0]]
+	if !ok {
 		fatalf("unknown service subcommand: %s", args[0])
+	}
+	h()
+}
+
+// runServiceInstall wraps [serviceInstall] with the fatalf +
+// success-line reporting.
+func runServiceInstall() {
+	if err := serviceInstall(); err != nil {
+		fatalf("service install: %v", err)
+	}
+	fmt.Println("installed.")
+}
+
+// runServiceUninstall wraps [serviceUninstall] with the same
+// fatalf + success-line treatment.
+func runServiceUninstall() {
+	if err := serviceUninstall(); err != nil {
+		fatalf("service uninstall: %v", err)
+	}
+	fmt.Println("uninstalled.")
+}
+
+// runServiceStart wraps [serviceStart] with fatalf-on-error.
+// No success line — launchctl silently bootstraps when it works.
+func runServiceStart() {
+	if err := serviceStart(); err != nil {
+		fatalf("service start: %v", err)
+	}
+}
+
+// runServiceStop wraps [serviceStop] with fatalf-on-error.
+func runServiceStop() {
+	if err := serviceStop(); err != nil {
+		fatalf("service stop: %v", err)
 	}
 }
 

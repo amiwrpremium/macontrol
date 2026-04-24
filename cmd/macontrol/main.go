@@ -58,38 +58,47 @@ var (
 // Tests cannot reach this function directly because it
 // terminates the process on most paths; coverage comes from
 // the per-subcommand functions.
+// subcommands maps a subcommand name to the function that
+// handles it. Functions all take the remaining os.Args slice
+// (after the subcommand word) so every entry shares a single
+// signature.
+var subcommands = map[string]func([]string){
+	"run":       dispatchRun,
+	"setup":     runSetup,
+	"service":   runService,
+	"whitelist": runWhitelist,
+	"token":     runToken,
+	"doctor":    func([]string) { runDoctor() },
+	"version":   func([]string) { printVersion() },
+	"--version": func([]string) { printVersion() },
+	"-v":        func([]string) { printVersion() },
+	"help":      func([]string) { printHelp() },
+	"--help":    func([]string) { printHelp() },
+	"-h":        func([]string) { printHelp() },
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		dispatchRun(nil)
 		return
 	}
-	switch os.Args[1] {
-	case "run":
-		dispatchRun(os.Args[2:])
-	case "setup":
-		runSetup(os.Args[2:])
-	case "service":
-		runService(os.Args[2:])
-	case "whitelist":
-		runWhitelist(os.Args[2:])
-	case "token":
-		runToken(os.Args[2:])
-	case "doctor":
-		runDoctor()
-	case "version", "--version", "-v":
-		fmt.Printf("macontrol %s (%s, %s)\n", version, commit, date)
-	case "help", "--help", "-h":
-		printHelp()
-	default:
-		// Unknown subcommand — fall through to daemon if it looks like a flag.
-		if os.Args[1][0] == '-' {
-			dispatchRun(os.Args[1:])
-			return
-		}
-		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n\n", os.Args[1])
-		printHelp()
-		os.Exit(2)
+	if h, ok := subcommands[os.Args[1]]; ok {
+		h(os.Args[2:])
+		return
 	}
+	// Unknown subcommand — fall through to daemon if it looks like a flag.
+	if os.Args[1][0] == '-' {
+		dispatchRun(os.Args[1:])
+		return
+	}
+	fmt.Fprintf(os.Stderr, "unknown subcommand %q\n\n", os.Args[1])
+	printHelp()
+	os.Exit(2)
+}
+
+// printVersion writes the version / commit / date banner.
+func printVersion() {
+	fmt.Printf("macontrol %s (%s, %s)\n", version, commit, date)
 }
 
 // dispatchRun parses the daemon's flag set and hands control

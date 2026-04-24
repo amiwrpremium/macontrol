@@ -39,72 +39,98 @@ import (
 //
 // Unknown actions fall through to a "Unknown sound action."
 // toast.
+// soundDispatch maps Sound callback actions to per-action handlers.
+// "open" and "refresh" share a handler; "up" and "down" share one
+// with a sign-flip inside.
+var soundDispatch = map[string]func(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error{
+	"open":    handleSoundRefresh,
+	"refresh": handleSoundRefresh,
+	"up":      handleSoundNudge,
+	"down":    handleSoundNudge,
+	"max":     handleSoundMax,
+	"mute":    handleSoundMute,
+	"unmute":  handleSoundUnmute,
+	"set":     handleSoundSet,
+}
+
 func handleSound(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
-	r := Reply{Deps: d}
-	svc := d.Services.Sound
-	switch data.Action {
-	case "open", "refresh":
-		r.Ack(ctx, q)
-		st, err := svc.Get(ctx)
-		if err != nil {
-			return errEdit(ctx, r, q, "🔊 *Sound* — unavailable", err)
-		}
-		text, kb := keyboards.Sound(st)
-		return r.Edit(ctx, q, text, kb)
-
-	case "up", "down":
-		delta := 5
-		if len(data.Args) > 0 {
-			if v, err := strconv.Atoi(data.Args[0]); err == nil {
-				delta = v
-			}
-		}
-		if data.Action == "down" {
-			delta = -delta
-		}
-		r.Ack(ctx, q)
-		st, err := svc.Adjust(ctx, delta)
-		if err != nil {
-			return errEdit(ctx, r, q, "🔊 *Sound* — adjust failed", err)
-		}
-		text, kb := keyboards.Sound(st)
-		return r.Edit(ctx, q, text, kb)
-
-	case "max":
-		r.Ack(ctx, q)
-		st, err := svc.Max(ctx)
-		if err != nil {
-			return errEdit(ctx, r, q, "🔊 *Sound* — max failed", err)
-		}
-		text, kb := keyboards.Sound(st)
-		return r.Edit(ctx, q, text, kb)
-
-	case "mute":
-		r.Ack(ctx, q)
-		st, err := svc.Mute(ctx)
-		if err != nil {
-			return errEdit(ctx, r, q, "🔊 *Sound* — mute failed", err)
-		}
-		text, kb := keyboards.Sound(st)
-		return r.Edit(ctx, q, text, kb)
-
-	case "unmute":
-		r.Ack(ctx, q)
-		st, err := svc.Unmute(ctx)
-		if err != nil {
-			return errEdit(ctx, r, q, "🔊 *Sound* — unmute failed", err)
-		}
-		text, kb := keyboards.Sound(st)
-		return r.Edit(ctx, q, text, kb)
-
-	case "set":
-		r.Ack(ctx, q)
-		chatID := q.Message.Message.Chat.ID
-		f := flows.NewSetVolume(svc)
-		d.FlowReg.Install(chatID, f)
-		resp := f.Start(ctx)
-		return sendFlowPrompt(ctx, r, chatID, resp)
+	h, ok := soundDispatch[data.Action]
+	if !ok {
+		Reply{Deps: d}.Toast(ctx, q, "Unknown sound action.")
+		return nil
 	}
-	r.Toast(ctx, q, "Unknown sound action.")
-	return nil
+	return h(ctx, d, q, data)
+}
+
+func handleSoundRefresh(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	st, err := d.Services.Sound.Get(ctx)
+	if err != nil {
+		return errEdit(ctx, r, q, "🔊 *Sound* — unavailable", err)
+	}
+	text, kb := keyboards.Sound(st)
+	return r.Edit(ctx, q, text, kb)
+}
+
+func handleSoundNudge(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
+	r := Reply{Deps: d}
+	delta := 5
+	if len(data.Args) > 0 {
+		if v, err := strconv.Atoi(data.Args[0]); err == nil {
+			delta = v
+		}
+	}
+	if data.Action == "down" {
+		delta = -delta
+	}
+	r.Ack(ctx, q)
+	st, err := d.Services.Sound.Adjust(ctx, delta)
+	if err != nil {
+		return errEdit(ctx, r, q, "🔊 *Sound* — adjust failed", err)
+	}
+	text, kb := keyboards.Sound(st)
+	return r.Edit(ctx, q, text, kb)
+}
+
+func handleSoundMax(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	st, err := d.Services.Sound.Max(ctx)
+	if err != nil {
+		return errEdit(ctx, r, q, "🔊 *Sound* — max failed", err)
+	}
+	text, kb := keyboards.Sound(st)
+	return r.Edit(ctx, q, text, kb)
+}
+
+func handleSoundMute(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	st, err := d.Services.Sound.Mute(ctx)
+	if err != nil {
+		return errEdit(ctx, r, q, "🔊 *Sound* — mute failed", err)
+	}
+	text, kb := keyboards.Sound(st)
+	return r.Edit(ctx, q, text, kb)
+}
+
+func handleSoundUnmute(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	st, err := d.Services.Sound.Unmute(ctx)
+	if err != nil {
+		return errEdit(ctx, r, q, "🔊 *Sound* — unmute failed", err)
+	}
+	text, kb := keyboards.Sound(st)
+	return r.Edit(ctx, q, text, kb)
+}
+
+func handleSoundSet(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	chatID := q.Message.Message.Chat.ID
+	f := flows.NewSetVolume(d.Services.Sound)
+	d.FlowReg.Install(chatID, f)
+	return sendFlowPrompt(ctx, r, chatID, f.Start(ctx))
 }

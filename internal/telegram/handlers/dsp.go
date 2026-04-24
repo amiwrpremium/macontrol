@@ -43,47 +43,67 @@ import (
 //
 // Unknown actions fall through to a "Unknown display action."
 // toast.
+// displayDispatch maps Display callback actions to handlers.
+// "open"/"refresh" share a handler; "up"/"down" share one with
+// a sign-flip inside.
+var displayDispatch = map[string]func(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error{
+	"open":        handleDisplayRefresh,
+	"refresh":     handleDisplayRefresh,
+	"up":          handleDisplayNudge,
+	"down":        handleDisplayNudge,
+	"set":         handleDisplaySet,
+	"screensaver": handleDisplayScreensaver,
+}
+
 func handleDisplay(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
-	r := Reply{Deps: d}
-	svc := d.Services.Display
-
-	switch data.Action {
-	case "open", "refresh":
-		r.Ack(ctx, q)
-		st, err := svc.Get(ctx)
-		text, kb := keyboards.Display(st, err)
-		return r.Edit(ctx, q, text, kb)
-
-	case "up", "down":
-		delta := 5
-		if len(data.Args) > 0 {
-			if v, err := strconv.Atoi(data.Args[0]); err == nil {
-				delta = v
-			}
-		}
-		f := float64(delta) / 100
-		if data.Action == "down" {
-			f = -f
-		}
-		r.Ack(ctx, q)
-		st, err := svc.Adjust(ctx, f)
-		if err != nil {
-			return errEdit(ctx, r, q, "💡 *Display* — adjust failed", err)
-		}
-		text, kb := keyboards.Display(st, nil)
-		return r.Edit(ctx, q, text, kb)
-
-	case "set":
-		r.Ack(ctx, q)
-		chatID := q.Message.Message.Chat.ID
-		f := flows.NewSetBrightness(svc)
-		d.FlowReg.Install(chatID, f)
-		return sendFlowPrompt(ctx, r, chatID, f.Start(ctx))
-
-	case "screensaver":
-		r.Toast(ctx, q, "Starting screen saver…")
-		return svc.Screensaver(ctx)
+	h, ok := displayDispatch[data.Action]
+	if !ok {
+		Reply{Deps: d}.Toast(ctx, q, "Unknown display action.")
+		return nil
 	}
-	r.Toast(ctx, q, "Unknown display action.")
-	return nil
+	return h(ctx, d, q, data)
+}
+
+func handleDisplayRefresh(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	st, err := d.Services.Display.Get(ctx)
+	text, kb := keyboards.Display(st, err)
+	return r.Edit(ctx, q, text, kb)
+}
+
+func handleDisplayNudge(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
+	r := Reply{Deps: d}
+	delta := 5
+	if len(data.Args) > 0 {
+		if v, err := strconv.Atoi(data.Args[0]); err == nil {
+			delta = v
+		}
+	}
+	f := float64(delta) / 100
+	if data.Action == "down" {
+		f = -f
+	}
+	r.Ack(ctx, q)
+	st, err := d.Services.Display.Adjust(ctx, f)
+	if err != nil {
+		return errEdit(ctx, r, q, "💡 *Display* — adjust failed", err)
+	}
+	text, kb := keyboards.Display(st, nil)
+	return r.Edit(ctx, q, text, kb)
+}
+
+func handleDisplaySet(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	chatID := q.Message.Message.Chat.ID
+	f := flows.NewSetBrightness(d.Services.Display)
+	d.FlowReg.Install(chatID, f)
+	return sendFlowPrompt(ctx, r, chatID, f.Start(ctx))
+}
+
+func handleDisplayScreensaver(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Toast(ctx, q, "Starting screen saver…")
+	return d.Services.Display.Screensaver(ctx)
 }

@@ -165,8 +165,35 @@ func FilterTimezonesInRegion(all []string, region, sub string) []string {
 //
 // Returns the page slice and total page count.
 func PageTimezones(cities []string, region string, page int, sm *callbacks.ShortMap) ([]keyboards.TimezoneListItem, int) {
-	total := len(cities)
-	totalPages := (total + keyboards.TimezonesPageSize - 1) / keyboards.TimezonesPageSize
+	start, end, totalPages := clampPage(len(cities), page, keyboards.TimezonesPageSize)
+	prefix := region + "/"
+	items := make([]keyboards.TimezoneListItem, 0, end-start)
+	for _, tz := range cities[start:end] {
+		items = append(items, keyboards.TimezoneListItem{
+			Label:   keyboards.TruncateShortcutLabel(tzCityLabel(tz, prefix)),
+			ShortID: sm.Put(tz),
+		})
+	}
+	return items, totalPages
+}
+
+// tzCityLabel builds the per-row button label: "🇩🇪 Berlin"
+// when the country lookup hits, plain "Berlin" otherwise.
+func tzCityLabel(tz, prefix string) string {
+	city := strings.TrimPrefix(tz, prefix)
+	if iso, ok := tools.LookupCountry(tz); ok {
+		if flag := keyboards.FlagFromISO2(iso); flag != "" {
+			return flag + " " + city
+		}
+	}
+	return city
+}
+
+// clampPage normalises (total, page) against pageSize and
+// returns the slice bounds plus totalPages. Guarantees
+// 0 <= start <= end <= total and totalPages >= 1.
+func clampPage(total, page, pageSize int) (start, end, totalPages int) {
+	totalPages = (total + pageSize - 1) / pageSize
 	if totalPages < 1 {
 		totalPages = 1
 	}
@@ -176,28 +203,13 @@ func PageTimezones(cities []string, region string, page int, sm *callbacks.Short
 	if page >= totalPages {
 		page = totalPages - 1
 	}
-	start := page * keyboards.TimezonesPageSize
-	end := start + keyboards.TimezonesPageSize
+	start = page * pageSize
+	end = start + pageSize
 	if end > total {
 		end = total
 	}
 	if start > end {
 		start = end
 	}
-	prefix := region + "/"
-	items := make([]keyboards.TimezoneListItem, 0, end-start)
-	for _, tz := range cities[start:end] {
-		city := strings.TrimPrefix(tz, prefix)
-		label := city
-		if iso, ok := tools.LookupCountry(tz); ok {
-			if flag := keyboards.FlagFromISO2(iso); flag != "" {
-				label = flag + " " + city
-			}
-		}
-		items = append(items, keyboards.TimezoneListItem{
-			Label:   keyboards.TruncateShortcutLabel(label),
-			ShortID: sm.Put(tz),
-		})
-	}
-	return items, totalPages
+	return start, end, totalPages
 }

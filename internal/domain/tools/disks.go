@@ -161,6 +161,23 @@ func (s *Service) DisksList(ctx context.Context) ([]DiskVolume, error) {
 	return volumes, nil
 }
 
+// diskutilSetters maps each diskutil KEY to a function that
+// parses VALUE and writes it onto a [DiskDetails]. Built once at
+// init so DiskInfo's inner loop is a single map lookup per line.
+var diskutilSetters = map[string]func(*DiskDetails, string){
+	"Volume Name":             func(d *DiskDetails, v string) { d.VolumeName = v },
+	"Mount Point":             func(d *DiskDetails, v string) { d.MountPoint = v },
+	"Device Node":             func(d *DiskDetails, v string) { d.Device = v },
+	"File System Personality": func(d *DiskDetails, v string) { d.FSType = v },
+	"Disk Size":               func(d *DiskDetails, v string) { d.DiskSize = trimAfterParen(v) },
+	"Volume Used Space":       func(d *DiskDetails, v string) { d.UsedSpace = trimAfterParen(v) },
+	"Container Free Space":    func(d *DiskDetails, v string) { d.FreeSpace = trimAfterParen(v) },
+	"Removable Media":         func(d *DiskDetails, v string) { d.Removable = strings.EqualFold(v, "Removable") },
+	"Device Location":         func(d *DiskDetails, v string) { d.Internal = strings.EqualFold(v, "Internal") },
+	"Volume Read-Only":        func(d *DiskDetails, v string) { d.ReadOnly = strings.HasPrefix(strings.ToLower(v), "yes") },
+	"Solid State":             func(d *DiskDetails, v string) { d.SolidState = strings.EqualFold(v, "Yes") },
+}
+
 // DiskInfo returns the parsed per-disk detail view via
 // `diskutil info <mount>`.
 //
@@ -170,8 +187,8 @@ func (s *Service) DisksList(ctx context.Context) ([]DiskVolume, error) {
 //   - On subprocess failure, returns DiskDetails{Raw: <stdout>}
 //     plus the error so callers can still display the raw text.
 //   - On success, walks the output line by line, splitting each
-//     into KEY: VALUE via [splitDiskutilKV] and switching on KEY
-//     to populate the typed field.
+//     into KEY: VALUE via [splitDiskutilKV] and looking up KEY in
+//     [diskutilSetters] to populate the typed field.
 //   - Size strings (Disk Size / Volume Used Space / Container
 //     Free Space) get stripped of diskutil's trailing
 //     " (N Bytes) (exactly …)" suffix via [trimAfterParen].
@@ -195,29 +212,8 @@ func (s *Service) DiskInfo(ctx context.Context, mount string) (DiskDetails, erro
 		if !ok {
 			continue
 		}
-		switch key {
-		case "Volume Name":
-			d.VolumeName = val
-		case "Mount Point":
-			d.MountPoint = val
-		case "Device Node":
-			d.Device = val
-		case "File System Personality":
-			d.FSType = val
-		case "Disk Size":
-			d.DiskSize = trimAfterParen(val)
-		case "Volume Used Space":
-			d.UsedSpace = trimAfterParen(val)
-		case "Container Free Space":
-			d.FreeSpace = trimAfterParen(val)
-		case "Removable Media":
-			d.Removable = strings.EqualFold(val, "Removable")
-		case "Device Location":
-			d.Internal = strings.EqualFold(val, "Internal")
-		case "Volume Read-Only":
-			d.ReadOnly = strings.HasPrefix(strings.ToLower(val), "yes")
-		case "Solid State":
-			d.SolidState = strings.EqualFold(val, "Yes")
+		if setter, ok := diskutilSetters[key]; ok {
+			setter(&d, val)
 		}
 	}
 	return d, nil
