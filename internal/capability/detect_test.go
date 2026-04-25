@@ -92,7 +92,9 @@ func TestFeatures_Gates(t *testing.T) {
 
 func TestDetect_UsesRunner(t *testing.T) {
 	t.Parallel()
-	f := runner.NewFake().On("sw_vers -productVersion", "15.3\n", nil)
+	f := runner.NewFake().
+		On("sw_vers -productVersion", "15.3\n", nil).
+		On("which nowplaying-cli", "/opt/homebrew/bin/nowplaying-cli\n", nil)
 	rep, err := capability.Detect(context.Background(), f)
 	if err != nil {
 		t.Fatal(err)
@@ -101,7 +103,28 @@ func TestDetect_UsesRunner(t *testing.T) {
 		t.Fatalf("unexpected version %+v", rep.Version)
 	}
 	if !rep.Features.NetworkQuality || !rep.Features.Shortcuts {
-		t.Fatal("features should be enabled on 15.3")
+		t.Fatal("version-gated features should be enabled on 15.3")
+	}
+	if !rep.Features.NowPlaying {
+		t.Fatal("NowPlaying should be true when which exits 0")
+	}
+}
+
+func TestDetect_NowPlayingMissing(t *testing.T) {
+	t.Parallel()
+	f := runner.NewFake().
+		On("sw_vers -productVersion", "15.3\n", nil).
+		On("which nowplaying-cli", "", errors.New("exit status 1"))
+	rep, err := capability.Detect(context.Background(), f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rep.Features.NowPlaying {
+		t.Fatal("NowPlaying must be false when which fails")
+	}
+	// Version-gated features stay enabled despite the binary probe failure.
+	if !rep.Features.NetworkQuality {
+		t.Fatal("version-gated NetworkQuality must not regress on probe failure")
 	}
 }
 
@@ -118,14 +141,14 @@ func TestReport_Summary(t *testing.T) {
 	rep := capability.Report{
 		Version: capability.ParseVersion("15.2"),
 		Features: capability.Features{
-			NetworkQuality: true, Shortcuts: true, WdutilInfo: true,
+			NetworkQuality: true, Shortcuts: true, WdutilInfo: true, NowPlaying: true,
 		},
 	}
 	got := rep.Summary()
 	if !strings.Contains(got, "15.2") {
 		t.Errorf("summary missing version: %q", got)
 	}
-	if !strings.Contains(got, "3/3") {
+	if !strings.Contains(got, "4/4") {
 		t.Errorf("summary missing counter: %q", got)
 	}
 }
@@ -135,10 +158,10 @@ func TestReport_Summary_Partial(t *testing.T) {
 	rep := capability.Report{
 		Version: capability.ParseVersion("11.0"),
 		Features: capability.Features{
-			NetworkQuality: false, Shortcuts: false, WdutilInfo: true,
+			NetworkQuality: false, Shortcuts: false, WdutilInfo: true, NowPlaying: false,
 		},
 	}
-	if !strings.Contains(rep.Summary(), "1/3") {
-		t.Errorf("expected 1/3, got: %q", rep.Summary())
+	if !strings.Contains(rep.Summary(), "1/4") {
+		t.Errorf("expected 1/4, got: %q", rep.Summary())
 	}
 }
