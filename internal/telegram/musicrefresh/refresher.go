@@ -321,55 +321,16 @@ func (m *Manager) tickOnce(ctx context.Context, chatID int64, s *session) {
 		return
 	}
 
-	var np music.NowPlaying
-	var vol sound.State
-	var err error
-	if queued != nil {
-		np = queued.np
-		vol = queued.vol
-	} else {
-		np, err = m.musicSvc.Get(ctx)
-		if err != nil {
-			m.log.Warn("music refresh: get failed; skipping tick",
-				"chat_id", chatID, "err", err)
-			return
-		}
-		vol, err = m.soundSvc.Get(ctx)
-		if err != nil {
-			m.log.Warn("music refresh: sound.Get failed; skipping volume update",
-				"chat_id", chatID, "err", err)
-		}
+	np, vol, ok := m.snapshotForTick(ctx, chatID, queued)
+	if !ok {
+		return
 	}
 
 	caption := keyboards.MusicCaption(np, vol, true)
 	kb := keyboards.MusicKeyboard(np.IsPlaying(), vol.Muted, true)
 
 	if np.TrackID != "" && np.TrackID != s.trackID {
-		// Track change → swap the photo via editMessageMedia, fetching
-		// the new artwork once.
-		fresh, err := m.musicSvc.GetWithArtwork(ctx)
-		if err == nil && fresh.TrackID == np.TrackID {
-			art := fresh.Artwork
-			if len(art) == 0 {
-				art = Placeholder
-			}
-			photo := &models.InputMediaPhoto{
-				Media:           "attach://artwork",
-				Caption:         caption,
-				ParseMode:       models.ParseModeMarkdown,
-				MediaAttachment: bytes.NewReader(art),
-			}
-			if _, err := bot.EditMessageMedia(ctx, &tgbot.EditMessageMediaParams{
-				ChatID:      chatID,
-				MessageID:   s.msgID,
-				Media:       photo,
-				ReplyMarkup: kb,
-			}); err != nil {
-				m.log.Warn("music refresh: editMessageMedia failed",
-					"chat_id", chatID, "err", err)
-				return
-			}
-			s.trackID = np.TrackID
+		if m.tryEditMedia(ctx, bot, chatID, s, np, caption, kb) {
 			return
 		}
 		// On artwork-fetch failure fall through to a caption-only edit
@@ -386,4 +347,65 @@ func (m *Manager) tickOnce(ctx context.Context, chatID int64, s *session) {
 		m.log.Warn("music refresh: editMessageCaption failed",
 			"chat_id", chatID, "err", err)
 	}
+}
+
+// snapshotForTick returns the (np, vol) pair the tick will
+// render. Uses a queued Touch payload when present (so the
+// next tick after a handler-driven action picks up the post-
+// action state without spawning an extra subprocess); falls
+// back to fetching from the services otherwise.
+//
+// Returns ok=false when the music fetch failed, signalling
+// the caller to skip the tick entirely. A sound-fetch failure
+// only zeroes the volume footer.
+func (m *Manager) snapshotForTick(ctx context.Context, chatID int64, queued *touched) (music.NowPlaying, sound.State, bool) {
+	if queued != nil {
+		return queued.np, queued.vol, true
+	}
+	np, err := m.musicSvc.Get(ctx)
+	if err != nil {
+		m.log.Warn("music refresh: get failed; skipping tick",
+			"chat_id", chatID, "err", err)
+		return music.NowPlaying{}, sound.State{}, false
+	}
+	vol, err := m.soundSvc.Get(ctx)
+	if err != nil {
+		m.log.Warn("music refresh: sound.Get failed; skipping volume update",
+			"chat_id", chatID, "err", err)
+	}
+	return np, vol, true
+}
+
+// tryEditMedia handles the track-change path: re-fetch with
+// artwork, swap the photo via editMessageMedia, and update the
+// session's lastTrackID. Returns true when the swap succeeded
+// (caller should not also editMessageCaption); false on any
+// failure so the caller falls back to a caption-only edit.
+func (m *Manager) tryEditMedia(ctx context.Context, bot *tgbot.Bot, chatID int64, s *session, np music.NowPlaying, caption string, kb *models.InlineKeyboardMarkup) bool {
+	fresh, err := m.musicSvc.GetWithArtwork(ctx)
+	if err != nil || fresh.TrackID != np.TrackID {
+		return false
+	}
+	art := fresh.Artwork
+	if len(art) == 0 {
+		art = Placeholder
+	}
+	photo := &models.InputMediaPhoto{
+		Media:           "attach://artwork",
+		Caption:         caption,
+		ParseMode:       models.ParseModeMarkdown,
+		MediaAttachment: bytes.NewReader(art),
+	}
+	if _, err := bot.EditMessageMedia(ctx, &tgbot.EditMessageMediaParams{
+		ChatID:      chatID,
+		MessageID:   s.msgID,
+		Media:       photo,
+		ReplyMarkup: kb,
+	}); err != nil {
+		m.log.Warn("music refresh: editMessageMedia failed",
+			"chat_id", chatID, "err", err)
+		return false
+	}
+	s.trackID = np.TrackID
+	return true
 }
