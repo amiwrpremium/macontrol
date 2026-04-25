@@ -24,6 +24,7 @@ distinct mechanisms:
 | `📶 Wi-Fi → Info` | Sudoers (`wdutil info`) |
 | `🧭 Timezone…`, `🔄 Sync time` | Sudoers (`systemsetup`, `sntp`) |
 | Listing running apps (osascript) | Accessibility TCC |
+| `🪟 Apps` (list / Quit / Force Quit / Hide / Quit all except…) | Accessibility TCC |
 | `🎵 Music` (any action) | `nowplaying-cli` brew formula on PATH |
 | All other actions | nothing |
 

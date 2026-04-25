@@ -64,6 +64,7 @@ code on your Mac.
 | 🔵 Bluetooth | Toggle, list, connect/disconnect paired devices |
 | ⚡ Power | Lock, sleep, restart, shutdown, logout, keep-awake |
 | 🖥 System | macOS/HW info, thermal pressure, memory + tappable top RAM hogs, CPU + tappable top CPU hogs, Top 10 — every process drills into Kill / Force Kill |
+| 🪟 Apps | List running apps, quit / force quit / hide each, "Quit all except…" multi-select |
 | 📸 Media | Full/display/window screenshot, screen recording, webcam photo |
 | 🎵 Music | Player-agnostic play/pause/next/prev/seek + live progress bar + artwork, with embedded volume controls |
 | 🔔 Notify | Desktop notification (terminal-notifier → osascript fallback), text-to-speech |
