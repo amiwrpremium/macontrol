@@ -176,6 +176,13 @@ const (
 	// internal/telegram/handlers/tls.go.
 	NSTools = "tls"
 
+	// NSMusic is the namespace for now-playing metadata,
+	// playback control, seek, and the embedded volume nudges
+	// inside the 🎵 Music dashboard. Backed by the
+	// nowplaying-cli brew formula. Handler:
+	// internal/telegram/handlers/mus.go.
+	NSMusic = "mus"
+
 	// NSNav is the namespace for cross-cutting navigation (back
 	// to home, refresh). Handler:
 	// internal/telegram/handlers/nav.go.
@@ -188,5 +195,5 @@ const (
 // layer's assertion tests.
 var AllNamespaces = []string{
 	NSSound, NSDisplay, NSPower, NSWifi, NSBT, NSBattery,
-	NSSystem, NSMedia, NSNotify, NSTools, NSNav,
+	NSSystem, NSMedia, NSNotify, NSTools, NSMusic, NSNav,
 }
