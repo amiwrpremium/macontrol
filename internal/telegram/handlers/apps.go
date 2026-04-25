@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 
 	"github.com/go-telegram/bot/models"
@@ -45,12 +47,17 @@ import (
 // "keep-execute", "keep-back") are wired into the same
 // dispatch in commit 8 of this PR.
 var appsDispatch = map[string]func(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error{
-	"open":  handleAppsOpen,
-	"list":  handleAppsList,
-	"show":  handleAppsShow,
-	"quit":  handleAppsQuit,
-	"force": handleAppsForce,
-	"hide":  handleAppsHide,
+	"open":         handleAppsOpen,
+	"list":         handleAppsList,
+	"show":         handleAppsShow,
+	"quit":         handleAppsQuit,
+	"force":        handleAppsForce,
+	"hide":         handleAppsHide,
+	"keep":         handleAppsKeep,
+	"keep-toggle":  handleAppsKeepToggle,
+	"keep-back":    handleAppsKeepBack,
+	"keep-confirm": handleAppsKeepConfirm,
+	"keep-execute": handleAppsKeepExecute,
 }
 
 func handleApps(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
@@ -255,4 +262,239 @@ func rerenderAppsListWithToast(ctx context.Context, r Reply, q *models.CallbackQ
 	items, totalPages := paginateApps(d, list, 0)
 	text, kb := keyboards.AppsList(items, 0, totalPages, len(list))
 	return r.Edit(ctx, q, msg+"\n\n"+text, kb)
+}
+
+// handleAppsKeep is the entry path for the "Quit all except…"
+// flow. Reached from the Quit-all-except button on the apps
+// list. Initialises an empty kept-set (= every app marked QUIT
+// by default — matches the feature name) and renders the
+// checklist.
+func handleAppsKeep(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, _ callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	list, err := d.Services.Apps.Running(ctx)
+	if err != nil {
+		return errEdit(ctx, r, q, "🚮 *Quit all except…* — unavailable", err)
+	}
+	sessionID := saveKeptSet(d, nil)
+	return renderKeepChecklist(ctx, r, q, d, list, nil, sessionID)
+}
+
+// handleAppsKeepToggle flips one app's kept/quit state, re-stamps
+// the session, and re-renders the checklist. Each tap burns one
+// ShortMap entry; with the 15-min TTL and the existing janitor
+// this is well within budget for any realistic toggle sequence.
+func handleAppsKeepToggle(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	if len(data.Args) < 2 {
+		return errEdit(ctx, r, q, "🚮 *Quit all except…*", fmt.Errorf("missing session or app id"))
+	}
+	kept, ok := loadKeptSet(d, data.Args[0])
+	if !ok {
+		return errEdit(ctx, r, q, "🚮 *Quit all except…*", fmt.Errorf("session expired — re-open the checklist"))
+	}
+	name, ok := d.ShortMap.Get(data.Args[1])
+	if !ok {
+		return errEdit(ctx, r, q, "🚮 *Quit all except…*", fmt.Errorf("app reference expired — refresh the apps list"))
+	}
+	kept = toggleKept(kept, name)
+	list, err := d.Services.Apps.Running(ctx)
+	if err != nil {
+		return errEdit(ctx, r, q, "🚮 *Quit all except…* — unavailable", err)
+	}
+	sessionID := saveKeptSet(d, kept)
+	return renderKeepChecklist(ctx, r, q, d, list, kept, sessionID)
+}
+
+// handleAppsKeepBack returns to the checklist from the confirm
+// page with the same kept-set so the user can adjust the
+// selection without starting over.
+func handleAppsKeepBack(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	if len(data.Args) < 1 {
+		return errEdit(ctx, r, q, "🚮 *Quit all except…*", fmt.Errorf("missing session"))
+	}
+	kept, ok := loadKeptSet(d, data.Args[0])
+	if !ok {
+		return errEdit(ctx, r, q, "🚮 *Quit all except…*", fmt.Errorf("session expired — re-open the checklist"))
+	}
+	list, err := d.Services.Apps.Running(ctx)
+	if err != nil {
+		return errEdit(ctx, r, q, "🚮 *Quit all except…* — unavailable", err)
+	}
+	return renderKeepChecklist(ctx, r, q, d, list, kept, data.Args[0])
+}
+
+// handleAppsKeepConfirm renders the final "are you sure?" page
+// with the explicit to-quit / to-keep lists. Computed against
+// the current Running snapshot so a freshly-launched app shows
+// up under "Will quit" too.
+func handleAppsKeepConfirm(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	if len(data.Args) < 1 {
+		return errEdit(ctx, r, q, "🚮 *Quit all except…*", fmt.Errorf("missing session"))
+	}
+	kept, ok := loadKeptSet(d, data.Args[0])
+	if !ok {
+		return errEdit(ctx, r, q, "🚮 *Quit all except…*", fmt.Errorf("session expired — re-open the checklist"))
+	}
+	list, err := d.Services.Apps.Running(ctx)
+	if err != nil {
+		return errEdit(ctx, r, q, "🚮 *Quit all except…* — unavailable", err)
+	}
+	toQuit, toKeep := splitKeptList(list, kept)
+	text, kb := keyboards.AppsKeepConfirm(toQuit, toKeep, data.Args[0])
+	return r.Edit(ctx, q, text, kb)
+}
+
+// handleAppsKeepExecute runs Quit on every app in the to-quit
+// set serially (not parallel) so any one failure doesn't
+// cascade or race against the others, then re-renders the list
+// with a summary banner.
+//
+// The "ok" sentinel is required (Confirm button stamps it) so
+// stray traffic that arrives without confirmation can't trigger
+// a bulk quit.
+func handleAppsKeepExecute(ctx context.Context, d *bot.Deps, q *models.CallbackQuery, data callbacks.Data) error {
+	r := Reply{Deps: d}
+	r.Ack(ctx, q)
+	if len(data.Args) < 2 || !isConfirm(data.Args[1:]) {
+		return errEdit(ctx, r, q, "🚮 *Quit all except…*", fmt.Errorf("missing confirmation"))
+	}
+	kept, ok := loadKeptSet(d, data.Args[0])
+	if !ok {
+		return errEdit(ctx, r, q, "🚮 *Quit all except…*", fmt.Errorf("session expired — re-open the checklist"))
+	}
+	list, err := d.Services.Apps.Running(ctx)
+	if err != nil {
+		return errEdit(ctx, r, q, "🚮 *Quit all except…* — unavailable", err)
+	}
+	toQuit, _ := splitKeptList(list, kept)
+	failed := quitAll(ctx, d.Services.Apps, toQuit)
+	banner := buildKeepExecuteBanner(toQuit, failed)
+	return rerenderAppsListWithToast(ctx, r, q, d, banner)
+}
+
+// keptSet is the on-the-wire form of the multi-select selection
+// — a JSON-marshalled []string of the names the user has
+// marked KEEP. Stored in callbacks.ShortMap and addressed by a
+// short opaque sessionID.
+type keptSet = []string
+
+// saveKeptSet marshals kept to JSON and parks it in the
+// ShortMap, returning the freshly-issued sessionID. Burns one
+// entry per call; tolerated by the 15-min ShortMap janitor.
+func saveKeptSet(d *bot.Deps, kept keptSet) string {
+	if kept == nil {
+		kept = []string{}
+	}
+	raw, _ := json.Marshal(kept)
+	return d.ShortMap.Put(string(raw))
+}
+
+// loadKeptSet resolves sessionID back to the kept-set. Returns
+// (nil, false) when the entry has expired (15-min TTL).
+func loadKeptSet(d *bot.Deps, sessionID string) (keptSet, bool) {
+	raw, ok := d.ShortMap.Get(sessionID)
+	if !ok {
+		return nil, false
+	}
+	var kept keptSet
+	if err := json.Unmarshal([]byte(raw), &kept); err != nil {
+		return nil, false
+	}
+	return kept, true
+}
+
+// toggleKept adds name to kept when absent, removes it when
+// present. Returns the (possibly newly-allocated) updated set.
+func toggleKept(kept keptSet, name string) keptSet {
+	for i, n := range kept {
+		if n == name {
+			return append(kept[:i], kept[i+1:]...)
+		}
+	}
+	return append(kept, name)
+}
+
+// splitKeptList partitions the running app list into the
+// to-quit and to-keep slices in alphabetical order. Names that
+// are in kept but no longer in list are silently dropped (the
+// app exited between toggle and confirm).
+func splitKeptList(list []apps.App, kept keptSet) (toQuit, toKeep []string) {
+	keep := map[string]bool{}
+	for _, n := range kept {
+		keep[n] = true
+	}
+	for _, a := range list {
+		if keep[a.Name] {
+			toKeep = append(toKeep, a.Name)
+		} else {
+			toQuit = append(toQuit, a.Name)
+		}
+	}
+	sort.Strings(toQuit)
+	sort.Strings(toKeep)
+	return toQuit, toKeep
+}
+
+// quitAll runs Quit on every name serially. Returns the names
+// for which the call returned an error so the caller can
+// surface the partial-failure count.
+func quitAll(ctx context.Context, svc *apps.Service, names []string) []string {
+	failed := []string{}
+	for _, n := range names {
+		if err := svc.Quit(ctx, n); err != nil {
+			failed = append(failed, n)
+		}
+	}
+	return failed
+}
+
+// buildKeepExecuteBanner composes the status banner stamped
+// above the post-execute list.
+func buildKeepExecuteBanner(toQuit, failed []string) string {
+	if len(toQuit) == 0 {
+		return "🚮 *Quit all except…* — _nothing to quit._"
+	}
+	if len(failed) == 0 {
+		return fmt.Sprintf("🚮 Sent quit to *%d* %s.", len(toQuit), nounApp(len(toQuit)))
+	}
+	return fmt.Sprintf("🚮 Sent quit to *%d* %s; *%d* failed.",
+		len(toQuit)-len(failed), nounApp(len(toQuit)-len(failed)), len(failed))
+}
+
+// nounApp returns "app" or "apps" for English plural agreement.
+func nounApp(n int) string {
+	if n == 1 {
+		return "app"
+	}
+	return "apps"
+}
+
+// renderKeepChecklist runs the listing, builds the per-row
+// AppsKeepItem slice with each name's current kept state, and
+// edits the message in place. Used by the entry path and every
+// toggle.
+func renderKeepChecklist(ctx context.Context, r Reply, q *models.CallbackQuery,
+	d *bot.Deps, list []apps.App, kept keptSet, sessionID string,
+) error {
+	_ = ctx
+	keep := map[string]bool{}
+	for _, n := range kept {
+		keep[n] = true
+	}
+	items := make([]keyboards.AppsKeepItem, 0, len(list))
+	for _, a := range list {
+		items = append(items, keyboards.AppsKeepItem{
+			Name:    a.Name,
+			Kept:    keep[a.Name],
+			ShortID: d.ShortMap.Put(a.Name),
+		})
+	}
+	text, kb := keyboards.AppsKeepChecklist(items, sessionID)
+	return r.Edit(ctx, q, text, kb)
 }
