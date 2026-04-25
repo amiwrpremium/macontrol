@@ -191,15 +191,15 @@ for the full table.
 ### App refuses to quit (unsaved dialog)
 
 AppleScript's `quit` is non-blocking and returns no error when
-the app has an unsaved-document dialog up. The bot reports "Quit
-sent to <name>." even though the app is still running. A
+the app has an unsaved-document dialog up. The bot reports
+`Quit sent to <name>.` even though the app is still running. A
 follow-up Refresh confirms the app is still in the list; tap it
 again and pick **💀 Force Quit** to bypass the dialog.
 
 ### App exits between list-render and tap
 
 If the app you tapped has already exited by the time the per-app
-panel renders, the bot shows "🪟 *<name>* — not running anymore."
+panel renders, the bot shows `🪟 *<name>* — not running anymore.`
 Tap **← Back to apps** to re-list. The same applies to the
 Force Quit confirm path — the PID lookup re-runs on confirm
 to make sure the SIGKILL targets the right process (or no
