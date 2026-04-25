@@ -206,6 +206,125 @@ func TestAppForceConfirm_Shape(t *testing.T) {
 	assertAllRoundtrip(t, kb)
 }
 
+// ---------------- AppsKeepChecklist ----------------
+
+func TestAppsKeepChecklist_DefaultsAllToQuit(t *testing.T) {
+	t.Parallel()
+	items := []keyboards.AppsKeepItem{
+		{Name: "Safari", ShortID: "id-s"},
+		{Name: "Mail", ShortID: "id-m"},
+		{Name: "Finder", ShortID: "id-f"},
+	}
+	text, kb := keyboards.AppsKeepChecklist(items, "sess-1")
+	if !strings.Contains(text, "Will quit *3* of *3*") {
+		t.Errorf("default state should mark all 3 as quit: %q", text)
+	}
+	// 3 app rows + footer (Quit N) + Cancel + Home = 6.
+	if len(kb.InlineKeyboard) != 6 {
+		t.Fatalf("expected 6 rows; got %d", len(kb.InlineKeyboard))
+	}
+	for i, it := range items {
+		btn := kb.InlineKeyboard[i][0]
+		if !strings.HasPrefix(btn.Text, "✗ ") {
+			t.Errorf("row %d should start with ✗ marker: %q", i, btn.Text)
+		}
+		want := "app:keep-toggle:sess-1:" + it.ShortID
+		if btn.CallbackData != want {
+			t.Errorf("row %d callback = %q want %q", i, btn.CallbackData, want)
+		}
+	}
+}
+
+func TestAppsKeepChecklist_KeptRowsShowCheckmark(t *testing.T) {
+	t.Parallel()
+	items := []keyboards.AppsKeepItem{
+		{Name: "Safari", ShortID: "id-s", Kept: true},
+		{Name: "Mail", ShortID: "id-m"},
+	}
+	text, kb := keyboards.AppsKeepChecklist(items, "sess")
+	if !strings.Contains(text, "Will quit *1* of *2*") {
+		t.Errorf("one quit, one keep: %q", text)
+	}
+	if !strings.HasPrefix(kb.InlineKeyboard[0][0].Text, "✓ ") {
+		t.Errorf("kept row should show ✓: %q", kb.InlineKeyboard[0][0].Text)
+	}
+	if !strings.HasPrefix(kb.InlineKeyboard[1][0].Text, "✗ ") {
+		t.Errorf("non-kept row should show ✗: %q", kb.InlineKeyboard[1][0].Text)
+	}
+}
+
+func TestAppsKeepChecklist_FooterReflectsCount(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name    string
+		items   []keyboards.AppsKeepItem
+		wantBtn string
+	}{
+		{
+			name:    "all-keep_shows_nothing-to-quit",
+			items:   []keyboards.AppsKeepItem{{Name: "A", ShortID: "a", Kept: true}},
+			wantBtn: "Nothing to quit",
+		},
+		{
+			name:    "one-quit_singular",
+			items:   []keyboards.AppsKeepItem{{Name: "A", ShortID: "a"}, {Name: "B", ShortID: "b", Kept: true}},
+			wantBtn: "Quit 1 app",
+		},
+		{
+			name:    "many-quit_plural",
+			items:   []keyboards.AppsKeepItem{{Name: "A", ShortID: "a"}, {Name: "B", ShortID: "b"}, {Name: "C", ShortID: "c"}},
+			wantBtn: "Quit 3 apps",
+		},
+	}
+	for _, c := range cases {
+		c := c
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			_, kb := keyboards.AppsKeepChecklist(c.items, "sess")
+			footerRow := kb.InlineKeyboard[len(c.items)]
+			if !strings.Contains(footerRow[0].Text, c.wantBtn) {
+				t.Errorf("footer = %q want substring %q", footerRow[0].Text, c.wantBtn)
+			}
+		})
+	}
+}
+
+// ---------------- AppsKeepConfirm ----------------
+
+func TestAppsKeepConfirm_HeaderAndBody(t *testing.T) {
+	t.Parallel()
+	text, kb := keyboards.AppsKeepConfirm([]string{"Safari", "Mail"}, []string{"Finder"}, "sess-9")
+	if !strings.Contains(text, "Quit 2 apps") {
+		t.Errorf("header missing count: %q", text)
+	}
+	if !strings.Contains(text, "Will quit") || !strings.Contains(text, "Safari") || !strings.Contains(text, "Mail") {
+		t.Errorf("missing to-quit list: %q", text)
+	}
+	if !strings.Contains(text, "Will keep") || !strings.Contains(text, "Finder") {
+		t.Errorf("missing to-keep list: %q", text)
+	}
+	row := kb.InlineKeyboard[0]
+	if row[0].CallbackData != "app:keep-execute:sess-9:ok" {
+		t.Errorf("confirm callback wrong: %q", row[0].CallbackData)
+	}
+	if row[1].CallbackData != "app:keep-back:sess-9" {
+		t.Errorf("cancel callback wrong: %q", row[1].CallbackData)
+	}
+	assertAllRoundtrip(t, kb)
+}
+
+func TestAppsKeepConfirm_SingularPlural(t *testing.T) {
+	t.Parallel()
+	text, _ := keyboards.AppsKeepConfirm([]string{"Safari"}, nil, "s")
+	if !strings.Contains(text, "Quit 1 app*?") {
+		t.Errorf("singular wrong: %q", text)
+	}
+	text, _ = keyboards.AppsKeepConfirm(nil, []string{"Finder"}, "s")
+	if !strings.Contains(text, "Quit 0 apps*?") {
+		t.Errorf("zero wrong: %q", text)
+	}
+}
+
 // ---------------- callback budget ----------------
 
 func TestApps_CallbackDataWithinBudget(t *testing.T) {

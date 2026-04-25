@@ -3,6 +3,7 @@ package keyboards
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/go-telegram/bot/models"
 
@@ -235,4 +236,164 @@ func AppForceConfirm(name string, pid int, shortID string) (text string, markup 
 		},
 	}
 	return
+}
+
+// AppsKeepItem is one row on the "Quit all except…" checklist
+// rendered by [AppsKeepChecklist].
+//
+// Field roles:
+//   - Name is the app name shown verbatim on the button label
+//     (prefixed with the kept/quit marker).
+//   - Kept is true when the user has tapped the row to mark
+//     this app as KEEP. Defaults to false (= QUIT) when the
+//     checklist is first rendered.
+//   - ShortID is the [callbacks.ShortMap]-issued opaque id
+//     resolving to the app name on tap. Stamped into the
+//     toggle callback so the handler can flip the right entry
+//     in the kept-set without round-tripping the full name
+//     through the 64-byte callback_data budget.
+type AppsKeepItem struct {
+	// Name is the user-visible app name shown on the button.
+	Name string
+
+	// Kept is true when this app is currently marked KEEP.
+	// Drives the leading "✓" / "✗" marker.
+	Kept bool
+
+	// ShortID is the [callbacks.ShortMap]-issued opaque id
+	// resolving to the app name on tap.
+	ShortID string
+}
+
+// AppsKeepChecklist renders the multi-select "Quit all
+// except…" page.
+//
+// Default state: every app marked QUIT (a leading "✗"); the
+// user taps to flip individual rows to KEEP ("✓"). Matches the
+// realistic ratio for the "my Mac is slow, quit everything I'm
+// not using" use case (keep 2-3 of 30) and the feature name.
+//
+// Arguments:
+//   - items is the full list of running apps with their current
+//     kept/quit state. The page is NOT paginated — the
+//     selection has to live across the whole list, so we render
+//     it as one long page (Telegram's ~100-button cap is
+//     comfortable beyond any realistic running-app count).
+//   - sessionID is the [callbacks.ShortMap]-issued id resolving
+//     to the JSON-encoded kept-set. Stamped into every toggle
+//     button so the handler can decode → flip → re-stamp on
+//     each tap.
+//
+// Behavior:
+//   - One tappable row per app: "✗ <Name>" (will quit) or
+//     "✓ <Name>" (will keep). Tap toggles via
+//     `app:keep-toggle:<sessionID>:<shortID>`.
+//   - Footer row: "✅ Quit N apps" when at least one row is
+//     marked QUIT; "Nothing to quit" disabled-style label
+//     otherwise. Confirm dispatches `app:keep-confirm:<sessionID>`.
+//   - Cancel row: "✖ Cancel" → `app:open` (returns to the
+//     unfiltered list).
+//   - Standard 🏠 Home row.
+func AppsKeepChecklist(items []AppsKeepItem, sessionID string) (text string, markup *models.InlineKeyboardMarkup) {
+	toQuit := 0
+	for _, it := range items {
+		if !it.Kept {
+			toQuit++
+		}
+	}
+	text = fmt.Sprintf("🚮 *Quit all except…*\n\nTap apps to *keep*. Will quit *%d* of *%d*.",
+		toQuit, len(items))
+
+	rows := make([][]models.InlineKeyboardButton, 0, len(items)+3)
+	for _, it := range items {
+		rows = append(rows, []models.InlineKeyboardButton{appsKeepButton(it, sessionID)})
+	}
+
+	if toQuit > 0 {
+		rows = append(rows, []models.InlineKeyboardButton{{
+			Text:         fmt.Sprintf("✅ Quit %d app%s", toQuit, plural(toQuit, "s")),
+			CallbackData: callbacks.Encode(callbacks.NSApps, "keep-confirm", sessionID),
+		}})
+	} else {
+		rows = append(rows, []models.InlineKeyboardButton{{
+			Text:         "Nothing to quit",
+			CallbackData: callbacks.Encode(callbacks.NSApps, "keep", sessionID),
+		}})
+	}
+	rows = append(rows, []models.InlineKeyboardButton{
+		{Text: "✖ Cancel", CallbackData: callbacks.Encode(callbacks.NSApps, "open")},
+	})
+	rows = append(rows, Nav())
+	markup = &models.InlineKeyboardMarkup{InlineKeyboard: rows}
+	return
+}
+
+// appsKeepButton composes the per-row toggle button for
+// [AppsKeepChecklist]. Pulled out so the row builder stays
+// trivially below the lizard ccn-8 ceiling.
+func appsKeepButton(it AppsKeepItem, sessionID string) models.InlineKeyboardButton {
+	marker := "✗"
+	if it.Kept {
+		marker = "✓"
+	}
+	return models.InlineKeyboardButton{
+		Text:         marker + " " + it.Name,
+		CallbackData: callbacks.Encode(callbacks.NSApps, "keep-toggle", sessionID, it.ShortID),
+	}
+}
+
+// AppsKeepConfirm renders the final "are you sure?" page for
+// the "Quit all except…" flow. Reached when the user taps
+// "Quit N apps" on [AppsKeepChecklist].
+//
+// Arguments:
+//   - toQuit is the alphabetised list of app names that will
+//     receive a graceful Quit when the user confirms.
+//   - toKeep is the alphabetised list of app names that will
+//     stay running. Shown so the user can sanity-check the
+//     selection before the destructive action runs.
+//   - sessionID is the [callbacks.ShortMap]-issued id for the
+//     kept-set, stamped into the Confirm button so the handler
+//     can re-decode and execute the same selection.
+//
+// Behavior:
+//   - Header: "🚮 *Quit N apps*?" + body lists names of
+//     to-quit apps (most useful for the user) and to-keep (so
+//     they can spot a mistaken KEEP).
+//   - Confirm dispatches `app:keep-execute:<sessionID>:ok`.
+//   - Cancel dispatches `app:keep-back:<sessionID>` — returns
+//     to the checklist with the same kept-set so the user can
+//     adjust without starting over.
+func AppsKeepConfirm(toQuit, toKeep []string, sessionID string) (text string, markup *models.InlineKeyboardMarkup) {
+	text = appsKeepConfirmText(toQuit, toKeep)
+	markup = &models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{
+			{
+				{Text: "✅ Yes, quit them", CallbackData: callbacks.Encode(callbacks.NSApps, "keep-execute", sessionID, "ok")},
+				{Text: "✖ Cancel", CallbackData: callbacks.Encode(callbacks.NSApps, "keep-back", sessionID)},
+			},
+		},
+	}
+	return
+}
+
+// appsKeepConfirmText composes the body of [AppsKeepConfirm].
+// Pulled out so the keyboard builder stays small and the text
+// formatting can be tested independently.
+func appsKeepConfirmText(toQuit, toKeep []string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "🚮 *Quit %d app%s*?\n", len(toQuit), plural(len(toQuit), "s"))
+	if len(toQuit) > 0 {
+		b.WriteString("\nWill quit:\n")
+		for _, n := range toQuit {
+			fmt.Fprintf(&b, "  • %s\n", n)
+		}
+	}
+	if len(toKeep) > 0 {
+		b.WriteString("\nWill keep:\n")
+		for _, n := range toKeep {
+			fmt.Fprintf(&b, "  • %s\n", n)
+		}
+	}
+	return b.String()
 }
