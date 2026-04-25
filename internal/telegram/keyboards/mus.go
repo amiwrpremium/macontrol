@@ -53,34 +53,56 @@ func MusicCaption(np music.NowPlaying, vol sound.State, hasCLI bool) string {
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "🎵 *%s*", escapeMD(np.Title))
-	if np.Artist != "" || np.Album != "" {
+	if line := metadataSubline(np); line != "" {
 		b.WriteString("\n")
-		if np.Artist != "" {
-			fmt.Fprintf(&b, "_%s_", escapeMD(np.Artist))
-		}
-		if np.Artist != "" && np.Album != "" {
-			b.WriteString(" · ")
-		}
-		if np.Album != "" {
-			fmt.Fprintf(&b, "`%s`", escapeMD(np.Album))
-		}
+		b.WriteString(line)
 	}
 	if np.Duration > 0 || np.Elapsed > 0 {
-		remaining := np.Duration - np.Elapsed
-		if remaining < 0 {
-			remaining = 0
-		}
 		b.WriteString("\n\n")
-		fmt.Fprintf(&b, "Passed: `%s`\n", formatHMS(np.Elapsed))
-		b.WriteString(progressBar(np.Elapsed, np.Duration))
-		b.WriteString("\n")
-		fmt.Fprintf(&b, "Remaining: `%s`", formatHMS(remaining))
+		b.WriteString(progressBlock(np))
 	}
 	if !np.IsPlaying() {
 		b.WriteString("\n\n_⏸ Paused_")
 	}
 	b.WriteString("\n\n")
 	b.WriteString(volumeFooter(vol))
+	return b.String()
+}
+
+// metadataSubline composes the "_Artist_ · `Album`" line that
+// sits under the title. Returns "" when neither field is set
+// so the caller can elide the leading newline.
+func metadataSubline(np music.NowPlaying) string {
+	if np.Artist == "" && np.Album == "" {
+		return ""
+	}
+	var b strings.Builder
+	if np.Artist != "" {
+		fmt.Fprintf(&b, "_%s_", escapeMD(np.Artist))
+	}
+	if np.Artist != "" && np.Album != "" {
+		b.WriteString(" · ")
+	}
+	if np.Album != "" {
+		fmt.Fprintf(&b, "`%s`", escapeMD(np.Album))
+	}
+	return b.String()
+}
+
+// progressBlock composes the three-line position block:
+// "Passed: m:ss" / progressBar / "Remaining: m:ss". Caller is
+// responsible for the leading separator since some callers
+// want a double newline and others want the block inline.
+func progressBlock(np music.NowPlaying) string {
+	remaining := np.Duration - np.Elapsed
+	if remaining < 0 {
+		remaining = 0
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "Passed: `%s`\n", formatHMS(np.Elapsed))
+	b.WriteString(progressBar(np.Elapsed, np.Duration))
+	b.WriteString("\n")
+	fmt.Fprintf(&b, "Remaining: `%s`", formatHMS(remaining))
 	return b.String()
 }
 
