@@ -36,6 +36,7 @@ import (
 	"github.com/amiwrpremium/macontrol/internal/domain/bluetooth"
 	"github.com/amiwrpremium/macontrol/internal/domain/display"
 	"github.com/amiwrpremium/macontrol/internal/domain/media"
+	"github.com/amiwrpremium/macontrol/internal/domain/music"
 	"github.com/amiwrpremium/macontrol/internal/domain/notify"
 	"github.com/amiwrpremium/macontrol/internal/domain/power"
 	"github.com/amiwrpremium/macontrol/internal/domain/sound"
@@ -45,6 +46,7 @@ import (
 	"github.com/amiwrpremium/macontrol/internal/domain/wifi"
 	"github.com/amiwrpremium/macontrol/internal/telegram/callbacks"
 	"github.com/amiwrpremium/macontrol/internal/telegram/flows"
+	"github.com/amiwrpremium/macontrol/internal/telegram/musicrefresh"
 )
 
 // Services bundles every domain Service the bot may call into. One
@@ -117,6 +119,13 @@ type Services struct {
 	// `sntp` time-sync, the disks list with per-disk drill-down,
 	// and the Shortcuts.app runner.
 	Tools *tools.Service
+
+	// Music drives now-playing metadata, playback control, and
+	// seek for any macOS player that publishes Now Playing info
+	// (Music.app, Spotify, Podcasts, browser audio). Backed by
+	// the third-party `nowplaying-cli` brew formula; gated on
+	// [capability.Features.NowPlaying].
+	Music *music.Service
 
 	// Status composes a single "everything at a glance" snapshot
 	// by reading from the other services; backs the legacy
@@ -217,6 +226,14 @@ type Deps struct {
 	// handlers that need to Install or Cancel a flow outside the
 	// dispatch path.
 	FlowReg *flows.Registry
+
+	// MusicRefresh owns the per-chat live-refresh goroutines for
+	// the 🎵 Music dashboard. Started by the music handler when
+	// the user opens Music; stopped by the callback router when
+	// the user navigates away. Set to a zero-value *Manager when
+	// the daemon is constructed and wired with the bot pointer
+	// after [tgbot.Bot.Start] runs.
+	MusicRefresh *musicrefresh.Manager
 }
 
 // Router dispatches one kind of [models.Update] to the matching
