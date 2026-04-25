@@ -19,6 +19,7 @@ import (
 	"github.com/amiwrpremium/macontrol/internal/domain/bluetooth"
 	"github.com/amiwrpremium/macontrol/internal/domain/display"
 	"github.com/amiwrpremium/macontrol/internal/domain/media"
+	"github.com/amiwrpremium/macontrol/internal/domain/music"
 	"github.com/amiwrpremium/macontrol/internal/domain/notify"
 	"github.com/amiwrpremium/macontrol/internal/domain/power"
 	"github.com/amiwrpremium/macontrol/internal/domain/sound"
@@ -31,6 +32,7 @@ import (
 	"github.com/amiwrpremium/macontrol/internal/telegram/callbacks"
 	"github.com/amiwrpremium/macontrol/internal/telegram/flows"
 	"github.com/amiwrpremium/macontrol/internal/telegram/handlers"
+	"github.com/amiwrpremium/macontrol/internal/telegram/musicrefresh"
 )
 
 // runDaemon is the long-running entry point for `macontrol run`
@@ -105,8 +107,10 @@ func runDaemon(logLevel, logFile string) {
 // [bot.Start]. Factored out of [runDaemon] so the big boilerplate
 // construction doesn't inflate the entrypoint.
 func buildDaemonDeps(ctx context.Context, logger *slog.Logger, cfg config.Config, r runner.Runner, rep capability.Report) *bot.Deps {
+	musicSvc := music.New(r)
+	soundSvc := sound.New(r)
 	services := bot.Services{
-		Sound:     sound.New(r),
+		Sound:     soundSvc,
 		Display:   display.New(r),
 		Power:     power.New(r),
 		Battery:   battery.New(r),
@@ -116,22 +120,25 @@ func buildDaemonDeps(ctx context.Context, logger *slog.Logger, cfg config.Config
 		Media:     media.New(r),
 		Notify:    notify.New(r),
 		Tools:     tools.New(r),
+		Music:     musicSvc,
 		Status:    status.New(r),
 	}
 	shortmap := callbacks.NewShortMap(15 * time.Minute)
 	shortmap.StartJanitor(ctx.Done())
 	flowReg := flows.NewRegistry(5 * time.Minute)
 	flowReg.StartJanitor(ctx)
+	mr := musicrefresh.NewManager(musicSvc, soundSvc, logger)
 	return &bot.Deps{
-		Logger:     logger,
-		Whitelist:  bot.NewWhitelist(cfg.AllowedUserIDs),
-		Commands:   handlers.NewCommandRouter(),
-		Calls:      handlers.NewCallbackRouter(),
-		Flows:      flowReg,
-		Services:   services,
-		Capability: rep,
-		ShortMap:   shortmap,
-		FlowReg:    flowReg,
+		Logger:       logger,
+		Whitelist:    bot.NewWhitelist(cfg.AllowedUserIDs),
+		Commands:     handlers.NewCommandRouter(),
+		Calls:        handlers.NewCallbackRouter(),
+		Flows:        flowReg,
+		Services:     services,
+		Capability:   rep,
+		ShortMap:     shortmap,
+		FlowReg:      flowReg,
+		MusicRefresh: mr,
 	}
 }
 
@@ -166,6 +173,11 @@ func pingOnBoot(ctx context.Context, d *bot.Deps) {
 	}
 	if d.Bot == nil {
 		return
+	}
+	// Now that bot.Start has populated d.Bot, hand the pointer to
+	// the music refresher so its per-tick edits can fire.
+	if d.MusicRefresh != nil {
+		d.MusicRefresh.SetBot(d.Bot)
 	}
 	text := bot.MDToHTML(handlers.BootPing(ctx, d))
 	for _, uid := range d.Whitelist.Members() {
