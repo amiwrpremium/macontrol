@@ -100,3 +100,19 @@ jobs:
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
           govulncheck ./...
+
+  fuzz-short:
+    # 30s smoke fuzz on every PR for callbacks.Decode (the only
+    # attacker-reachable parser before the whitelist gate). Long-
+    # running fuzz belongs in a separate scheduled workflow; this
+    # job is a CI-time guard against newly-introduced panics.
+    name: Fuzz (short)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: go test -fuzz FuzzDecode
+        run: go test -run='^$' -fuzz=FuzzDecode -fuzztime=30s ./internal/telegram/callbacks/
