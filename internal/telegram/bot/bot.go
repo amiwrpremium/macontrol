@@ -32,6 +32,7 @@ import (
 	"github.com/go-telegram/bot/models"
 
 	"github.com/amiwrpremium/macontrol/internal/capability"
+	"github.com/amiwrpremium/macontrol/internal/domain/apps"
 	"github.com/amiwrpremium/macontrol/internal/domain/battery"
 	"github.com/amiwrpremium/macontrol/internal/domain/bluetooth"
 	"github.com/amiwrpremium/macontrol/internal/domain/display"
@@ -126,6 +127,13 @@ type Services struct {
 	// the third-party `nowplaying-cli` brew formula; gated on
 	// [capability.Features.NowPlaying].
 	Music *music.Service
+
+	// Apps lists running user-facing applications and exposes
+	// per-app Quit (graceful), ForceQuit (SIGKILL), and Hide
+	// (Cmd-H) verbs, plus the multi-select "quit all except…"
+	// bulk-quit. Backed by `osascript` + `kill`; requires
+	// Accessibility TCC.
+	Apps *apps.Service
 
 	// Status composes a single "everything at a glance" snapshot
 	// by reading from the other services; backs the legacy
