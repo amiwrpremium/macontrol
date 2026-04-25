@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/amiwrpremium/macontrol/compare/v0.6.1...v0.7.0) (2026-04-25)
+
+
+### Features
+
+* **bot:** add 🎵 Music category with live progress, artwork, and embedded sound controls ([#91](https://github.com/amiwrpremium/macontrol/issues/91)) ([0f036c8](https://github.com/amiwrpremium/macontrol/commit/0f036c8a5e80dcb948da0f6e244d637bac2d0028))
+
 ## [0.6.1](https://github.com/amiwrpremium/macontrol/compare/v0.6.0...v0.6.1) (2026-04-24)
 
 
