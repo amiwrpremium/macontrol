@@ -64,6 +64,7 @@ code on your Mac.
 | ⚡ Power | Lock, sleep, restart, shutdown, logout, keep-awake |
 | 🖥 System | macOS/HW info, thermal pressure, memory + tappable top RAM hogs, CPU + tappable top CPU hogs, Top 10 — every process drills into Kill / Force Kill |
 | 📸 Media | Full/display/window screenshot, screen recording, webcam photo |
+| 🎵 Music | Player-agnostic play/pause/next/prev/seek + live progress bar + artwork, with embedded volume controls |
 | 🔔 Notify | Desktop notification (terminal-notifier → osascript fallback), text-to-speech |
 | 🛠 Tools | Clipboard get/set, timezone pick, time sync, tappable disks (Open in Finder + Eject for removables), run any Shortcut |
 
@@ -206,7 +207,9 @@ macontrol stands on the shoulders of:
   **[smctemp](https://github.com/narugit/smctemp)** (upstream by
   [@narugit](https://github.com/narugit), formula mirrored in our tap — see [FAQ](docs/faq.md)),
   **[imagesnap](https://github.com/rharder/imagesnap)**,
-  **[terminal-notifier](https://github.com/julienXX/terminal-notifier)**
+  **[terminal-notifier](https://github.com/julienXX/terminal-notifier)**,
+  **[nowplaying-cli](https://github.com/kirtan-shah/nowplaying-cli)** (upstream by
+  [@kirtan-shah](https://github.com/kirtan-shah)) — wraps Apple's private MediaRemote.framework
 - Apple's macOS CLIs that do all the actual work:
   `pmset`, `osascript`, `networksetup`, `security`, `screencapture`, `wdutil`, `pbpaste`/`pbcopy`, `say`
 - Design inspiration: **[Mac-CLI](https://github.com/guarinogabriel/Mac-CLI)** and **[m-cli](https://github.com/rgcr/m-cli)**, which mapped the macOS CLI surface as local tools.
