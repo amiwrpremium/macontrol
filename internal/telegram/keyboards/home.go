@@ -49,6 +49,7 @@ var Categories = []Category{
 	{"🔵 Bluetooth", callbacks.NSBT},
 	{"⚡ Power", callbacks.NSPower},
 	{"🖥 System", callbacks.NSSystem},
+	{"🪟 Apps", callbacks.NSApps},
 	{"📸 Media", callbacks.NSMedia},
 	{"🎵 Music", callbacks.NSMusic},
 	{"🔔 Notify", callbacks.NSNotify},
