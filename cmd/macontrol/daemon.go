@@ -15,6 +15,7 @@ import (
 
 	"github.com/amiwrpremium/macontrol/internal/capability"
 	"github.com/amiwrpremium/macontrol/internal/config"
+	"github.com/amiwrpremium/macontrol/internal/domain/apps"
 	"github.com/amiwrpremium/macontrol/internal/domain/battery"
 	"github.com/amiwrpremium/macontrol/internal/domain/bluetooth"
 	"github.com/amiwrpremium/macontrol/internal/domain/display"
@@ -121,6 +122,7 @@ func buildDaemonDeps(ctx context.Context, logger *slog.Logger, cfg config.Config
 		Notify:    notify.New(r),
 		Tools:     tools.New(r),
 		Music:     musicSvc,
+		Apps:      apps.New(r),
 		Status:    status.New(r),
 	}
 	shortmap := callbacks.NewShortMap(15 * time.Minute)
