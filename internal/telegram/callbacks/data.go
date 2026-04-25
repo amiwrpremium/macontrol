@@ -183,6 +183,12 @@ const (
 	// internal/telegram/handlers/mus.go.
 	NSMusic = "mus"
 
+	// NSApps is the namespace for the running-app list, per-app
+	// Quit / Force Quit / Hide actions, and the "Quit all
+	// except…" multi-select inside the 🪟 Apps dashboard.
+	// Handler: internal/telegram/handlers/apps.go.
+	NSApps = "app"
+
 	// NSNav is the namespace for cross-cutting navigation (back
 	// to home, refresh). Handler:
 	// internal/telegram/handlers/nav.go.
@@ -195,5 +201,5 @@ const (
 // layer's assertion tests.
 var AllNamespaces = []string{
 	NSSound, NSDisplay, NSPower, NSWifi, NSBT, NSBattery,
-	NSSystem, NSMedia, NSNotify, NSTools, NSMusic, NSNav,
+	NSSystem, NSMedia, NSNotify, NSTools, NSMusic, NSApps, NSNav,
 }
