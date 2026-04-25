@@ -8,6 +8,7 @@ import (
 	"github.com/go-telegram/bot/models"
 
 	"github.com/amiwrpremium/macontrol/internal/capability"
+	"github.com/amiwrpremium/macontrol/internal/domain/apps"
 	"github.com/amiwrpremium/macontrol/internal/domain/battery"
 	"github.com/amiwrpremium/macontrol/internal/domain/bluetooth"
 	"github.com/amiwrpremium/macontrol/internal/domain/display"
@@ -72,6 +73,7 @@ func newHarness(t *testing.T) *harness {
 			Notify:    notify.New(f),
 			Tools:     tools.New(f),
 			Music:     musicSvc,
+			Apps:      apps.New(f),
 			Status:    status.New(f),
 		},
 		Capability: capability.Report{

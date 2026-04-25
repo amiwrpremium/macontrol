@@ -108,10 +108,14 @@ jobs:
           govulncheck ./...
 
   fuzz-short:
-    # 30s smoke fuzz on every PR for callbacks.Decode (the only
-    # attacker-reachable parser before the whitelist gate). Long-
-    # running fuzz belongs in a separate scheduled workflow; this
-    # job is a CI-time guard against newly-introduced panics.
+    # 30s smoke fuzz on every PR for the parsers that sit on
+    # subprocess / user-input boundaries:
+    #   - callbacks.Decode — the only attacker-reachable parser
+    #     before the whitelist gate.
+    #   - apps.parseAppsListing — consumes osascript stdout that
+    #     reflects user-controlled app names.
+    # Long-running fuzz belongs in a separate scheduled workflow;
+    # this job is a CI-time guard against newly-introduced panics.
     name: Fuzz (short)
     runs-on: ubuntu-latest
     steps:
@@ -122,3 +126,5 @@ jobs:
           cache: true
       - name: go test -fuzz FuzzDecode
         run: go test -run='^$' -fuzz=FuzzDecode -fuzztime=30s ./internal/telegram/callbacks/
+      - name: go test -fuzz FuzzParseAppsListing
+        run: go test -run='^$' -fuzz=FuzzParseAppsListing -fuzztime=30s ./internal/domain/apps/

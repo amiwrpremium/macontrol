@@ -26,6 +26,7 @@ relies only on built-in macOS commands). Manual installs need to
 | [🔵 Bluetooth](bluetooth.md) | Toggle / Paired / Connect / Disconnect | — | `blueutil` |
 | [⚡ Power](power.md) | Lock / Sleep / Restart / Shutdown / Logout / Keep-awake / Cancel-awake | Keep-awake minutes | none (destructive ones need confirm) |
 | [🖥 System](system.md) | Info / Temp / Mem / CPU / Top / Kill | Kill by pid/name | `smctemp` (for °C only) |
+| [🪟 Apps](apps.md) | List / Quit / Force Quit / Hide / Quit all except… | — | none (needs Accessibility TCC) |
 | [📸 Media](media.md) | Screenshot / Silent shot / Record / Photo | Record duration | `imagesnap` (for Photo only) |
 | [🔔 Notify](notify.md) | Send / Say | Send (title→body), Say (text) | `terminal-notifier` (osascript fallback if missing) |
 | [🛠 Tools](tools.md) | Clipboard get/set / Timezone / Sync / Disks / Shortcut | Clip set, Timezone, Shortcut | none (Shortcut needs macOS 13+) |
