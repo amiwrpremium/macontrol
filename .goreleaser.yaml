@@ -95,6 +95,7 @@ brews:
       - name: smctemp
       - name: imagesnap
       - name: terminal-notifier
+      - name: nowplaying-cli
     install: |
       bin.install "macontrol"
       (prefix/"launchd").install "launchd/com.amiwrpremium.macontrol.plist"
