@@ -27,6 +27,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/amiwrpremium/macontrol)](https://goreportcard.com/report/github.com/amiwrpremium/macontrol)
 [![Codacy Grade](https://app.codacy.com/project/badge/Grade/3fbc46f6ab184fd7b4dad775ca6b30fa)](https://app.codacy.com/gh/amiwrpremium/macontrol/dashboard)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/amiwrpremium/macontrol/badge)](https://scorecard.dev/viewer/?uri=github.com/amiwrpremium/macontrol)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12643/badge)](https://www.bestpractices.dev/projects/12643)
 [![Dependabot enabled](https://img.shields.io/badge/Dependabot-enabled-brightgreen?logo=dependabot)](.github/dependabot.yml)
 [![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg)](https://www.conventionalcommits.org)
 
