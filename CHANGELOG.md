@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/amiwrpremium/macontrol/compare/v0.7.0...v0.8.0) (2026-04-25)
+
+
+### Features
+
+* **bot:** add 🪟 Apps category — list, quit / force quit / hide, quit all except… ([#94](https://github.com/amiwrpremium/macontrol/issues/94)) ([46bada3](https://github.com/amiwrpremium/macontrol/commit/46bada37ff5aa39c33476621fa4efdac0682e464))
+
 ## [0.7.0](https://github.com/amiwrpremium/macontrol/compare/v0.6.1...v0.7.0) (2026-04-25)
 
 
