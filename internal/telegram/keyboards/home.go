@@ -50,6 +50,7 @@ var Categories = []Category{
 	{"⚡ Power", callbacks.NSPower},
 	{"🖥 System", callbacks.NSSystem},
 	{"📸 Media", callbacks.NSMedia},
+	{"🎵 Music", callbacks.NSMusic},
 	{"🔔 Notify", callbacks.NSNotify},
 	{"🛠 Tools", callbacks.NSTools},
 }
@@ -64,8 +65,8 @@ var Categories = []Category{
 //     [callbacks.Encode], so tapping a tile dispatches into the
 //     matching handler's "open" action.
 //   - Any trailing partial row (1 or 2 buttons) is appended as
-//     a final short row — currently 10 categories yields three
-//     full rows + one extra button alone in a fourth row.
+//     a final short row — currently 11 categories yields three
+//     full rows + two buttons in a fourth row.
 //
 // Returns a fresh *[models.InlineKeyboardMarkup] each call;
 // safe for callers to mutate the returned value (none do).

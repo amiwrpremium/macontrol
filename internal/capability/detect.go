@@ -17,9 +17,15 @@
 // Report directly via [DeriveFeatures] or by zero-valuing the
 // struct.
 //
-// Adding a new gate is a four-line change: add a bool field to
-// [Features], wire it in [deriveFeatures], add it to [Features.count]
-// for the boot summary, and gate the relevant button + handler.
+// Adding a new version-gated feature: add a bool field to
+// [Features], wire it in [deriveFeatures], add it to
+// [Features.count] for the boot summary, and gate the relevant
+// button + handler.
+//
+// Adding a runtime binary-presence gate (no macOS version
+// dependency, just "is the binary on PATH?"): add a bool field
+// to [Features], probe via [detectBinary] inside [Detect],
+// add it to [Features.count], and gate the button + handler.
 package capability
 
 import (
@@ -120,6 +126,15 @@ type Features struct {
 	// fallback used since macOS 14.4 broke
 	// `networksetup -getairportnetwork`.
 	WdutilInfo bool
+
+	// NowPlaying is true when the third-party `nowplaying-cli`
+	// brew formula is on PATH. Unlike the other gates this is
+	// runtime binary-presence rather than macOS-version derived,
+	// so it's populated by [Detect] via a separate `which` call
+	// rather than from [deriveFeatures]. Gates the entire 🎵
+	// Music dashboard; the keyboard renders an install reminder
+	// when this is false.
+	NowPlaying bool
 }
 
 // Report is the value the daemon emits at boot and that the
@@ -145,25 +160,41 @@ type Report struct {
 }
 
 // Detect shells out to `sw_vers -productVersion`, parses the
-// answer, and returns a [Report] ready to store on
-// bot.Deps.Capability.
+// answer, derives the version-gated [Features], probes the
+// runtime binary-presence gates (currently just `nowplaying-cli`),
+// and returns a [Report] ready to store on bot.Deps.Capability.
 //
 // Behavior:
 //   - Uses the supplied [runner.Runner] so tests can inject a
-//     [runner.Fake] that returns a canned version string.
+//     [runner.Fake] that returns canned answers.
 //   - On a non-Darwin host (e.g. the Linux dev box) the runner
 //     fake is what supplies the answer; on a real Mac the bare
 //     `sw_vers` binary returns it.
+//   - The binary-presence probes are best-effort; their
+//     subprocess failure (typically "executable file not found")
+//     simply leaves the corresponding [Features] flag at false.
 //
 // Returns the [Report] and any underlying runner error wrapping
-// the failed `sw_vers` invocation.
+// the failed `sw_vers` invocation. Binary-presence probe errors
+// do NOT propagate.
 func Detect(ctx context.Context, r runner.Runner) (Report, error) {
 	out, err := r.Exec(ctx, "sw_vers", "-productVersion")
 	if err != nil {
 		return Report{}, err
 	}
 	v := parseVersion(strings.TrimSpace(string(out)))
-	return Report{Version: v, Features: deriveFeatures(v)}, nil
+	feat := deriveFeatures(v)
+	feat.NowPlaying = detectBinary(ctx, r, "nowplaying-cli")
+	return Report{Version: v, Features: feat}, nil
+}
+
+// detectBinary returns true when `which <name>` exits with
+// status 0 (binary is on PATH). Any subprocess error counts as
+// "absent" — handlers gate on the boolean and surface install
+// hints when false.
+func detectBinary(ctx context.Context, r runner.Runner, name string) bool {
+	_, err := r.Exec(ctx, "which", name)
+	return err == nil
 }
 
 // ParseVersion exposes [parseVersion] for tests and for callers
@@ -226,7 +257,7 @@ func (r Report) Summary() string {
 // available" line; total must be bumped when a new gate field is
 // added — see the smells list.
 func (f Features) count() (available, total int) {
-	flags := []bool{f.NetworkQuality, f.Shortcuts, f.WdutilInfo}
+	flags := []bool{f.NetworkQuality, f.Shortcuts, f.WdutilInfo, f.NowPlaying}
 	total = len(flags)
 	for _, v := range flags {
 		if v {

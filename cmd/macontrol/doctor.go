@@ -43,6 +43,7 @@ var brewDeps = []struct {
 	{"terminal-notifier", "🔔 rich notifications (fallback: osascript)", "brew install terminal-notifier"},
 	{"smctemp", "🌡 °C readings on Apple Silicon", "brew install smctemp"},
 	{"imagesnap", "📸 webcam photos", "brew install imagesnap"},
+	{"nowplaying-cli", "🎵 Music dashboard (player metadata + control)", "brew install nowplaying-cli"},
 }
 
 // runDoctor is the implementation of `macontrol doctor`. Prints
@@ -87,6 +88,7 @@ func runDoctor() {
 		fmt.Printf("networkQuality:   %v\n", rep.Features.NetworkQuality)
 		fmt.Printf("shortcuts CLI:    %v\n", rep.Features.Shortcuts)
 		fmt.Printf("wdutil info:      %v\n", rep.Features.WdutilInfo)
+		fmt.Printf("nowplaying-cli:   %v\n", rep.Features.NowPlaying)
 	} else {
 		fmt.Printf("⚠ could not run sw_vers: %v\n", err)
 	}
