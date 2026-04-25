@@ -122,8 +122,9 @@ artwork and swap the photo.
 
 ### No track playing
 
-Header reads "🎵 *Music* — _Nothing playing_". Buttons stay live so
-you can hit ⏯ Play to resume the player's queue.
+Header reads `🎵 *Music* — _Nothing playing_` (literal Telegram
+markdown emitted by the bot). Buttons stay live so you can hit
+⏯ Play to resume the player's queue.
 
 ### Track without artwork
 
