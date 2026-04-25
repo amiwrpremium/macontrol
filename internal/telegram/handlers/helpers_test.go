@@ -12,6 +12,7 @@ import (
 	"github.com/amiwrpremium/macontrol/internal/domain/bluetooth"
 	"github.com/amiwrpremium/macontrol/internal/domain/display"
 	"github.com/amiwrpremium/macontrol/internal/domain/media"
+	"github.com/amiwrpremium/macontrol/internal/domain/music"
 	"github.com/amiwrpremium/macontrol/internal/domain/notify"
 	"github.com/amiwrpremium/macontrol/internal/domain/power"
 	"github.com/amiwrpremium/macontrol/internal/domain/sound"
@@ -23,6 +24,7 @@ import (
 	"github.com/amiwrpremium/macontrol/internal/telegram/bot"
 	"github.com/amiwrpremium/macontrol/internal/telegram/callbacks"
 	"github.com/amiwrpremium/macontrol/internal/telegram/flows"
+	"github.com/amiwrpremium/macontrol/internal/telegram/musicrefresh"
 	"github.com/amiwrpremium/macontrol/internal/telegram/telegramtest"
 )
 
@@ -42,6 +44,14 @@ func newHarness(t *testing.T) *harness {
 
 	flowReg := flows.NewRegistry(5 * time.Minute)
 	sm := callbacks.NewShortMap(time.Minute)
+	musicSvc := music.New(f)
+	soundSvc := sound.New(f)
+	mr := musicrefresh.NewManager(musicSvc, soundSvc, slog.New(slog.DiscardHandler))
+	mr.SetBot(b)
+	// Tick interval well above the longest individual test
+	// timeout, so background ticks never race with assertions.
+	mr.SetTick(time.Hour)
+	mr.SetMax(time.Hour)
 
 	deps := &bot.Deps{
 		Bot:       b,
@@ -51,7 +61,7 @@ func newHarness(t *testing.T) *harness {
 		FlowReg:   flowReg,
 		ShortMap:  sm,
 		Services: bot.Services{
-			Sound:     sound.New(f),
+			Sound:     soundSvc,
 			Display:   display.New(f),
 			Power:     power.New(f),
 			Battery:   battery.New(f),
@@ -61,12 +71,14 @@ func newHarness(t *testing.T) *harness {
 			Media:     media.New(f),
 			Notify:    notify.New(f),
 			Tools:     tools.New(f),
+			Music:     musicSvc,
 			Status:    status.New(f),
 		},
 		Capability: capability.Report{
 			Version:  capability.ParseVersion("15.3"),
-			Features: capability.Features{NetworkQuality: true, Shortcuts: true, WdutilInfo: true},
+			Features: capability.Features{NetworkQuality: true, Shortcuts: true, WdutilInfo: true, NowPlaying: true},
 		},
+		MusicRefresh: mr,
 	}
 	return &harness{t: t, Deps: deps, Recorder: rec, Fake: f}
 }

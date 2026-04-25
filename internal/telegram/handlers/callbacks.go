@@ -43,6 +43,7 @@ var namespaceDispatch = map[string]func(ctx context.Context, d *bot.Deps, q *mod
 	callbacks.NSMedia:   handleMedia,
 	callbacks.NSNotify:  handleNotify,
 	callbacks.NSTools:   handleTools,
+	callbacks.NSMusic:   handleMusic,
 }
 
 // Handle is the [bot.Router] implementation for callback queries.
@@ -79,6 +80,15 @@ func (CallbackRouter) Handle(ctx context.Context, d *bot.Deps, update *models.Up
 	if err != nil {
 		Reply{Deps: d}.Toast(ctx, q, "Bad callback data.")
 		return err
+	}
+	// Cancel the per-chat Music refresher when the user navigates
+	// away from the Music namespace. The refresher is a goroutine
+	// that edits the Music photo every 5 s; leaving Music for any
+	// other namespace (or pressing Back/Home via NSNav) means the
+	// user is no longer looking at it, so the goroutine should
+	// stop.
+	if data.Namespace != callbacks.NSMusic && d.MusicRefresh != nil && q.Message.Message != nil {
+		d.MusicRefresh.Stop(q.Message.Message.Chat.ID)
 	}
 	h, ok := namespaceDispatch[data.Namespace]
 	if !ok {

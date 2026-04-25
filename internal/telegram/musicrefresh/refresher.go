@@ -250,6 +250,21 @@ func (m *Manager) IsActive(chatID int64) bool {
 	return ok
 }
 
+// Refresh forces an immediate tick for chatID, bypassing the
+// regular interval. Used by handlers right after a state-
+// changing action (play, pause, vol-*) so the user sees the
+// outcome without waiting up to one tick interval. No-op when
+// no session exists for chatID.
+func (m *Manager) Refresh(ctx context.Context, chatID int64) {
+	m.mu.Lock()
+	s, ok := m.active[chatID]
+	m.mu.Unlock()
+	if !ok {
+		return
+	}
+	m.tickOnce(ctx, chatID, s)
+}
+
 // run is the per-chat goroutine. Polls + edits every tick
 // until the context cancels OR the deadline elapses.
 //
