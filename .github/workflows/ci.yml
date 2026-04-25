@@ -53,8 +53,11 @@ jobs:
       - name: Enforce coverage floor
         if: matrix.os == 'ubuntu-latest'
         continue-on-error: true
+        # Pin to a specific tool version so CI behaviour is reproducible
+        # and Scorecard's PinnedDependencies check stays satisfied.
+        # Bumped manually; Dependabot doesn't track go install args.
         run: |
-          go install github.com/vladopajic/go-test-coverage/v2@latest
+          go install github.com/vladopajic/go-test-coverage/v2@v2.18.4
           go-test-coverage --config=./.testcoverage.yml
       - name: Upload coverage to Codecov
         if: matrix.os == 'ubuntu-latest'
@@ -97,8 +100,11 @@ jobs:
           go-version-file: go.mod
           cache: true
       - name: govulncheck
+        # Pin to a specific tool version so CI behaviour is reproducible
+        # and Scorecard's PinnedDependencies check stays satisfied.
+        # Bumped manually; Dependabot doesn't track go install args.
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
+          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
           govulncheck ./...
 
   fuzz-short:
