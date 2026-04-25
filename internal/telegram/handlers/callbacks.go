@@ -44,6 +44,7 @@ var namespaceDispatch = map[string]func(ctx context.Context, d *bot.Deps, q *mod
 	callbacks.NSNotify:  handleNotify,
 	callbacks.NSTools:   handleTools,
 	callbacks.NSMusic:   handleMusic,
+	callbacks.NSApps:    handleApps,
 }
 
 // Handle is the [bot.Router] implementation for callback queries.
