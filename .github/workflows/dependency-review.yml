@@ -1,0 +1,46 @@
+name: dependency-review
+
+# Dependency-Review: blocks PRs that introduce dependencies with
+# known vulnerabilities, restrictive licenses, or that get bumped
+# to a major version that flips license terms.
+#
+# The action talks to GitHub's vulnerability database (the same
+# source Dependabot uses) and resolves licenses via the Open
+# Source Insights API. This is the cheapest possible "ship freshly-
+# poisoned dep into master" guard — Dependabot catches it after
+# the fact; this fires at PR time.
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: review
+    runs-on: ubuntu-latest
+    steps:
+      - uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          # Hard-fail on Critical or High severity vulns introduced
+          # by the PR. Lower severities still log but don't block.
+          fail-on-severity: high
+          # Reject any PR pulling a dep under one of these licenses —
+          # incompatible with macontrol's MIT distribution (see LICENSE).
+          deny-licenses: AGPL-1.0, AGPL-3.0, GPL-2.0-only, GPL-3.0-only, GPL-2.0, GPL-3.0
+          # Surface a comment on the PR with the diff summary
+          # when the gate fires.
+          comment-summary-in-pr: on-failure
