@@ -1,0 +1,19 @@
+* text=auto eol=lf
+
+# Ensure shell scripts stay LF
+*.sh         text eol=lf
+*.bash       text eol=lf
+
+# Go source
+*.go         text eol=lf diff=golang
+
+# Binary assets
+*.png        binary
+*.jpg        binary
+*.gif        binary
+*.mov        binary
+*.mp4        binary
+
+# Linguist hints
+CHANGELOG.md linguist-generated=true
+go.sum       linguist-generated=true
