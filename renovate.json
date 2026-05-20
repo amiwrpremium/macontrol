@@ -1,0 +1,73 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    ":semanticCommitTypeAll(deps)",
+    ":enableVulnerabilityAlertsWithLabel(security)",
+    "group:allNonMajor",
+    "schedule:weekly",
+    ":automergeMinor",
+    ":automergePatch",
+    ":automergeDigest",
+    "helpers:pinGitHubActionDigestsToSemver"
+  ],
+  "labels": ["dependencies"],
+  "baseBranchPatterns": [
+    "master"
+  ],
+  "rangeStrategy": "bump",
+  "postUpdateOptions": ["gomodTidy", "gomodUpdateImportPaths"],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 5am on Monday"]
+  },
+  "vulnerabilityAlerts": {
+    "labels": ["security"],
+    "automerge": false
+  },
+  "packageRules": [
+    {
+      "matchManagers": ["gomod"],
+      "matchDepNames": ["go"],
+      "enabled": false,
+      "description": "Don't auto-bump the `go` directive. Pinning a patch is unnecessarily restrictive; the toolchain is bumped manually when stdlib CVEs warrant it."
+    },
+    {
+      "matchManagers": ["gomod"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true,
+      "groupName": "go modules (non-major)",
+      "description": "Auto-merge non-major Go-module bumps once CI is green. Single grouped PR per week keeps the merge queue quiet."
+    },
+    {
+      "matchManagers": ["gomod"],
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "labels": ["dependencies", "major"],
+      "description": "Major Go-module bumps need manual review — API surface may have changed."
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions",
+      "automerge": true,
+      "description": "Auto-merge non-major action bumps. Single grouped PR per week."
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["slsa-framework/slsa-github-generator"],
+      "enabled": false,
+      "description": "SLSA generator's builder-fetch step rejects SHA refs and requires the @vX.Y.Z tag form. Same exception is documented in .github/workflows/pin-check.yml."
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "labels": ["dependencies", "major"],
+      "description": "Major GitHub Action bumps need manual review — semantics may change between major versions."
+    }
+  ],
+  "prHourlyLimit": 4,
+  "prConcurrentLimit": 10
+}

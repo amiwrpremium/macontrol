@@ -1,0 +1,56 @@
+# Dependabot — security-advisory feed only.
+#
+# Renovate is the primary dependency manager (see ../renovate.json).
+# It handles version bumps, grouping, auto-merge, and SHA-pin
+# maintenance on GitHub Actions.
+#
+# Dependabot stays active for one reason: GitHub's vulnerability
+# database feeds Dependabot directly (privileged source the public
+# Renovate App doesn't share), and Dependabot raises *security-update
+# PRs* outside the `open-pull-requests-limit` cap. Setting that cap
+# to 0 here disables routine version-bump PRs (Renovate handles
+# those) while leaving security-update PRs intact.
+#
+# Reference:
+#   https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file#open-pull-requests-limit
+#
+# If you ever want to disable Dependabot entirely, delete this file —
+# Renovate still catches most CVEs via its own vulnerability sources.
+
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: "UTC"
+    # 0 disables routine version-bump PRs but leaves security-update
+    # PRs intact (those have their own queue and aren't capped by
+    # this flag).
+    open-pull-requests-limit: 0
+    labels:
+      - dependencies
+      - security
+      - go
+    commit-message:
+      prefix: "fix"
+      prefix-development: "fix"
+      include: scope
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 0
+    labels:
+      - dependencies
+      - security
+      - github-actions
+    commit-message:
+      prefix: "fix"
+      include: scope
