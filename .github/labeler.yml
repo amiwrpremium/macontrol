@@ -1,0 +1,188 @@
+---
+# Path-based PR labels — consumed by actions/labeler@v6.
+#
+# Each top-level key is a label name. The match object uses v6
+# syntax: `changed-files: [{ any-glob-to-any-file: [...] }]` —
+# at least one of the listed globs must match at least one
+# changed file. Globs are minimatch (`**`, `*`, `!`); the
+# `dot: true` default means leading-dot paths like `.github/`
+# match `**` patterns.
+
+# ---------------------------------------------------------------
+# Per-domain labels — each dashboard category in macontrol owns
+# a corresponding label. Handler/keyboard files use 3-letter
+# abbreviations so each glob enumerates them explicitly.
+# ---------------------------------------------------------------
+
+'area:apps':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/domain/apps/**'
+          - 'internal/telegram/handlers/apps.go'
+          - 'internal/telegram/keyboards/apps.go'
+          - 'docs/usage/categories/apps.md'
+
+'area:music':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/domain/music/**'
+          - 'internal/telegram/handlers/mus.go'
+          - 'internal/telegram/keyboards/mus.go'
+          - 'internal/telegram/musicrefresh/**'
+          - 'docs/usage/categories/music.md'
+
+'area:sound':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/domain/sound/**'
+          - 'internal/telegram/handlers/snd.go'
+          - 'internal/telegram/keyboards/snd.go'
+          - 'docs/usage/categories/sound.md'
+
+'area:display':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/domain/display/**'
+          - 'internal/telegram/handlers/dsp.go'
+          - 'internal/telegram/keyboards/dsp.go'
+          - 'docs/usage/categories/display.md'
+
+'area:battery':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/domain/battery/**'
+          - 'internal/telegram/handlers/bat.go'
+          - 'internal/telegram/keyboards/bat.go'
+          - 'docs/usage/categories/battery.md'
+
+'area:wifi':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/domain/wifi/**'
+          - 'internal/telegram/handlers/wif.go'
+          - 'internal/telegram/keyboards/wif.go'
+          - 'docs/usage/categories/wifi.md'
+
+'area:bluetooth':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/domain/bluetooth/**'
+          - 'internal/telegram/handlers/bt.go'
+          - 'internal/telegram/keyboards/bt.go'
+          - 'docs/usage/categories/bluetooth.md'
+
+'area:power':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/domain/power/**'
+          - 'internal/telegram/handlers/pwr.go'
+          - 'internal/telegram/keyboards/pwr.go'
+          - 'docs/usage/categories/power.md'
+
+'area:system':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/domain/system/**'
+          - 'internal/telegram/handlers/sys.go'
+          - 'internal/telegram/keyboards/sys.go'
+          - 'docs/usage/categories/system.md'
+
+'area:media':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/domain/media/**'
+          - 'internal/telegram/handlers/med.go'
+          - 'internal/telegram/keyboards/med.go'
+          - 'docs/usage/categories/media.md'
+
+'area:notify':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/domain/notify/**'
+          - 'internal/telegram/handlers/ntf.go'
+          - 'internal/telegram/keyboards/ntf.go'
+          - 'docs/usage/categories/notify.md'
+
+'area:tools':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/domain/tools/**'
+          - 'internal/telegram/handlers/tls.go'
+          - 'internal/telegram/keyboards/tls.go'
+          - 'docs/usage/categories/tools.md'
+
+'area:status':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/domain/status/**'
+
+# ---------------------------------------------------------------
+# Cross-cutting components — Telegram-layer plumbing and the
+# CLI entrypoint.
+# ---------------------------------------------------------------
+
+'area:bot':
+  - changed-files:
+      - any-glob-to-any-file: ['internal/telegram/bot/**']
+
+'area:callbacks':
+  - changed-files:
+      - any-glob-to-any-file: ['internal/telegram/callbacks/**']
+
+'area:flows':
+  - changed-files:
+      - any-glob-to-any-file: ['internal/telegram/flows/**']
+
+'area:runner':
+  - changed-files:
+      - any-glob-to-any-file: ['internal/runner/**']
+
+'area:capability':
+  - changed-files:
+      - any-glob-to-any-file: ['internal/capability/**']
+
+'area:config':
+  - changed-files:
+      - any-glob-to-any-file: ['internal/config/**']
+
+'area:keychain':
+  - changed-files:
+      - any-glob-to-any-file: ['internal/keychain/**']
+
+'area:daemon':
+  - changed-files:
+      - any-glob-to-any-file: ['cmd/macontrol/**']
+
+# ---------------------------------------------------------------
+# Meta — CI / docs / dependencies.
+# ---------------------------------------------------------------
+
+'area:ci':
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**'
+          - '.golangci.yml'
+          - '.markdownlint.json'
+          - '.yamllint.yml'
+          - '.typos.toml'
+          - '.editorconfig'
+          - '.editorconfig-checker.json'
+          - 'lefthook.yml'
+          - 'Makefile'
+          - '.codecov.yml'
+          - '.codacy.yaml'
+          - '.testcoverage.yml'
+          - '.goreleaser.yaml'
+
+'area:docs':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'docs/**'
+          - 'README.md'
+          - 'CHANGELOG.md'
+
+'area:deps':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'go.mod'
+          - 'go.sum'

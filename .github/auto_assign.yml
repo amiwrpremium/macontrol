@@ -1,0 +1,20 @@
+---
+# kentaro-m/auto-assign-action config.
+# https://github.com/kentaro-m/auto-assign-action
+
+# Reviewer set — currently just the maintainer.
+addReviewers: true
+reviewers:
+  - amiwrpremium
+numberOfReviewers: 1
+
+# Assignee = the PR opener. On a solo project that's the
+# maintainer themselves; on contributor PRs it's the contributor.
+# Either way the dashboard shows "this is yours to address".
+addAssignees: author
+
+# Skip the action if any of these keywords appears in the PR
+# title or body. WIP draft mode covers most of this already; the
+# label is here for the explicit-text case.
+skipKeywords:
+  - wip
