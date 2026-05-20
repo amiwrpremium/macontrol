@@ -1,0 +1,199 @@
+# OpenSSF Security Insights specification 1.0.0
+# https://github.com/ossf/security-insights-spec
+#
+# Machine-readable summary of macontrol's security posture.
+# Consumed by OpenSSF Scorecard, Sigstore tooling, and downstream
+# package indexers. Complements the existing OpenSSF Best Practices
+# badge in the README.
+
+header:
+  schema-version: 1.0.0
+  expiration-date: '2028-05-20T00:00:00.000Z'
+  last-updated: '2026-05-20'
+  last-reviewed: '2026-05-20'
+  project-url: https://github.com/amiwrpremium/macontrol
+  project-release: ''
+  changelog: https://github.com/amiwrpremium/macontrol/blob/master/CHANGELOG.md
+  license: https://github.com/amiwrpremium/macontrol/blob/master/LICENSE
+
+project-lifecycle:
+  status: active
+  bug-fixes-only: false
+  core-maintainers:
+    - https://github.com/amiwrpremium
+
+contribution-policy:
+  accepts-pull-requests: true
+  accepts-automated-pull-requests: true
+  contributing-policy: https://github.com/amiwrpremium/macontrol/blob/master/CONTRIBUTING.md
+  code-of-conduct: https://github.com/amiwrpremium/macontrol/blob/master/CODE_OF_CONDUCT.md
+
+documentation:
+  - https://github.com/amiwrpremium/macontrol/blob/master/README.md
+  - https://github.com/amiwrpremium/macontrol/tree/master/docs
+  - https://github.com/amiwrpremium/macontrol/blob/master/docs/architecture/overview.md
+
+distribution-points:
+  - https://github.com/amiwrpremium/macontrol/releases
+  - https://github.com/amiwrpremium/homebrew-tap
+
+security-artifacts:
+  threat-model:
+    threat-model-created: true
+    evidence-url:
+      - name: Threat model
+        url: https://github.com/amiwrpremium/macontrol/blob/master/docs/security/threat-model.md
+  self-assessment:
+    self-assessment-created: false
+    evidence-url: []
+
+security-testing:
+  - tool-type: sca
+    tool-name: govulncheck
+    tool-version: v1.1.4
+    tool-url: https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck
+    integration:
+      ad-hoc: false
+      ci: true
+      before-release: true
+    tool-rulesets: []
+    comment: |
+      Runs on every push and PR via .github/workflows/ci.yml.
+      Scans the module against the Go vulnerability database.
+
+  - tool-type: sca
+    tool-name: Trivy (filesystem)
+    tool-version: v0.36.0
+    tool-url: https://github.com/aquasecurity/trivy-action
+    integration:
+      ad-hoc: false
+      ci: true
+      before-release: true
+    tool-rulesets: []
+    comment: |
+      Runs on every push, PR, and daily cron via
+      .github/workflows/trivy.yml. Filesystem scan for vuln +
+      license issues on go.mod / go.sum; SARIF uploaded to the
+      GitHub Security tab.
+
+  - tool-type: sast
+    tool-name: CodeQL
+    tool-version: v4.35.2
+    tool-url: https://codeql.github.com/
+    integration:
+      ad-hoc: false
+      ci: true
+      before-release: true
+    tool-rulesets:
+      - https://github.com/github/codeql/tree/main/go/ql/src
+    comment: |
+      Runs on every push, PR, and weekly via
+      .github/workflows/codeql.yml. SARIF uploaded to the GitHub
+      Security tab.
+
+  - tool-type: sast
+    tool-name: gosec
+    tool-version: v2.26.1
+    tool-url: https://github.com/securego/gosec
+    integration:
+      ad-hoc: false
+      ci: true
+      before-release: true
+    tool-rulesets: []
+    comment: |
+      Runs as part of golangci-lint on every PR via
+      .github/workflows/ci.yml, plus a dedicated workflow
+      (.github/workflows/gosec.yml) that uploads SARIF to the
+      GitHub Security tab.
+
+  - tool-type: sast
+    tool-name: Codacy
+    tool-version: latest
+    tool-url: https://www.codacy.com
+    integration:
+      ad-hoc: false
+      ci: true
+      before-release: false
+    tool-rulesets: []
+    comment: |
+      Static-analysis + coverage reporting; configured via
+      .codacy.yaml and the Codacy GitHub App. Lizard cyclomatic-
+      complexity gate is the most active check.
+
+  - tool-type: secrets-scanner
+    tool-name: gitleaks
+    tool-version: v2.3.9
+    tool-url: https://github.com/gitleaks/gitleaks-action
+    integration:
+      ad-hoc: false
+      ci: true
+      before-release: false
+    tool-rulesets: []
+    comment: |
+      Runs on every push, PR, and weekly cron via
+      .github/workflows/gitleaks.yml. Full git history is scanned
+      (fetch-depth: 0).
+
+  - tool-type: secrets-scanner
+    tool-name: Trivy (secrets)
+    tool-version: v0.36.0
+    tool-url: https://github.com/aquasecurity/trivy-action
+    integration:
+      ad-hoc: false
+      ci: true
+      before-release: false
+    tool-rulesets: []
+    comment: |
+      Runs alongside gitleaks via .github/workflows/trivy.yml's
+      trivy-secret job. Different rule set; complements rather
+      than duplicates gitleaks.
+
+  - tool-type: secrets-scanner
+    tool-name: GitGuardian
+    tool-version: latest
+    tool-url: https://www.gitguardian.com
+    integration:
+      ad-hoc: false
+      ci: true
+      before-release: false
+    tool-rulesets: []
+    comment: |
+      Third secrets-scanner via the GitGuardian GitHub App.
+      Configured in the GitHub repository settings; no in-repo
+      workflow file.
+
+security-assessments: []
+
+security-contacts:
+  - type: email
+    primary: true
+    value: see-SECURITY.md
+    comment: |
+      Vulnerability disclosure goes through GitHub's private
+      security advisories — see SECURITY.md for the exact link
+      and SLA.
+
+vulnerability-reporting:
+  accepts-vulnerability-reports: true
+  email-contact: ''
+  security-policy: https://github.com/amiwrpremium/macontrol/blob/master/SECURITY.md
+  bug-bounty-available: false
+  bug-bounty-url: ''
+  out-scope: []
+  in-scope: []
+  comment: |
+    See SECURITY.md for the full policy, and
+    docs/security/reporting-vulnerabilities.md for the
+    contributor-facing how-to.
+
+dependencies:
+  third-party-packages: true
+  dependencies-lists:
+    - https://github.com/amiwrpremium/macontrol/blob/master/go.mod
+  env-dependencies-policy:
+    policy-url: https://github.com/amiwrpremium/macontrol/blob/master/SECURITY.md
+    comment: |
+      Renovate is the primary dependency manager (renovate.json);
+      Dependabot stays active for security-advisory PRs only.
+      Dependency-Review (PR-time) and Trivy fs (push + daily)
+      gate license and CVE exposure.
