@@ -1,0 +1,19 @@
+# <type>(<scope>): <subject>
+#
+# <body>
+#
+# <footer>
+#
+# Types:     feat, fix, perf, refactor, docs, test, build, ci, chore, revert
+# Scopes:    sound, display, power, wifi, bt, battery, system, media, notify,
+#            tools, bot, flows, keyboards, callbacks, runner, config, ci
+# Subject:   imperative, present tense; no trailing period; <=72 chars
+# Body:      explain *why*, not what; wrap at 72 chars
+# Breaking:  add `!` after type/scope (e.g. feat(bot)!: ...) and a
+#            `BREAKING CHANGE: ...` footer
+#
+# Examples:
+#   feat(sound): add inline keyboard for volume ± and mute toggle
+#   fix(wifi): handle missing en0 on Macs without built-in Wi-Fi
+#   feat(power)!: require confirm for shutdown/restart
+#     BREAKING CHANGE: destructive power actions now need a second tap
