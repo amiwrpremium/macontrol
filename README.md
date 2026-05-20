@@ -1,0 +1,221 @@
+<p align="center">
+  <img src=".github/social-preview.png" alt="macontrol — Control your Mac from Telegram" width="720">
+</p>
+
+# macontrol
+
+> Control your Mac from Telegram — system, media, network, power.
+> Self-hosted · no cloud middleman · named commands only · Apple Silicon · Go.
+
+[![Apple Silicon](https://img.shields.io/badge/arch-Apple%20Silicon-black?logo=apple&logoColor=white)](docs/architecture/design-decisions.md)
+[![Go](https://img.shields.io/github/go-mod/go-version/amiwrpremium/macontrol?logo=go&logoColor=white)](go.mod)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/amiwrpremium/macontrol?sort=semver)](https://github.com/amiwrpremium/macontrol/releases)
+[![Homebrew](https://img.shields.io/badge/install-brew%20amiwrpremium%2Ftap%2Fmacontrol-orange?logo=homebrew&logoColor=white)](https://github.com/amiwrpremium/homebrew-tap)
+
+[![macOS 11 Big Sur](https://img.shields.io/badge/macOS_11-Big_Sur-1E3A5F?style=flat&logo=apple&logoColor=white)](docs/reference/version-gates.md)
+[![macOS 12 Monterey](https://img.shields.io/badge/macOS_12-Monterey-8B5A9E?style=flat&logo=apple&logoColor=white)](docs/reference/version-gates.md)
+[![macOS 13 Ventura](https://img.shields.io/badge/macOS_13-Ventura-D4A574?style=flat&logo=apple&logoColor=white)](docs/reference/version-gates.md)
+[![macOS 14 Sonoma](https://img.shields.io/badge/macOS_14-Sonoma-8B3A3A?style=flat&logo=apple&logoColor=white)](docs/reference/version-gates.md)
+[![macOS 15 Sequoia](https://img.shields.io/badge/macOS_15-Sequoia-2D5A3D?style=flat&logo=apple&logoColor=white)](docs/reference/version-gates.md)
+[![macOS 26 Tahoe](https://img.shields.io/badge/macOS_26-Tahoe-1B8FB8?style=flat&logo=apple&logoColor=white)](docs/reference/version-gates.md)
+
+[![CI](https://github.com/amiwrpremium/macontrol/actions/workflows/ci.yml/badge.svg)](https://github.com/amiwrpremium/macontrol/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/amiwrpremium/macontrol/graph/badge.svg)](https://codecov.io/gh/amiwrpremium/macontrol)
+[![Codacy Coverage](https://app.codacy.com/project/badge/Coverage/3fbc46f6ab184fd7b4dad775ca6b30fa)](https://app.codacy.com/gh/amiwrpremium/macontrol/dashboard)
+
+[![Go Report Card](https://goreportcard.com/badge/github.com/amiwrpremium/macontrol)](https://goreportcard.com/report/github.com/amiwrpremium/macontrol)
+[![Codacy Grade](https://app.codacy.com/project/badge/Grade/3fbc46f6ab184fd7b4dad775ca6b30fa)](https://app.codacy.com/gh/amiwrpremium/macontrol/dashboard)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/amiwrpremium/macontrol/badge)](https://scorecard.dev/viewer/?uri=github.com/amiwrpremium/macontrol)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12643/badge)](https://www.bestpractices.dev/projects/12643)
+[![Dependabot enabled](https://img.shields.io/badge/Dependabot-enabled-brightgreen?logo=dependabot)](.github/dependabot.yml)
+[![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg)](https://www.conventionalcommits.org)
+
+**[Why](#why) · [Features](#features) · [Install](#install) · [Documentation](#documentation) · [Quick reference](#quick-reference) · [Development](#development) · [Security](#security) · [Disclaimer](#disclaimer) · [Related projects](#related-projects) · [Acknowledgments](#acknowledgments) · [License](#license)**
+
+`macontrol` is a tiny Go daemon that runs on your Mac and exposes a
+**menu-first Telegram bot** for remote control: change volume / brightness,
+toggle Wi-Fi / Bluetooth, read battery & system stats, take screenshots,
+send desktop notifications, lock / sleep / restart, and more.
+
+<!-- TODO: insert assets/demo.gif once recorded on a real Mac -->
+<!-- demo: home → Sound → −5 → Refresh → Main menu -->
+
+## Why
+
+For when you're away from your Mac and need to lock it, take a screenshot,
+peek at battery or Wi-Fi state, or run one of your Shortcuts — without
+exposing SSH, without a SaaS middleman, without paying anyone.
+
+The daemon lives on your Mac, talks to Telegram via outbound long-poll
+only (no inbound port), keeps secrets in the macOS Keychain, and uses
+a hard Telegram-user-ID whitelist as the auth boundary. Named commands
+only — no `/sh` escape hatch — so a leaked token alone can't run arbitrary
+code on your Mac.
+
+## Features
+
+| Category | What you can do |
+|---|---|
+| 🔊 Sound | Volume ± / set / mute / max |
+| 💡 Display | Brightness ± / set, trigger screen saver |
+| 🔋 Battery | Percent, charging state, health, cycle count |
+| 📶 Wi-Fi | Toggle, info (SSID + BSSID + RSSI + Security + channel), join network, DNS presets, speed test |
+| 🔵 Bluetooth | Toggle, list, connect/disconnect paired devices |
+| ⚡ Power | Lock, sleep, restart, shutdown, logout, keep-awake |
+| 🖥 System | macOS/HW info, thermal pressure, memory + tappable top RAM hogs, CPU + tappable top CPU hogs, Top 10 — every process drills into Kill / Force Kill |
+| 🪟 Apps | List running apps, quit / force quit / hide each, "Quit all except…" multi-select |
+| 📸 Media | Full/display/window screenshot, screen recording, webcam photo |
+| 🎵 Music | Player-agnostic play/pause/next/prev/seek + live progress bar + artwork, with embedded volume controls |
+| 🔔 Notify | Desktop notification (terminal-notifier → osascript fallback), text-to-speech |
+| 🛠 Tools | Clipboard get/set, timezone pick, time sync, tappable disks (Open in Finder + Eject for removables), run any Shortcut |
+
+## Install
+
+### Homebrew (recommended)
+
+```bash
+brew install amiwrpremium/tap/macontrol
+macontrol setup                 # interactive wizard
+brew services start macontrol
+```
+
+### Manual
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/amiwrpremium/macontrol/master/scripts/install.sh | sh
+macontrol setup
+macontrol service install       # writes LaunchAgent plist, launchctl-loads it
+```
+
+Apple Silicon, macOS 11 (Big Sur) or newer. Intel is not supported.
+
+For build-from-source, install-script internals, and uninstall steps,
+see [docs/getting-started/installation.md](docs/getting-started/installation.md).
+
+## Documentation
+
+The [`docs/`](docs/) directory is the full reference. Pick a group:
+
+| Group | What's there |
+|---|---|
+| [Getting started](docs/getting-started/) | Install → credentials → quickstart → first message |
+| [Usage](docs/usage/) | UX model, slash commands, every button in every category |
+| [Configuration](docs/configuration/) | Runtime config (CLI flags + Keychain), file paths, whitelist management |
+| [Permissions](docs/permissions/) | TCC grants and the narrow sudoers entry |
+| [Operations](docs/operations/) | Running, logs, doctor, upgrades |
+| [Architecture](docs/architecture/) | Overview, project layout, design decisions, testing |
+| [Reference](docs/reference/) | CLI flags, callback protocol, macOS CLI mapping, version gates |
+| [Security](docs/security/) | Bot token hygiene, threat model, vulnerability reporting |
+| [Troubleshooting](docs/troubleshooting/) | Common issues, permission errors, Telegram errors |
+| [Development](docs/development/) | Contributing, conventional commits, adding a capability, releasing |
+| [FAQ](docs/faq.md) | Quick answers grouped by topic |
+| [Changelog](CHANGELOG.md) | What changed in each release |
+
+## Quick reference
+
+### Telegram setup in 60 seconds
+
+1. Create a bot with [@BotFather](https://t.me/BotFather), copy the token.
+2. Get your Telegram user ID from [@userinfobot](https://t.me/userinfobot).
+3. `macontrol setup` — paste both, the wizard does the rest.
+4. Send `/start` to your bot.
+
+Full walkthrough: [docs/getting-started/credentials-telegram.md](docs/getting-started/credentials-telegram.md).
+
+### UX model in three lines
+
+- `/menu` sends an inline keyboard with one button per category.
+- Tapping a category edits the message into that category's dashboard, which itself edits in place as you tap (`+5`, `MUTE`, `🔄 Refresh`, …).
+- Free-text input (set exact volume, join wifi, …) drops into a 5-min flow.
+
+Deep explanation: [docs/usage/ux-model.md](docs/usage/ux-model.md).
+
+## Development
+
+```bash
+make lint test            # golangci-lint + go test -race
+make build                # cross-compile for darwin/arm64
+make run                  # run locally against a dev bot token
+```
+
+Conventional Commits required for PR titles. Releases are cut by
+[release-please](https://github.com/googleapis/release-please) — merging
+the version PR triggers GoReleaser, which builds the tarball and updates
+the Homebrew tap automatically.
+
+Full guide: [docs/development/](docs/development/). By contributing
+you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## Security
+
+Never share your bot token. macontrol enforces a hard user-ID whitelist;
+non-whitelisted updates are dropped silently.
+
+Report vulnerabilities privately via
+[GitHub Security Advisories](https://github.com/amiwrpremium/macontrol/security/advisories/new) —
+see [SECURITY.md](SECURITY.md) and
+[docs/security/](docs/security/).
+
+## Disclaimer
+
+`macontrol` is provided **as is**, without warranty of any kind, express or
+implied — see the [MIT License](LICENSE) for the full text.
+
+By installing and running this software you acknowledge and accept that:
+
+- **It controls your Mac.** The bot can lock, restart, shut down, or log out
+  your session; take screenshots and webcam photos; record your screen;
+  change DNS and Wi-Fi settings; and run any Shortcut you have configured.
+  Misuse, misconfiguration, or compromise of the bot token or your Telegram
+  account can lead to data loss, privacy exposure, or other harm to you or
+  your machine.
+- **You are responsible for the bot token and the whitelist.** Anyone with
+  the token can act as your bot; anyone whose Telegram user ID is on the
+  whitelist has the same control over your Mac that you do.
+- **You are responsible for third-party trust anchors.** macontrol shells
+  out to macOS CLIs (`pmset`, `networksetup`, `security`, …) and optional
+  Homebrew formulae (`brightness`, `blueutil`, `smctemp`, `imagesnap`,
+  `terminal-notifier`). Telegram, Apple, and Homebrew sit outside the
+  author's control.
+- **The author (`@amiwrpremium`) is not liable** for damages, data loss,
+  privacy incidents, unauthorized access, or any other harm resulting from
+  the use, misuse, or failure of this software — whether direct, indirect,
+  incidental, or consequential.
+- **No support guarantees.** This is a personal project. Issues and pull
+  requests are welcome, but there is no SLA, no paid support, and no
+  commitment to fix any specific bug.
+- **Use at your own risk.**
+
+## Related projects
+
+- **[shellboto](https://github.com/amiwrpremium/shellboto)** — the
+  Linux-VPS sibling. Where macontrol exposes only named commands on
+  macOS, shellboto gives whitelisted users a live, pty-backed bash
+  shell on a Linux server with SHA-256 hash-chained audit logs and
+  per-user RBAC. Different scope, different security model — same
+  author, same Go + Telegram-bot patterns.
+
+## Acknowledgments
+
+macontrol stands on the shoulders of:
+
+- **[go-telegram/bot](https://github.com/go-telegram/bot)** — the Go Telegram-Bot client
+- **[GoReleaser](https://goreleaser.com)** + **[release-please](https://github.com/googleapis/release-please)** — the release automation
+- **[lumberjack](https://github.com/natefinch/lumberjack)** — log rotation
+- Homebrew formulae bundled as runtime deps:
+  **[brightness](https://github.com/nriley/brightness)**,
+  **[blueutil](https://github.com/toy/blueutil)**,
+  **[smctemp](https://github.com/narugit/smctemp)** (upstream by
+  [@narugit](https://github.com/narugit), formula mirrored in our tap — see [FAQ](docs/faq.md)),
+  **[imagesnap](https://github.com/rharder/imagesnap)**,
+  **[terminal-notifier](https://github.com/julienXX/terminal-notifier)**,
+  **[nowplaying-cli](https://github.com/kirtan-shah/nowplaying-cli)** (upstream by
+  [@kirtan-shah](https://github.com/kirtan-shah)) — wraps Apple's private MediaRemote.framework
+- Apple's macOS CLIs that do all the actual work:
+  `pmset`, `osascript`, `networksetup`, `security`, `screencapture`, `wdutil`, `pbpaste`/`pbcopy`, `say`
+- Design inspiration: **[Mac-CLI](https://github.com/guarinogabriel/Mac-CLI)** and **[m-cli](https://github.com/rgcr/m-cli)**, which mapped the macOS CLI surface as local tools.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
