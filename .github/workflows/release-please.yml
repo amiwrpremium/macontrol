@@ -1,0 +1,32 @@
+name: release-please
+
+on:
+  push:
+    branches: [master]
+
+# Default-deny at the workflow level. The single job opts into
+# the narrowest scopes it actually needs.
+permissions: {}
+
+jobs:
+  release-please:
+    name: release-please
+    runs-on: ubuntu-latest
+    permissions:
+      # release-please writes the release branch's commits +
+      # opens the release PR.
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          # Fine-grained PAT (contents:write + pull-requests:write on
+          # this repo only). Using a user PAT instead of the workflow's
+          # default GITHUB_TOKEN is what lets the tag release-please
+          # creates cascade to release.yml. Tags pushed by GITHUB_TOKEN
+          # do not trigger downstream workflows; tags pushed by a real
+          # user (PAT or GitHub App) do. Rotate yearly — see
+          # docs/development/releasing.md for the runbook.
+          token: ${{ secrets.RELEASE_PLEASE_PAT }}
