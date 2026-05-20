@@ -1,0 +1,34 @@
+# Coverage thresholds enforced by go-test-coverage in CI.
+# Thresholds are intentionally below current measured coverage so dips are
+# caught without blocking every small change.
+
+profile: coverage.out
+
+threshold:
+  file: 50
+  package: 75
+  total: 80
+
+override:
+  # Entry-point + signal/launchctl orchestration — covered by integration
+  # tests on a real Mac, not unit tests.
+  - path: cmd/macontrol
+    threshold: 5
+
+  # Tiny shim file.
+  - path: cmd/macontrol/shim.go
+    threshold: 0
+
+  # Domain status aggregates other services — covered via package tests but
+  # some branches are degraded-mode paths.
+  - path: internal/domain/status
+    threshold: 80
+
+  # Test helper — only exercised by the tests that use it.
+  - path: internal/telegram/telegramtest
+    threshold: 70
+
+exclude:
+  paths:
+    # Generated or trivial var-only files.
+    - "\\.pb\\.go$"
