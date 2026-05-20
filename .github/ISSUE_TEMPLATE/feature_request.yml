@@ -1,0 +1,65 @@
+name: ✨ Feature request
+description: Suggest a new capability or UX improvement.
+title: "feat: "
+labels: ["enhancement", "triage"]
+body:
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: What are you trying to do? Why is the current UX insufficient?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: How would this surface in Telegram?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: ux
+    attributes:
+      label: Proposed UX shape
+      options:
+        - New inline-keyboard button in an existing category
+        - New category on the home keyboard
+        - New flow (multi-step conversation)
+        - New slash command
+        - Other / unsure
+    validations:
+      required: true
+
+  - type: input
+    id: cli
+    attributes:
+      label: Underlying macOS command(s)
+      description: If you know which CLI tools would back this, list them here.
+      placeholder: "osascript, pmset, shortcuts"
+
+  - type: dropdown
+    id: min-macos
+    attributes:
+      label: Minimum macOS version required
+      options:
+        - "11 Big Sur"
+        - "12 Monterey"
+        - "13 Ventura"
+        - "14 Sonoma"
+        - "15 Sequoia"
+        - "16 (or newer)"
+        - "Unknown / need to investigate"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This fits macontrol's scope (Apple Silicon, macOS 11+, Telegram-only control surface).
+          required: true
+        - label: I've checked Discussions and existing issues for duplicates.
+          required: true
