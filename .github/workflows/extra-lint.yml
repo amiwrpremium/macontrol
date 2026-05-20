@@ -1,0 +1,123 @@
+name: extra-lint
+
+# Non-Go linters. Each runs as a separate job so a failure in
+# one doesn't mask the others. The rollup job at the bottom is
+# what branch-protection rules can require as a single check.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  markdownlint:
+    name: markdownlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: DavidAnson/markdownlint-cli2-action@ded1f9488f68a970bc66ea5619e13e9b52e601cd # v23.2.0
+        with:
+          config: .markdownlint.json
+          globs: |
+            **/*.md
+            !node_modules
+            !vendor
+            !.git
+
+  yamllint:
+    name: yamllint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: ibiqlik/action-yamllint@2576378a8e339169678f9939646ee3ee325e845c # v3.1.1
+        with:
+          config_file: .yamllint.yml
+          strict: true
+          format: github
+
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: reviewdog/action-actionlint@6fb7acc99f4a1008869fa8a0f09cfca740837d9d # v1.72.0
+        with:
+          # github-check posts annotations on the PR; fail_level: error
+          # makes the job fail when actionlint reports any issue.
+          # The action installs shellcheck on the runner so actionlint
+          # auto-runs it on every `run:` block.
+          reporter: github-check
+          fail_level: error
+
+  editorconfig:
+    name: editorconfig-checker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: editorconfig-checker/action-editorconfig-checker@840e866d93b8e032123c23bac69dece044d4d84c # v2.2.0
+      - run: editorconfig-checker -config .editorconfig-checker.json
+
+  typos:
+    name: typos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: crate-ci/typos@aca895bf05aec0cb7dffa6f94495e923224d9f17 # v1.46.2
+        with:
+          config: .typos.toml
+
+  # Cross-job rollup. The five lint jobs run in parallel; this
+  # single job rolls them up so branch-protection can require
+  # one check instead of five. Append to `needs:` when adding
+  # a new lint job above.
+  extra-lint-required:
+    name: extra-lint required
+    if: always()
+    needs:
+      - markdownlint
+      - yamllint
+      - actionlint
+      - editorconfig
+      - typos
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all extra-lint checks succeeded
+        env:
+          RESULT: ${{ join(needs.*.result, ',') }}
+        run: |
+          set -euo pipefail
+          if echo "$RESULT" | grep -qE '(failure|cancelled)'; then
+            echo "::error::an extra-lint check failed: $RESULT"
+            exit 1
+          fi
+          echo "all extra-lint checks passed: $RESULT"
