@@ -1,0 +1,57 @@
+name: stale
+
+# Stale-issue / stale-PR triage. Runs weekly. Anything labeled
+# `security`, `release-blocker`, `pinned`, `good first issue`,
+# or `help wanted` is exempt. Windows are deliberately lenient
+# (90 days to stale on issues, 45 on PRs) — macontrol is a
+# hobby project where threads can sit valid for months.
+
+on:
+  schedule:
+    - cron: '23 3 * * 1' # Mondays at 03:23 UTC
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  stale:
+    name: stale
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - uses: actions/stale@b5d41d4e1d5dceea10e7104786b73624c18a190f # v10.2.0
+        with:
+          days-before-issue-stale: 90
+          days-before-issue-close: 21
+          days-before-pr-stale: 45
+          days-before-pr-close: 21
+          stale-issue-label: stale
+          stale-pr-label: stale
+          stale-issue-message: >
+            This issue has been automatically marked as stale because it has not had recent activity.
+            It will be closed in 21 days if no further activity occurs. Add a comment, label it
+            `pinned`, or convert it to a Discussion to keep it open.
+          stale-pr-message: >
+            This pull request has been automatically marked as stale because it has not had recent
+            activity. It will be closed in 21 days if no further activity occurs. Push a new commit,
+            request review, or label it `pinned` to keep it open.
+          close-issue-message: >
+            Closing as stale. If this is still relevant, please reopen with updated context.
+          close-pr-message: >
+            Closing as stale. If you'd like to revive this work, please reopen and rebase on
+            `master`.
+          exempt-issue-labels: 'security,release-blocker,pinned,good first issue,help wanted'
+          exempt-pr-labels: 'security,release-blocker,pinned,help wanted'
+          exempt-all-milestones: true
+          remove-stale-when-updated: true
+          operations-per-run: 30
