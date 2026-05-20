@@ -1,0 +1,57 @@
+---
+# yamllint configuration — https://yamllint.readthedocs.io/
+#
+# Strict enough to catch real bugs in workflow files and config
+# YAML; permissive enough not to fight the established style of
+# the existing 18 files in the repo.
+
+extends: default
+
+rules:
+  # GitHub Actions workflows commonly run past 80 columns
+  # (cron strings, harden-runner SHAs, action options inline).
+  # Warn rather than fail so the long lines stay visible without
+  # blocking merges.
+  line-length:
+    max: 200
+    level: warning
+
+  # GitHub Actions requires `on:` as a top-level key. yamllint
+  # reads it as a boolean-equivalent and fires `truthy` by
+  # default; suppress the key-side check.
+  truthy:
+    check-keys: false
+
+  # Existing YAML mixes `---`-prefixed and not — Dependabot
+  # config has it, workflows don't. No value in churn for the
+  # cosmetic.
+  document-start: disable
+
+  # 2-space indent everywhere (matches .editorconfig). Allow
+  # sequences indented the same column as their parent — common
+  # in GitHub Actions step lists. Don't check inside multi-line
+  # strings (heredocs inside `run:` blocks).
+  indentation:
+    spaces: 2
+    indent-sequences: consistent
+    check-multi-line-strings: false
+
+  # Comments need a space after `#` but no enforced gap from the
+  # preceding content.
+  comments:
+    require-starting-space: true
+    min-spaces-from-content: 1
+
+  comments-indentation: enable
+
+  # Allow column-aligned env: blocks (`KEY:    value`) — useful
+  # in workflows where several env vars line up.
+  colons:
+    max-spaces-after: -1
+    max-spaces-before: 0
+
+ignore: |
+  .git/
+  dist/
+  coverage.out
+  coverage.html

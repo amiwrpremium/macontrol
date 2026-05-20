@@ -1,0 +1,35 @@
+{
+  "_comment": "editorconfig-checker — https://editorconfig-checker.github.io. Focused on YAML / JSON / TOML / shell scripts. Excluded by design: Go (gofumpt + golangci-lint enforce tab indent), Markdown (markdownlint covers it, plus fenced code blocks trip false positives), and Makefile (multi-line shell-script recipes with tab+space continuation are an established Makefile convention).",
+  "Verbose": false,
+  "Debug": false,
+  "IgnoreDefaults": false,
+  "SpacesAfterTabs": false,
+  "NoColor": false,
+  "Exclude": [
+    "^\\.git/",
+    "^dist/",
+    "^assets/",
+    "\\.go$",
+    "\\.md$",
+    "(^|/)Makefile$",
+    "\\.svg$",
+    "\\.png$",
+    "\\.jpg$",
+    "\\.jpeg$",
+    "\\.gif$",
+    "\\.ico$",
+    "\\.lock$",
+    "go\\.sum$",
+    "^coverage\\.(out|html)$"
+  ],
+  "Disable": {
+    "EndOfLine": false,
+    "Indentation": false,
+    "IndentSize": true,
+    "_IndentSize_comment": "Markdown lists use 3-space continuation past the bullet — correct markdown but conflicts with strict indent_size=2. Trailing-whitespace and EOL checks still catch real bugs.",
+    "InsertFinalNewline": false,
+    "TrimTrailingWhitespace": false,
+    "MaxLineLength": true,
+    "_MaxLineLength_comment": "Line-length lives in .markdownlint.json and .yamllint.yml instead, so editorconfig-checker doesn't need to police it."
+  }
+}

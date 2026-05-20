@@ -1,0 +1,42 @@
+{
+  "$schema": "https://raw.githubusercontent.com/DavidAnson/markdownlint/main/schema/markdownlint-config-schema.json",
+  "default": true,
+
+  "MD010": { "code_blocks": false },
+  "_MD010_comment": "Tabs allowed inside fenced code blocks — Go and Makefile examples need them.",
+
+  "MD013": false,
+  "_MD013_comment": "Disable hard line-length limit. Many docs are table-heavy or quote longer-form prose (Contributor Covenant) that we cannot reflow.",
+
+  "MD031": false,
+  "_MD031_comment": "Don't require blank lines around fenced code. Several existing docs inline fences inside list items without padding; tightening this would touch every file.",
+
+  "MD040": false,
+  "_MD040_comment": "Don't require a language on every fenced code block. CHANGELOG.md release-please blocks and a few snippet examples ship without one; revisit in a docs cleanup pass.",
+
+  "MD041": false,
+  "_MD041_comment": "Allow first-line content other than H1 — README.md leads with an HTML hero banner, several other docs lead with badges.",
+
+  "MD012": { "maximum": 2 },
+  "_MD012_comment": "Allow up to 2 consecutive blank lines (default 1). Lets sections breathe in the longer category docs.",
+
+  "MD024": { "siblings_only": true },
+  "_MD024_comment": "Allow duplicate headings as long as they sit under different parents. Per-action subsections in usage/categories/*.md repeat common headings (### Quit, ### Force Quit, …).",
+
+  "MD036": false,
+  "_MD036_comment": "Allow emphasis-as-heading. The category docs use **bold** as inline section titles inside lists (e.g. the Buttons sub-headings).",
+
+  "MD046": { "style": "fenced" },
+  "_MD046_comment": "Require fenced code blocks (no indented ones). Matches what the entire repo already does.",
+
+  "MD004": { "style": "consistent" },
+  "_MD004_comment": "Per-file consistency for unordered-list bullets. CHANGELOG.md uses '*' (release-please's conventional-changelog formatter); the rest of the repo uses '-'. Both valid; each file is internally consistent.",
+
+  "MD060": false,
+  "_MD060_comment": "Disable strict table-column-style — existing tables mix compact (`| a | b |`) and padded layouts; harmonising them isn't worth the diff churn.",
+
+  "MD033": {
+    "allowed_elements": ["details", "summary", "kbd", "br", "sub", "sup", "img", "a", "p", "picture", "source"]
+  },
+  "_MD033_comment": "Inline HTML allowlist. `<picture>` + `<source>` cover the README hero banner's theme-aware art direction; `<kbd>` lets the docs show key chords; the rest are common in folded sections and the issue templates."
+}

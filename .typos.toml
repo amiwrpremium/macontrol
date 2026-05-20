@@ -1,0 +1,98 @@
+# typos configuration — https://github.com/crate-ci/typos
+#
+# Catches common English spelling mistakes in code and docs.
+# Entries below are technical terms / proper nouns / acronyms
+# that the default dictionary flags but are correct here.
+
+[default]
+# ShortMap IDs in test fixtures + log output are 10-char base32
+# strings; their alphabetic substrings occasionally collide with
+# dictionary words. Excluding by identifier shape is cheaper
+# than enumerating every generated id.
+extend-ignore-identifiers-re = [
+  "^[A-Z2-7]{10}$",
+]
+
+# Patterns to skip line-wide. MAC addresses in wifi tests contain
+# hex bytes (ba, ad, …) the dictionary reads as typos of by/be/and.
+extend-ignore-re = [
+  "[0-9a-fA-F]{2}(?::[0-9a-fA-F]{2}){5}",
+]
+
+[default.extend-words]
+# Product / module / file name.
+macontrol = "macontrol"
+
+# macOS CLIs the bot shells out to.
+osascript = "osascript"
+nowplaying = "nowplaying"
+wdutil = "wdutil"
+smctemp = "smctemp"
+blueutil = "blueutil"
+imagesnap = "imagesnap"
+pmset = "pmset"
+sntp = "sntp"
+launchctl = "launchctl"
+diskutil = "diskutil"
+spctl = "spctl"
+networkQuality = "networkQuality"
+
+# Brew dependencies / Go modules.
+lumberjack = "lumberjack"
+goreleaser = "goreleaser"
+gofumpt = "gofumpt"
+govulncheck = "govulncheck"
+golangci = "golangci"
+lefthook = "lefthook"
+
+# Apple Silicon / macOS terms.
+arm64 = "arm64"
+darwin = "darwin"
+keychain = "keychain"
+Keychain = "Keychain"
+
+# Permission frameworks + signal names that show up in docs.
+TCC = "TCC"
+SIGKILL = "SIGKILL"
+SIGTERM = "SIGTERM"
+
+# Go type names the dictionary flags.
+MaybeInaccessibleMessage = "MaybeInaccessibleMessage"
+
+# macOS version name — "Big Sur" is the official Apple name for
+# macOS 11. The dictionary wants "Sure".
+Sur = "Sur"
+
+# Security-doc acronym: CNA (CVE Numbering Authority). Dictionary
+# reads it as a typo of "CAN".
+CNA = "CNA"
+
+# British spelling. The "unparseable" variant is used in stable
+# test-function names (TestGet_UnparseableOutput, etc.) and one
+# Go comment. Both spellings are correct English; renaming the
+# functions would be churn for no real benefit.
+unparseable = "unparseable"
+Unparseable = "Unparseable"
+
+[files]
+# Don't lint binaries, vendored deps, coverage output, the
+# auto-generated changelog, or third-party verbatim text.
+extend-exclude = [
+  "coverage.out",
+  "coverage.html",
+  "go.sum",
+  "*.svg",
+  "*.png",
+  "*.jpg",
+  "*.ico",
+  ".git/",
+  "dist/",
+  "assets/",
+  # release-please generates this; entries embed opaque commit
+  # SHAs that occasionally contain alphabetic substrings the
+  # dictionary flags. Commit subjects come from merged PR titles
+  # which already get human review.
+  "CHANGELOG.md",
+  # Contributor Covenant — verbatim third-party text.
+  "CODE_OF_CONDUCT.md",
+]
