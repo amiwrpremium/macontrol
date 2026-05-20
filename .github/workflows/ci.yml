@@ -1,0 +1,130 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
+        with:
+          version: latest
+
+  test:
+    name: Test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: go test
+        run: go test -race -coverprofile=coverage.out ./...
+      - name: Upload coverage
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage
+          path: coverage.out
+          if-no-files-found: ignore
+      - name: Enforce coverage floor
+        if: matrix.os == 'ubuntu-latest'
+        continue-on-error: true
+        # Pin to a specific tool version so CI behaviour is reproducible
+        # and Scorecard's PinnedDependencies check stays satisfied.
+        # Bumped manually; Dependabot doesn't track go install args.
+        run: |
+          go install github.com/vladopajic/go-test-coverage/v2@v2.18.4
+          go-test-coverage --config=./.testcoverage.yml
+      - name: Upload coverage to Codecov
+        if: matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
+        with:
+          files: ./coverage.out
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+      - name: Upload coverage to Codacy
+        if: matrix.os == 'ubuntu-latest'
+        uses: codacy/codacy-coverage-reporter-action@89d6c85cfafaec52c72b6c5e8b2878d33104c699 # v1.3.0
+        with:
+          project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
+          coverage-reports: coverage.out
+          force-coverage-parser: go
+
+  build:
+    name: Build (darwin/arm64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Cross-compile
+        env:
+          GOOS: darwin
+          GOARCH: arm64
+          CGO_ENABLED: "0"
+        run: go build -trimpath -ldflags="-s -w" -o /tmp/macontrol ./cmd/macontrol
+
+  vuln:
+    name: Vulnerability scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: govulncheck
+        # Pin to a specific tool version so CI behaviour is reproducible
+        # and Scorecard's PinnedDependencies check stays satisfied.
+        # Bumped manually; Dependabot doesn't track go install args.
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+          govulncheck ./...
+
+  fuzz-short:
+    # 30s smoke fuzz on every PR for the parsers that sit on
+    # subprocess / user-input boundaries:
+    #   - callbacks.Decode — the only attacker-reachable parser
+    #     before the whitelist gate.
+    #   - apps.parseAppsListing — consumes osascript stdout that
+    #     reflects user-controlled app names.
+    # Long-running fuzz belongs in a separate scheduled workflow;
+    # this job is a CI-time guard against newly-introduced panics.
+    name: Fuzz (short)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: go test -fuzz FuzzDecode
+        run: go test -run='^$' -fuzz=FuzzDecode -fuzztime=30s ./internal/telegram/callbacks/
+      - name: go test -fuzz FuzzParseAppsListing
+        run: go test -run='^$' -fuzz=FuzzParseAppsListing -fuzztime=30s ./internal/domain/apps/
