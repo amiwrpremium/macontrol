@@ -62,19 +62,21 @@ sboms:
 signs:
   # Keyless OIDC via Sigstore: GitHub Actions mints a short-lived
   # signing cert from Fulcio using the workflow's id-token, signs
-  # the blob, and records the signature in the Rekor transparency
-  # log. No long-lived key to rotate. `--output-signature` +
-  # `--output-certificate` let GoReleaser pick up the .sig + .cert
-  # outputs and upload them as additional release assets.
+  # the blob, and records the entry in the Rekor transparency log.
+  # No long-lived key to rotate. cosign v3+ emits a single
+  # bundle file (sig + cert + Rekor metadata combined) via
+  # `--bundle`; the legacy `--output-signature` / `--output-certificate`
+  # flags are deprecated and ignored. Verify with
+  # `cosign verify-blob --bundle <artifact>.bundle <artifact>`.
   - id: cosign-keyless
     cmd: cosign
+    signature: "${artifact}.bundle"
     artifacts: all
     output: true
     args:
       - "sign-blob"
       - "--yes"
-      - "--output-signature=${signature}"
-      - "--output-certificate=${certificate}"
+      - "--bundle=${signature}"
       - "${artifact}"
 
 snapshot:
