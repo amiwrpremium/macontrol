@@ -5,7 +5,7 @@ on:
     tags:
       - "v*"
 
-# Default-deny at the workflow level. The single job opts into the
+# Default-deny at the workflow level. Each job opts into the
 # narrowest scopes it actually needs.
 permissions: {}
 
@@ -16,10 +16,14 @@ jobs:
     permissions:
       # goreleaser needs to push the GitHub Release + upload assets.
       contents: write
-      # id-token enables future Sigstore / cosign keyless signing.
-      # Not currently used by .goreleaser.yaml but kept so a later
-      # `signs:` block works without a separate permissions PR.
+      # id-token grants Sigstore / cosign keyless OIDC signing
+      # (see the `signs:` block in .goreleaser.yaml).
       id-token: write
+    outputs:
+      # Base64-encoded `<sha256>  <filename>` lines from
+      # dist/checksums.txt, consumed by the downstream provenance
+      # job as the SLSA `base64-subjects` input.
+      hashes: ${{ steps.checksum-hashes.outputs.hashes }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -48,3 +52,38 @@ jobs:
           # Fine-grained PAT with `contents: write` on amiwrpremium/homebrew-tap.
           # Create it in settings and store as the HOMEBREW_TAP_TOKEN secret.
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+      # Emit base64-encoded `<sha256>  <filename>` lines from
+      # dist/checksums.txt so the downstream SLSA generator job
+      # can attest over the full release artefact set in one
+      # provenance bundle.
+      - name: Compute SLSA subjects from checksums.txt
+        id: checksum-hashes
+        run: |
+          set -euo pipefail
+          if [ ! -f dist/checksums.txt ]; then
+            echo "::error::dist/checksums.txt missing after goreleaser run"
+            exit 1
+          fi
+          HASHES=$(base64 -w0 < dist/checksums.txt)
+          echo "hashes=$HASHES" >> "$GITHUB_OUTPUT"
+
+  # SLSA Level 3 generic generator. Pinned by tag, not SHA: the
+  # generator's builder-fetch step rejects SHA refs and requires
+  # `@vX.Y.Z` form, relying on TUF + sigstore signature
+  # verification of the builder binary instead. pin-check.yml's
+  # allow-list documents and permits this single carve-out.
+  provenance:
+    name: SLSA provenance
+    needs: goreleaser
+    if: ${{ always() && needs.goreleaser.result == 'success' }}
+    permissions:
+      actions: read
+      id-token: write
+      contents: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: ${{ needs.goreleaser.outputs.hashes }}
+      provenance-name: macontrol.intoto.jsonl
+      upload-assets: true
+      upload-tag-name: ${{ github.ref_name }}
