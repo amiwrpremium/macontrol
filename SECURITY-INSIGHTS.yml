@@ -162,6 +162,20 @@ security-testing:
       Configured in the GitHub repository settings; no in-repo
       workflow file.
 
+  - tool-type: sbom-generation
+    tool-name: syft
+    tool-version: latest-stable
+    tool-url: https://github.com/anchore/syft
+    integration:
+      ad-hoc: false
+      ci: true
+      before-release: true
+    tool-rulesets: []
+    comment: |
+      Generates CycloneDX + SPDX SBOMs per release archive via
+      the goreleaser `sboms:` block. Syft is installed in the
+      release workflow via anchore/sbom-action/download-syft.
+
 security-assessments: []
 
 security-contacts:

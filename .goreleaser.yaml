@@ -41,6 +41,24 @@ checksum:
   name_template: "checksums.txt"
   algorithm: sha256
 
+sboms:
+  # CycloneDX — broad downstream support (Snyk, Dependency-Track,
+  # GitHub Dependency Graph).
+  - id: cyclonedx
+    artifacts: archive
+    documents:
+      - "{{ .ArtifactName }}.sbom.cdx.json"
+    cmd: syft
+    args: ["${artifact}", "--output", "cyclonedx-json=${document}"]
+  # SPDX 2.3 — Linux Foundation / OpenSSF lingua franca; what
+  # `go-licenses` consumers commonly expect.
+  - id: spdx
+    artifacts: archive
+    documents:
+      - "{{ .ArtifactName }}.sbom.spdx.json"
+    cmd: syft
+    args: ["${artifact}", "--output", "spdx-json=${document}"]
+
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
 
