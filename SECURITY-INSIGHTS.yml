@@ -176,6 +176,22 @@ security-testing:
       the goreleaser `sboms:` block. Syft is installed in the
       release workflow via anchore/sbom-action/download-syft.
 
+  - tool-type: sigstore-signing
+    tool-name: cosign
+    tool-version: v4.1.2
+    tool-url: https://github.com/sigstore/cosign
+    integration:
+      ad-hoc: false
+      ci: true
+      before-release: true
+    tool-rulesets: []
+    comment: |
+      Keyless OIDC signatures on every release artefact (binaries,
+      checksums, SBOMs) via the goreleaser `signs:` block. .sig
+      and .cert files land in the GitHub Release; Fulcio certs +
+      the signature entry are recorded in the Rekor transparency
+      log.
+
 security-assessments: []
 
 security-contacts:

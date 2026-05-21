@@ -59,6 +59,24 @@ sboms:
     cmd: syft
     args: ["${artifact}", "--output", "spdx-json=${document}"]
 
+signs:
+  # Keyless OIDC via Sigstore: GitHub Actions mints a short-lived
+  # signing cert from Fulcio using the workflow's id-token, signs
+  # the blob, and records the signature in the Rekor transparency
+  # log. No long-lived key to rotate. `--output-signature` +
+  # `--output-certificate` let GoReleaser pick up the .sig + .cert
+  # outputs and upload them as additional release assets.
+  - id: cosign-keyless
+    cmd: cosign
+    artifacts: all
+    output: true
+    args:
+      - "sign-blob"
+      - "--yes"
+      - "--output-signature=${signature}"
+      - "--output-certificate=${certificate}"
+      - "${artifact}"
+
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
 
