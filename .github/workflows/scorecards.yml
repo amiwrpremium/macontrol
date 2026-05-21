@@ -30,6 +30,11 @@ jobs:
           results_file: results.sarif
           results_format: sarif
           publish_results: true
+          # `Administration: Read` PAT so the Branch-Protection check
+          # can read the full protection state (default GITHUB_TOKEN
+          # only exposes a partial view on public repos, which trips
+          # the check as a false-positive).
+          repo_token: ${{ secrets.SCORECARD_TOKEN }}
 
       - name: Upload SARIF artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
