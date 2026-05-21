@@ -1,0 +1,60 @@
+{
+  "_comment": "Branch ruleset for `master`. Imported once via `gh api repos/amiwrpremium/macontrol/rulesets --method POST --input .github/rulesets/branch-master.json`. Update in place: `gh api repos/.../rulesets/<id> --method PUT --input ...`. The ruleset supersedes the legacy branch-protection block in `.github/settings.yml`. Required-check `context` values are the GitHub-published check names — they match per-job `name:` fields in .github/workflows/{ci,codeql,extra-lint,gosec,dependency-review,gitleaks,trufflehog,trivy,license-check,pr-title}.yml. Note the `enforce SHA pinning` check from pin-check.yml is intentionally NOT in this list: pin-check.yml has a paths filter (only runs when .github/workflows/** or .github/actions/** change), so under strict_required_status_checks_policy it would block every release PR (which doesn't touch workflow files). pin-check still gates workflow-changing PRs because it runs on those events; it's just not a per-PR required check. The `required_signatures` rule is also absent: release-please-action and Renovate don't sign their commits, so requiring verified signatures on PR branch tips would permanently block every bot-driven PR. Master commits stay signed end-to-end because GitHub's web-flow API signs every squash-merge commit with its verified GPG key — the squash commit landing on master IS verified even when the PR branch's intermediate commits aren't. Conventional-commit format on the squash commit is covered by pr-title.yml (validates the PR title) plus `settings.yml`'s `squash_merge_commit_title: PR_TITLE`. The pull_request rule has required_approving_review_count: 0 and require_code_owner_review: false because the project is solo-maintained — there's no reviewer pool other than the author. Changes still must go through a PR (not direct push), and status checks + signing remain the substantive quality gate. When/if the project grows past one maintainer, raise the review count and flip code-owner review back on.",
+  "name": "master-branch-protection",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "include": ["refs/heads/master"],
+      "exclude": []
+    }
+  },
+  "bypass_actors": [
+    {
+      "actor_id": 5,
+      "actor_type": "RepositoryRole",
+      "bypass_mode": "always",
+      "_comment": "Repo admin role — GitHub's built-in admin role ID is 5. Lets the maintainer push emergency hotfixes directly when CI gates aren't appropriate (e.g. broken master, security patch). Day-to-day changes still go through PR."
+    }
+  ],
+  "rules": [
+    { "type": "deletion" },
+    { "type": "non_fast_forward" },
+    { "type": "required_linear_history" },
+    {
+      "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": 0,
+        "dismiss_stale_reviews_on_push": true,
+        "require_code_owner_review": false,
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": true
+      }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": true,
+        "required_status_checks": [
+          { "context": "Lint" },
+          { "context": "Test (ubuntu-latest)" },
+          { "context": "Test (macos-14)" },
+          { "context": "Build (darwin/arm64)" },
+          { "context": "Vulnerability scan" },
+          { "context": "Fuzz (short)" },
+          { "context": "Analyze (Go)" },
+          { "context": "extra-lint required" },
+          { "context": "gosec security scanner" },
+          { "context": "review" },
+          { "context": "scan history" },
+          { "context": "scan" },
+          { "context": "trivy filesystem" },
+          { "context": "trivy secrets" },
+          { "context": "trivy config (IaC)" },
+          { "context": "go-licenses" },
+          { "context": "Conventional Commits" }
+        ]
+      }
+    }
+  ]
+}

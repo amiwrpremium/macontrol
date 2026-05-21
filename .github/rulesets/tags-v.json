@@ -1,0 +1,25 @@
+{
+  "_comment": "Tag ruleset for release tags `v*`. Bypass is the repo admin role only — release.yml uses RELEASE_PLEASE_PAT (a maintainer-owned PAT), so tag creation runs *as the maintainer* (admin), not as github-actions[bot]. GitHub only honours bypass-actor entries of type Integration on org-level rulesets, not repo-level, so there's no entry for the release-please App. The `required_signatures` rule is intentionally absent: release-please-action creates lightweight (unsigned) tags via the API. With `required_signatures` active, every release would block on tag creation — the admin bypass would have to fire on every tag, which is theatre for an automated flow. The tag-creation/update/deletion rules + the matching branch ruleset on master + signed squash-merge commits are the substantive controls. Imported via `gh api repos/amiwrpremium/macontrol/rulesets --method POST --input .github/rulesets/tags-v.json`.",
+  "name": "release-tag-protection",
+  "target": "tag",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "include": ["refs/tags/v*"],
+      "exclude": []
+    }
+  },
+  "bypass_actors": [
+    {
+      "actor_id": 5,
+      "actor_type": "RepositoryRole",
+      "bypass_mode": "always",
+      "_comment": "Repo admin role — GitHub's built-in admin role ID is 5. Covers maintainer-driven tag creation via release-please (PAT-authenticated as the admin) and emergency tag operations."
+    }
+  ],
+  "rules": [
+    { "type": "creation" },
+    { "type": "update" },
+    { "type": "deletion" }
+  ]
+}
