@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.1](https://github.com/amiwrpremium/macontrol/compare/v1.0.0...v1.0.1) (2026-05-21)
+
+
+### Bug Fixes
+
+* **release:** use cosign --bundle for cosign v3+ compatibility ([772f7b7](https://github.com/amiwrpremium/macontrol/commit/772f7b7306036bccbaa11e75cfbb2ab80c232714))
+* **security:** drop redundant nolint:gosec comment ([0fb8aab](https://github.com/amiwrpremium/macontrol/commit/0fb8aab15b1fd4bbf639e4c9d4678f02f7f76e6e))
+* **security:** silence gosec G204/G304 false-positives ([2a849d3](https://github.com/amiwrpremium/macontrol/commit/2a849d3bd5933b2316098e67bf68a05260428d6f))
+
 ## 1.0.0 (2026-05-21)
 
 
