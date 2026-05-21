@@ -23,6 +23,10 @@ extend-ignore-re = [
 # Product / module / file name.
 macontrol = "macontrol"
 
+# in-toto attestation format (in-toto.io) — the SLSA L3 generator
+# emits `*.intoto.jsonl` provenance bundles.
+intoto = "intoto"
+
 # macOS CLIs the bot shells out to.
 osascript = "osascript"
 nowplaying = "nowplaying"
