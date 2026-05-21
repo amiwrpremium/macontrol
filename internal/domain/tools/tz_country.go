@@ -55,7 +55,11 @@ func loadZoneTab() {
 func parseZoneTab(path string) map[string]string {
 	// Path comes from the hardcoded zoneTabPaths allowlist above, not
 	// user input. Safe to read.
-	data, err := os.ReadFile(path) //nolint:gosec // G304: path is from a constant allowlist
+	// #nosec G304 -- path is from a constant allowlist (zoneTabPaths
+	// above). The trailing nolint:gosec satisfies golangci-lint; this
+	// leading directive satisfies the dedicated gosec binary used by
+	// .github/workflows/gosec.yml.
+	data, err := os.ReadFile(path) //nolint:gosec // G304: path from constant allowlist
 	if err != nil {
 		return nil
 	}
