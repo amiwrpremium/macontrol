@@ -21,6 +21,7 @@
   "packages": {
     ".": {
       "package-name": "macontrol",
+      "release-as": "1.0.0",
       "extra-files": [
         "internal/version/version.go"
       ]

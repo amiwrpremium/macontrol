@@ -256,7 +256,7 @@ Semantic versioning with [release-please](https://github.com/googleapis/release-
 - `feat!: …` or a `BREAKING CHANGE:` footer → major bump
 - `chore: …`, `docs: …`, `test: …`, etc. → no bump
 
-Pre-1.0 caveat: minor bumps **may** include breaking surface changes (the project is still finding the right CLI/keyboard shape). Once the bot reaches 1.0, breaking changes get major bumps only.
+Public surface stable as of v1.0.0: any breaking change to the Telegram command set, the inline-keyboard callback protocol, the CLI subcommands, the Keychain entry names, the sudoers fragment, or the LaunchAgent contract bumps the major version.
 
 Source-controlled semver lives in [`internal/version/version.go`](internal/version/version.go) (annotated `// x-release-please-version`); release-please rewrites that literal on every release cut. Commit + build date are stamped at link time by goreleaser ldflags.
 
