@@ -1,0 +1,255 @@
+# Repository settings — declarative, picked up by the
+# repository-settings/app GitHub App (the maintained fork of
+# probot/settings). Authoritative source of truth for repo
+# metadata, features, merge policy, the label palette, and a
+# fallback branch-protection rule on `master`.
+#
+# Branch and tag *rulesets* (newer, more powerful than branch
+# protection) live separately in `.github/rulesets/*.json` and
+# are imported via the GitHub REST API. The `branches:` block
+# below is kept as a safety net for installs where rulesets
+# have not yet been bootstrapped.
+#
+# Once installed, every push to `master` that touches this file
+# is reconciled against the live repo state. Drift detected ->
+# corrected.
+
+repository:
+  name: macontrol
+  description: Telegram bot that controls your Mac — system, media, network, power. Apple Silicon, macOS 11+.
+  homepage: https://github.com/amiwrpremium/macontrol
+  topics: >-
+    macos, macos-arm64, apple-silicon, telegram, telegram-bot,
+    go, golang, launchd, homebrew, mac, automation,
+    remote-control, system-control, daemon, conventional-commits
+
+  private: false
+  has_issues: true
+  has_projects: false
+  has_wiki: false
+  has_downloads: true
+  has_discussions: true
+
+  default_branch: master
+
+  allow_squash_merge: true
+  allow_merge_commit: false
+  allow_rebase_merge: false
+
+  squash_merge_commit_title: PR_TITLE
+  squash_merge_commit_message: PR_BODY
+
+  allow_auto_merge: true
+  delete_branch_on_merge: true
+  allow_update_branch: true
+
+  archived: false
+
+# ---------------------------------------------------------------------------
+# Label palette — every label referenced anywhere in the repo (issue
+# templates, Dependabot, Renovate, the labeler workflow, the stale
+# workflow) MUST appear here. Color choices follow GitHub's default-palette
+# intuitions: red = bad, blue = informational, green = good,
+# purple = meta/process, yellow = waiting, grey = neutral.
+# ---------------------------------------------------------------------------
+labels:
+  # ---- Type ----
+  - name: bug
+    color: d73a4a
+    description: Something isn't working
+  - name: enhancement
+    color: a2eeef
+    description: New feature or request
+  - name: documentation
+    color: 0075ca
+    description: Improvements or additions to documentation
+  - name: question
+    color: d876e3
+    description: Further information is requested
+  - name: security
+    color: b60205
+    description: Security-sensitive issue or fix
+
+  # ---- Status ----
+  - name: needs-review
+    color: fbca04
+    description: Awaiting maintainer review
+  - name: triage
+    color: ededed
+    description: New, not yet triaged (issue templates apply this on creation)
+  - name: needs-info
+    color: ededed
+    description: More information needed from reporter
+  - name: blocked
+    color: e99695
+    description: Blocked by another issue or external dependency
+  - name: wontfix
+    color: ffffff
+    description: This will not be worked on
+  - name: duplicate
+    color: cfd3d7
+    description: This issue or pull request already exists
+  - name: invalid
+    color: e4e669
+    description: This doesn't seem right
+  - name: stale
+    color: cfd3d7
+    description: Marked as stale by automation; will be closed soon
+
+  # ---- Flow ----
+  - name: breaking-change
+    color: b60205
+    description: Introduces a breaking change
+  - name: automerge
+    color: 0e8a16
+    description: Eligible for auto-merge once required checks pass
+  - name: do-not-merge
+    color: b60205
+    description: Block merging — work in progress or under discussion
+  - name: good first issue
+    color: 7057ff
+    description: Good for newcomers
+  - name: help wanted
+    color: 008672
+    description: Extra attention is needed
+  - name: release-blocker
+    color: b60205
+    description: Must be resolved before the next release
+  - name: pinned
+    color: 5319e7
+    description: Exempt from stale automation
+
+  # ---- Area (one per internal/domain package + cross-cutting concerns).
+  #      Same colour for the whole group so they scan as a family.
+  - name: 'area:apps'
+    color: 1d76db
+    description: internal/domain/apps — running-app management
+  - name: 'area:music'
+    color: 1d76db
+    description: internal/domain/music — Music.app playback + dashboard
+  - name: 'area:sound'
+    color: 1d76db
+    description: internal/domain/sound — system volume / mute / output device
+  - name: 'area:display'
+    color: 1d76db
+    description: internal/domain/display — brightness / Night Shift / wallpaper
+  - name: 'area:battery'
+    color: 1d76db
+    description: internal/domain/battery — battery / power-source status
+  - name: 'area:wifi'
+    color: 1d76db
+    description: internal/domain/wifi — Wi-Fi toggle / scan / connect
+  - name: 'area:bluetooth'
+    color: 1d76db
+    description: internal/domain/bluetooth — Bluetooth toggle / device list
+  - name: 'area:power'
+    color: 1d76db
+    description: internal/domain/power — lock / sleep / restart / shutdown
+  - name: 'area:system'
+    color: 1d76db
+    description: internal/domain/system — uptime / CPU / RAM / hostname
+  - name: 'area:media'
+    color: 1d76db
+    description: internal/domain/media — screenshot / webcam / clipboard
+  - name: 'area:notify'
+    color: 1d76db
+    description: internal/domain/notify — desktop notifications + voice
+  - name: 'area:tools'
+    color: 1d76db
+    description: internal/domain/tools — speedtest / public IP / DNS / ping
+  - name: 'area:status'
+    color: 1d76db
+    description: internal/domain/status — cross-cutting status aggregator
+  - name: 'area:bot'
+    color: 1d76db
+    description: internal/telegram/bot — Deps / dispatcher / Whitelist
+  - name: 'area:callbacks'
+    color: 1d76db
+    description: internal/telegram/callbacks — callback-data protocol + ShortMap
+  - name: 'area:flows'
+    color: 1d76db
+    description: internal/telegram/flows — multi-step flow registry
+  - name: 'area:runner'
+    color: 1d76db
+    description: internal/runner — subprocess execution boundary
+  - name: 'area:capability'
+    color: 1d76db
+    description: internal/capability — macOS feature detection
+  - name: 'area:config'
+    color: 1d76db
+    description: internal/config — Keychain-backed config + CLI flags
+  - name: 'area:keychain'
+    color: 1d76db
+    description: internal/keychain — macOS Keychain wrapper
+  - name: 'area:daemon'
+    color: 1d76db
+    description: cmd/macontrol — CLI entrypoint + daemon lifecycle
+  - name: 'area:ci'
+    color: 1d76db
+    description: .github/ + lint/format configs + Makefile + .goreleaser.yaml
+  - name: 'area:docs'
+    color: 1d76db
+    description: docs/ + README + CHANGELOG
+  - name: 'area:deps'
+    color: 1d76db
+    description: go.mod / go.sum updates
+
+  # ---- Dependencies ----
+  - name: dependencies
+    color: 0366d6
+    description: Pull requests that update a dependency
+  - name: go
+    color: 00add8
+    description: Go module update
+  - name: github-actions
+    color: '000000'
+    description: GitHub Actions workflow update
+  - name: major
+    color: b60205
+    description: Major version bump — manual review required
+  - name: review-required
+    color: fbca04
+    description: Manual review required (auto-merge skipped)
+
+# ---------------------------------------------------------------------------
+# Branch protection — fallback. The newer rulesets in
+# `.github/rulesets/branch-master.json` supersede this block once
+# imported, but having it here means a freshly forked / freshly
+# recreated repo is sane out of the box. Required-status-check names
+# match the per-job `name:` values in .github/workflows/*.yml.
+# ---------------------------------------------------------------------------
+branches:
+  - name: master
+    protection:
+      required_pull_request_reviews:
+        required_approving_review_count: 0
+        dismiss_stale_reviews: true
+        require_code_owner_reviews: false
+        require_last_push_approval: false
+      required_status_checks:
+        strict: true
+        contexts:
+          - Lint
+          - Test (ubuntu-latest)
+          - Test (macos-14)
+          - Build (darwin/arm64)
+          - Vulnerability scan
+          - Fuzz (short)
+          - Analyze (Go)
+          - extra-lint required
+          - gosec security scanner
+          - review
+          - scan history
+          - scan
+          - trivy filesystem
+          - trivy secrets
+          - trivy config (IaC)
+          - go-licenses
+          - Conventional Commits
+      enforce_admins: false
+      required_linear_history: true
+      allow_force_pushes: false
+      allow_deletions: false
+      required_conversation_resolution: true
+      required_signatures: true
+      restrictions: null
