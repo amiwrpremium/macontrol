@@ -162,6 +162,21 @@ security-testing:
       Configured in the GitHub repository settings; no in-repo
       workflow file.
 
+  - tool-type: secrets-scanner
+    tool-name: TruffleHog
+    tool-version: v3.95.3
+    tool-url: https://github.com/trufflesecurity/trufflehog
+    integration:
+      ad-hoc: false
+      ci: true
+      before-release: false
+    tool-rulesets: []
+    comment: |
+      Entropy + active-verifier secret scanning via
+      .github/workflows/trufflehog.yml. Complements the
+      regex-based gitleaks scanner; `--only-verified` keeps the
+      false-positive rate low.
+
   - tool-type: sbom-generation
     tool-name: syft
     tool-version: latest-stable
