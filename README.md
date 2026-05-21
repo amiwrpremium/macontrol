@@ -43,9 +43,9 @@
 [![Security Policy](https://img.shields.io/badge/security-policy-blue.svg)](./SECURITY.md)
 
 <!-- Coverage & code quality -->
-[![codecov](https://codecov.io/gh/amiwrpremium/macontrol/graph/badge.svg)](https://codecov.io/gh/amiwrpremium/macontrol)
-[![Codacy Coverage](https://app.codacy.com/project/badge/Coverage/3fbc46f6ab184fd7b4dad775ca6b30fa)](https://app.codacy.com/gh/amiwrpremium/macontrol/dashboard)
-[![Codacy Grade](https://app.codacy.com/project/badge/Grade/3fbc46f6ab184fd7b4dad775ca6b30fa)](https://app.codacy.com/gh/amiwrpremium/macontrol/dashboard)
+[![codecov](https://codecov.io/gh/amiwrpremium/macontrol/graph/badge.svg?token=C4EDK8FGIG)](https://codecov.io/gh/amiwrpremium/macontrol)
+[![Codacy Coverage](https://app.codacy.com/project/badge/Coverage/c7ba3674cb67472fa432b87f6d0aff34)](https://app.codacy.com/gh/amiwrpremium/macontrol/dashboard)
+[![Codacy Grade](https://app.codacy.com/project/badge/Grade/c7ba3674cb67472fa432b87f6d0aff34)](https://app.codacy.com/gh/amiwrpremium/macontrol/dashboard)
 [![Go Report Card](https://goreportcard.com/badge/github.com/amiwrpremium/macontrol)](https://goreportcard.com/report/github.com/amiwrpremium/macontrol)
 
 <!-- Release & versioning -->
