@@ -22,7 +22,7 @@ package version
 // maintained by release-please via the trailing
 // `// x-release-please-version` annotation; do not edit by
 // hand.
-const Version = "1.0.1" // x-release-please-version
+const Version = "1.0.2" // x-release-please-version
 
 // Commit and Date are stamped at link time by goreleaser.
 // Local builds (`go run`, `go build` without explicit
