@@ -13,8 +13,12 @@ permissions:
   contents: read
   pull-requests: write
 
+# For pull_request_target events, github.ref resolves to refs/heads/<base>
+# (master), which means two simultaneous PRs share a concurrency group and
+# the older one's run gets cancelled when the newer one arrives. Use the PR
+# number when present so the group is per-PR.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:

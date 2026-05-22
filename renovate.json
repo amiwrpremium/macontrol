@@ -4,7 +4,6 @@
     "config:recommended",
     ":dependencyDashboard",
     ":semanticCommits",
-    ":semanticCommitTypeAll(deps)",
     ":enableVulnerabilityAlertsWithLabel(security)",
     "group:allNonMajor",
     "schedule:weekly",
