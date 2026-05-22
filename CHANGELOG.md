@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.2](https://github.com/amiwrpremium/macontrol/compare/v1.0.1...v1.0.2) (2026-05-22)
+
+
+### Bug Fixes
+
+* **ci:** repair Renovate semantic-commit type + per-PR labeler concurrency ([a5c92bf](https://github.com/amiwrpremium/macontrol/commit/a5c92bf347495a7f04af22c9436fdf1692b09fd7))
+* **deps:** update module github.com/go-telegram/bot to v1.21.0 ([#7](https://github.com/amiwrpremium/macontrol/issues/7)) ([e7423e3](https://github.com/amiwrpremium/macontrol/commit/e7423e32fcb99c7f4f1ef3964f0ccf27567b816d))
+
 ## [1.0.1](https://github.com/amiwrpremium/macontrol/compare/v1.0.0...v1.0.1) (2026-05-21)
 
 
